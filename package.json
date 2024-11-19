@@ -1,0 +1,28 @@
+{
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "glob": "^11.0.0"
+  },
+  "name": "aesthetic-king",
+  "description": "",
+  "version": "1.1.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slimhercules953/Aesthetic-king.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/slimhercules953/Aesthetic-king/issues"
+  },
+  "homepage": "https://github.com/slimhercules953/Aesthetic-king#readme",
+  "devDependencies": {
+    "eslint": "^9.15.0"
+  }
+}
