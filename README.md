@@ -90,7 +90,11 @@ We welcome contributions! Here's how you can help:
 ---
 
 ## **Contact**  
+<<<<<<< HEAD
 - **Creator**: [SlimHercules953](https://github.com/slimhercules953)  
+=======
+- **Creator**: [SlimHercules953](https://github.com/slimhercules953)
+>>>>>>> 02519ffd997b3abdd4fbefb7b5a1dca8f95ff74f
 - **Discord**: P4rz1val  
 
 ---
