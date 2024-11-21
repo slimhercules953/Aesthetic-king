@@ -1,12 +1,13 @@
 {
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.696.0",
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.5",
     "glob": "^11.0.0"
   },
   "name": "aesthetic-king",
   "description": "",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "main": "index.js",
   "scripts": {
     "start": "node ."
