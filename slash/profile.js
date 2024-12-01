@@ -72,12 +72,12 @@ module.exports = {
         const embeds = [];
         const attachments = [];
         // Loop for "pfp" images
-const pfpFiles = files.filter(file => file.includes('pfp'));
-for (const fileKey of pfpFiles) {
-    const imageBufferPFP = await fetchImageBuffer(bucketName, fileKey);
-    const attachment = new AttachmentBuilder(imageBufferPFP, { name: fileKey });
-    attachments.push(attachment);
-}
+        const pfpFiles = files.filter(file => file.includes('pfp'));
+        for (const fileKey of pfpFiles) {
+            const imageBufferPFP = await fetchImageBuffer(bucketName, fileKey);
+            const attachment = new AttachmentBuilder(imageBufferPFP, { name: fileKey });
+            attachments.push(attachment);
+        }
 
 // Loop for "banner" images
 const bannerFiles = files.filter(file => file.includes('banner'));

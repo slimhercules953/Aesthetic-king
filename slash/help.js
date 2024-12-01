@@ -3,7 +3,7 @@ const fs = require("fs");
 
 module.exports = {
     name: "help",
-    description: "Sends help embed that can be cycled and changed as the user clicks buttons or select menu",
+    description: "Sends a help command that displays the currently available commands",
     options: [], // Add options if needed
     run: async (client, interaction, args) => {
         const usernameofperson = interaction.user

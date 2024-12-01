@@ -7,6 +7,8 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
+./slash/test.js
+
 # Config json file
 config.json
 
