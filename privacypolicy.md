@@ -75,7 +75,7 @@ This policy may be updated from time to time. Changes will be:
 
 For questions, concerns, or feedback, please contact us:
  - Username: P4rz1val
- - Support Server: [Authentic Aesthetics](<https://discord.gg/B7VbSU2m>)
+ - Support Server: [Authentic Aesthetics](<https://discord.gg/gWVNterjmH>)
 
 
 Thank you for using **Aesthetic King**!

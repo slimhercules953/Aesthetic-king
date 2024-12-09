@@ -66,7 +66,7 @@ Refer to our [Privacy Policy](https://github.com/slimhercules953/Aesthetic-king/
 
 For questions, concerns, or feedback, please contact us:
  - Username: P4rz1val
- - Support Server: [Authentic Aesthetics](<https://discord.gg/B7VbSU2m>)
+ - Support Server: [Authentic Aesthetics](<https://discord.gg/gWVNterjmH>)
 
 
 Thank you for using **Aesthetic King**! By adhering to these terms, you help create a safe and enjoyable environment for everyone.
