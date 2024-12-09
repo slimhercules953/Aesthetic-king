@@ -1,8 +1,10 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai")
 const { createCanvas, loadImage } = require('canvas');
 const fs = require('fs');
+const getColors = require('get-image-colors');
 const { S3Client, ListObjectsV2Command, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { AttachmentBuilder } = require("discord.js")
+const fetch = require('node-fetch'); // Needed to fetch images from URLs
 
 // Configure AWS SDK for Cloudflare R2
 const r2 = new S3Client({
@@ -82,22 +84,47 @@ module.exports = {
         const pfpurl = pfpFiles[0].split(" ").join("%20")
         const bannerurl = bannerFiles[0].split(" ").join("%20")
 
-    const imageResp = await fetch(
-        `https://pub-d57423038d524235af4d68d744e4aaf2.r2.dev/${pfpurl}`
-    )
-        .then((response) => response.arrayBuffer());
+        const testurl = `https://pub-d57423038d524235af4d68d744e4aaf2.r2.dev/${bannerurl}`
+        // Fetch the image and create a buffer
+        const response = await fetch(testurl);
+        if (!response.ok) throw new Error('Failed to fetch the image.');
+        const imageBuffer = await response.buffer();
 
-    const result = await model.generateContent([
-        {
-            inlineData: {
-                data: Buffer.from(imageResp).toString("base64"),
-                mimeType: "image/jpeg",
-            },
-        },
-        'What are the 3 most prominent color of this image in hexadecimal ? ONLY REPLY WITH 3 HEXADECIMAL IN ONE LINE SEPERATED WITH A SPACE THAT ARE NOT SIMILAR TO WHITE OR BLACK',
-    ]);
-    const str = result.response.text()
-    const words = str.split(' ');
+        // Extract colors using get-image-colors
+        const hmm = await getColors(imageBuffer, 'image/jpeg'); // Specify the image type (e.g., 'image/png' or 'image/jpeg')
+
+        if (!hmm.length) {
+        await interaction.followUp({
+            content: 'No colors could be extracted from the provided image.',
+            ephemeral: true,
+        });
+        return;
+        }
+        
+        // Format extracted colors
+        const colorDescriptions = hmm
+        .map((color1, index) => {
+            const hex = color1.hex();
+            return `**Color ${index + 1}:** ${hex}`;
+        })
+        .join('\n');
+
+    // const imageResp = await fetch(
+    //     `https://pub-d57423038d524235af4d68d744e4aaf2.r2.dev/${pfpurl}`
+    // )
+    //     .then((response) => response.arrayBuffer());
+
+    // const result = await model.generateContent([
+    //     {
+    //         inlineData: {
+    //             data: Buffer.from(imageResp).toString("base64"),
+    //             mimeType: "image/jpeg",
+    //         },
+    //     },
+    //     'What are the 3 most prominent color of this image in hexadecimal ? ONLY REPLY WITH 3 HEXADECIMAL IN ONE LINE SEPERATED WITH A SPACE THAT ARE NOT SIMILAR TO WHITE OR BLACK',
+    // ]);
+    // const str = result.response.text()
+    // const color1 = str.split(' ');
     // Helper function to fetch an image buffer from R2
     async function fetchImageBuffer(bucketName, imageKey) {
     const command = new GetObjectCommand({ Bucket: bucketName, Key: imageKey });
@@ -140,7 +167,7 @@ module.exports = {
     // Main function to draw the design
     async function drawDesign() {
         // Step 1: Black Background
-        ctx.fillStyle = words[2]; // Black background
+        ctx.fillStyle = hmm[4].hex(); // Black background
         ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
         // Add the new rectangle
@@ -202,18 +229,18 @@ module.exports = {
         ctx.fillText('Primary Color', primaryTextAbovePositionX, primaryTextAbovePositionY);
 
         // Draw the rounded rectangle with the new variable names
-        drawRoundedRect(ctx, boxX, boxY, boxWidth, boxHeight, cornerRadius, words[0]);
+        drawRoundedRect(ctx, boxX, boxY, boxWidth, boxHeight, cornerRadius, hmm[0].hex());
 
         // Set the text properties
         ctx.fillStyle = '#ffffff'; // White text
-        ctx.font = '20px Arial';
+        ctx.font = '35px Arial';
 
         // Calculate the position to center the text inside the box
-        const textPositionX = boxX + (boxWidth / 2) - (ctx.measureText(words[0]).width / 2); // Center text horizontally
-        const textPositionY = boxY + (boxHeight / 2) + 6; // Center text vertically (adjust for font size)
+        const textPositionX = boxX + (boxWidth / 2) - (ctx.measureText(hmm[0].hex()).width / 2); // Center text horizontally
+        const textPositionY = boxY + (boxHeight / 2) + 8; // Center text vertically (adjust for font size)
 
         // Draw the centered text
-        ctx.fillText(words[0], textPositionX, textPositionY);
+        ctx.fillText(hmm[0].hex(), textPositionX, textPositionY);
 
     
         // Step 4: Secondary Color Box
@@ -234,18 +261,18 @@ module.exports = {
 
 
         // Draw the rounded rectangle with the new variable names for secondary
-        drawRoundedRect(ctx, secondaryBoxX, secondaryBoxY, secondaryBoxWidth, secondaryBoxHeight, secondaryCornerRadius, words[1]);
+        drawRoundedRect(ctx, secondaryBoxX, secondaryBoxY, secondaryBoxWidth, secondaryBoxHeight, secondaryCornerRadius, hmm[1].hex());
 
         // Set the text properties
         ctx.fillStyle = '#ffffff'; // White text
-        ctx.font = '20px Arial';
+        ctx.font = '35px Arial';
 
         // Calculate the position to center the text inside the secondary box
-        const secondaryTextPositionX = secondaryBoxX + (secondaryBoxWidth / 2) - (ctx.measureText(words[1]).width / 2); // Center text horizontally
-        const secondaryTextPositionY = secondaryBoxY + (secondaryBoxHeight / 2) + 6; // Center text vertically (adjust for font size)
+        const secondaryTextPositionX = secondaryBoxX + (secondaryBoxWidth / 2) - (ctx.measureText(hmm[1].hex()).width / 2); // Center text horizontally
+        const secondaryTextPositionY = secondaryBoxY + (secondaryBoxHeight / 2) + 8; // Center text vertically (adjust for font size)
 
         // Draw the centered text inside the secondary box
-        ctx.fillText(words[1], secondaryTextPositionX, secondaryTextPositionY);
+        ctx.fillText(hmm[1].hex(), secondaryTextPositionX, secondaryTextPositionY);
 
     
         // Rectangle coordinates (from the HTML <area> tag for the third rectangle)

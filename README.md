@@ -47,7 +47,7 @@ Before setting up the bot, ensure you have the following:
 3. **Set up environment variables**  
    Create a `.env` file in the root directory with the following:  
    ```env
-   DISCORD_TOKEN=your_discord_token_here  
+   TOKEN=your_discord_token_here  
    ```  
 
 4. **Run the bot**  
@@ -90,12 +90,8 @@ We welcome contributions! Here's how you can help:
 ---
 
 ## **Contact**  
-<<<<<<< HEAD
 - **Creator**: [SlimHercules953](https://github.com/slimhercules953)  
-=======
-- **Creator**: [SlimHercules953](https://github.com/slimhercules953)
->>>>>>> 02519ffd997b3abdd4fbefb7b5a1dca8f95ff74f
-- **Discord**: P4rz1val  
+- **Discord**: P4rz1val
 
 ---
 
