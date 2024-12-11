@@ -13,6 +13,7 @@ const r2 = new S3Client({
   credentials: {
     accessKeyId: process.env.r2accesskey, // Your R2 access key
     secretAccessKey: process.env.r2SAK,  // Your R2 secret key
+    // sessionToken: process.env.r2token,
   },
 });
 
