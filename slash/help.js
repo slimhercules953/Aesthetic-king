@@ -26,7 +26,7 @@ module.exports = {
             .setTimestamp()
             .setColor("DarkButNotBlack")
         
-            exampleEmbed.setDescription(`These are the available commands for ${client.user.tag}\nThe bot uses slash commands as prefix commands are now deprecated.\n${description}`)
+            exampleEmbed.setDescription(`These are the available commands for ${client.user.tag}\nThe bot uses slash commands as prefix commands are now deprecated.\n${description}\n\nHere is the support server link: [Authentic Aesthetics](<https://discord.gg/gWVNterjmH>)`)
             //exampleEmbed.setFooter(`${client.user.tag} | Total commands ${client.commands.size}`)
         interaction.followUp({ embeds: [exampleEmbed]})
     }
