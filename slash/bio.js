@@ -18,7 +18,7 @@ module.exports = {
     run: async (client, interaction, args) => {
         const input = interaction.options.getString('prompt');
         const response = await openai.chat.completions.create({
-            model: "gemini-1.5-flash",
+            model: "gemini-2.5-flash",
             messages: [
                 { role: "system", content: "You are a discord bot that generates aesthetic discord bios. Only send one response" },
                 {
