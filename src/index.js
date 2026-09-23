@@ -8,6 +8,7 @@ const config = require("./config/env");
 const logger = require("./utils/logger");
 const loadCommands = require("./loaders/commandLoader");
 const loadEvents = require("./loaders/eventLoader");
+const loadButtons = require("./loaders/buttonLoader");
 
 async function startBot() {
     const client = new Client({
@@ -17,6 +18,7 @@ async function startBot() {
     });
 
     client.commands = new Collection();
+    client.buttons = new Collection();
 
     try {
         logger.info(
@@ -24,6 +26,7 @@ async function startBot() {
         );
 
         loadCommands(client);
+        loadButtons(client);
         loadEvents(client);
 
         await client.login(
