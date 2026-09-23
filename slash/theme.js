@@ -97,7 +97,6 @@ module.exports = {
         if (!hmm.length) {
         await interaction.followUp({
             content: 'No colors could be extracted from the provided image.',
-            ephemeral: true,
         });
         return;
         }
