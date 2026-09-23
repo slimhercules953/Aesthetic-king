@@ -34,7 +34,7 @@ function buildProfileResponse(profileSet) {
     const buttons = new ActionRowBuilder()
         .addComponents(
             new ButtonBuilder()
-                .setCustomId("profile:reroll")
+                .setCustomId(`profile:reroll:${profileSet.id}`)
                 .setLabel("New Profile")
                 .setStyle(ButtonStyle.Primary),
 
@@ -61,8 +61,12 @@ module.exports = {
     async execute(interaction) {
         await interaction.deferUpdate();
 
+        const parts = interaction.customId.split(":");
+
+        const currentSetId = parts[2] || null;
+
         const profileSet =
-            await getRandomProfileSet();
+            await getRandomProfileSet(currentSetId);
 
         await interaction.editReply(
             buildProfileResponse(profileSet)

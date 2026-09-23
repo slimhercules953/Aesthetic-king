@@ -28,10 +28,14 @@ module.exports = {
             }
 
             if (interaction.isButton()) {
-                const buttonHandler = client.buttons.get(
-                    interaction.customId
-                );
+                const baseCustomId = interaction.customId
+                    .split(":")
+                    .slice(0, 2)
+                    .join(":");
 
+                const buttonHandler = client.buttons.get(
+                    baseCustomId
+                );
                 if (!buttonHandler) {
                     logger.warn(
                         `Button handler not found: ${interaction.customId}`

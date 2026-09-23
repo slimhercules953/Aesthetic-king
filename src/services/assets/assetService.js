@@ -111,7 +111,7 @@ async function getCompleteProfileSets() {
     );
 }
 
-async function getRandomProfileSet() {
+async function getRandomProfileSet(excludeSetId = null) {
     const sets = await getCompleteProfileSets();
 
     if (sets.length === 0) {
@@ -120,10 +120,19 @@ async function getRandomProfileSet() {
         );
     }
 
-    const randomIndex =
-        Math.floor(Math.random() * sets.length);
+    let availableSets = sets;
 
-    return sets[randomIndex];
+    if (excludeSetId && sets.length > 1) {
+        availableSets = sets.filter(
+            (set) => set.id !== excludeSetId
+        );
+    }
+
+    const randomIndex = Math.floor(
+        Math.random() * availableSets.length
+    );
+
+    return availableSets[randomIndex];
 }
 
 async function getAssetBuffer(key) {
