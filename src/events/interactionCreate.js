@@ -1,4 +1,4 @@
-const { Events } = require("discord.js");
+const { Events, MessageFlags } = require("discord.js");
 const logger = require("../utils/logger");
 
 module.exports = {
@@ -58,7 +58,7 @@ module.exports = {
             const response = {
                 content:
                     "Something went wrong while processing that interaction.",
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
             };
 
             if (

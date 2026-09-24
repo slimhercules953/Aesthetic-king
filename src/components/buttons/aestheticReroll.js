@@ -4,6 +4,7 @@ const {
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
+    MessageFlags,
 } = require("discord.js");
 
 const {
@@ -27,21 +28,13 @@ const {
     renderProfilePreview,
 } = require("../../services/rendering/profileRenderer");
 
-function encodeState(value) {
-    return Buffer
-        .from(value || "", "utf8")
-        .toString("base64url");
-}
-
-function decodeState(value) {
-    if (!value) {
-        return "";
-    }
-
-    return Buffer
-        .from(value, "base64url")
-        .toString("utf8");
-}
+const {
+    createState,
+    getState,
+    updateState,
+} = require(
+    "../../services/interactions/interactionStateService"
+);
 
 async function buildAestheticResponse({
     interaction,
@@ -50,6 +43,7 @@ async function buildAestheticResponse({
     request = "",
     excludeSetId = null,
     fixedProfileSet = null,
+    stateId = null,
 }) {
     let profileSet;
 
@@ -114,6 +108,7 @@ async function buildAestheticResponse({
                 },
 
                 profileSet: null,
+                stateId: null,
             };
         }
 
@@ -156,7 +151,8 @@ async function buildAestheticResponse({
         new AttachmentBuilder(
             previewBuffer,
             {
-                name: "aesthetic-profile.png",
+                name:
+                    "aesthetic-profile.png",
             }
         );
 
@@ -168,6 +164,36 @@ async function buildAestheticResponse({
             ),
             16
         );
+
+    let resolvedStateId =
+        stateId;
+
+    if (!resolvedStateId) {
+        resolvedStateId =
+            createState({
+                userId:
+                    interaction.user.id,
+
+                aestheticId,
+                color,
+                request,
+
+                profileSetId:
+                    profileSet.id,
+
+                bio,
+            });
+    } else {
+        updateState(
+            resolvedStateId,
+            {
+                profileSetId:
+                    profileSet.id,
+
+                bio,
+            }
+        );
+    }
 
     const embed =
         new EmbedBuilder()
@@ -226,21 +252,15 @@ async function buildAestheticResponse({
             )
             .setFooter({
                 text:
-                    `Aesthetic King • Set ${profileSet.id}`,
+                    `Aesthetic King • Set ${profileSet.id} • Controls expire in 5 minutes`,
             });
-
-    const encodedPrompt =
-        encodeState(request);
-
-    const colorState =
-        color || "any";
 
     const buttons =
         new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
                     .setCustomId(
-                        `aesthetic:reroll:${aestheticId}:${colorState}:${profileSet.id}:${encodedPrompt}`
+                        `aesthetic:reroll:${resolvedStateId}`
                     )
                     .setLabel(
                         "New Aesthetic"
@@ -251,7 +271,7 @@ async function buildAestheticResponse({
 
                 new ButtonBuilder()
                     .setCustomId(
-                        `aesthetic:bio:${aestheticId}:${colorState}:${profileSet.id}:${encodedPrompt}`
+                        `aesthetic:bio:${resolvedStateId}`
                     )
                     .setLabel(
                         "New Bio"
@@ -272,7 +292,9 @@ async function buildAestheticResponse({
                     ),
 
                 new ButtonBuilder()
-                    .setLabel("Banner")
+                    .setLabel(
+                        "Banner"
+                    )
                     .setStyle(
                         ButtonStyle.Link
                     )
@@ -289,41 +311,65 @@ async function buildAestheticResponse({
         },
 
         profileSet,
+        stateId:
+            resolvedStateId,
     };
+}
+
+async function sendExpiredResponse(
+    interaction
+) {
+    await interaction.reply({
+        content:
+            "✦ This aesthetic session has expired. Run `/aesthetic` again to create a new one.",
+        flags: MessageFlags.Ephemeral,
+    });
 }
 
 module.exports = {
     customId: "aesthetic:reroll",
 
     async execute(interaction) {
-        await interaction.deferUpdate();
-
         const parts =
             interaction.customId.split(
                 ":"
             );
 
-        const aestheticId =
+        const stateId =
             parts[2];
 
-        const colorState =
-            parts[3];
+        const state =
+            getState(stateId);
 
-        const currentSetId =
-            parts[4];
-
-        const encodedPrompt =
-            parts.slice(5).join(":");
-
-        const color =
-            colorState === "any"
-                ? null
-                : colorState;
-
-        const request =
-            decodeState(
-                encodedPrompt
+        if (!state) {
+            await sendExpiredResponse(
+                interaction
             );
+
+            return;
+        }
+
+        if (
+            state.data.userId !==
+            interaction.user.id
+        ) {
+            await interaction.reply({
+                content:
+                    "Only the person who generated this aesthetic can use these controls.",
+                flags: MessageFlags.Ephemeral,
+            });
+
+            return;
+        }
+
+        await interaction.deferUpdate();
+
+        const {
+            aestheticId,
+            color,
+            request,
+            profileSetId,
+        } = state.data;
 
         const {
             payload,
@@ -334,7 +380,8 @@ module.exports = {
                 color,
                 request,
                 excludeSetId:
-                    currentSetId,
+                    profileSetId,
+                stateId,
             });
 
         await interaction.editReply(
@@ -343,5 +390,5 @@ module.exports = {
     },
 
     buildAestheticResponse,
-    decodeState,
+    sendExpiredResponse,
 };

@@ -1,44 +1,68 @@
 const {
     getMatchingProfileSets,
-} = require("../../services/aesthetics/aestheticService");
+} = require(
+    "../../services/aesthetics/aestheticService"
+);
+
+const {
+    MessageFlags,
+} = require("discord.js");
+
+const {
+    getState,
+} = require(
+    "../../services/interactions/interactionStateService"
+);
 
 const {
     buildAestheticResponse,
-    decodeState,
+    sendExpiredResponse,
 } = require("./aestheticReroll");
 
 module.exports = {
     customId: "aesthetic:bio",
 
     async execute(interaction) {
-        await interaction.deferUpdate();
-
         const parts =
             interaction.customId.split(
                 ":"
             );
 
-        const aestheticId =
+        const stateId =
             parts[2];
 
-        const colorState =
-            parts[3];
+        const state =
+            getState(stateId);
 
-        const setId =
-            parts[4];
-
-        const encodedPrompt =
-            parts.slice(5).join(":");
-
-        const color =
-            colorState === "any"
-                ? null
-                : colorState;
-
-        const request =
-            decodeState(
-                encodedPrompt
+        if (!state) {
+            await sendExpiredResponse(
+                interaction
             );
+
+            return;
+        }
+
+        if (
+            state.data.userId !==
+            interaction.user.id
+        ) {
+            await interaction.reply({
+                content:
+                    "Only the person who generated this aesthetic can use these controls.",
+                flags: MessageFlags.Ephemeral,
+            });
+
+            return;
+        }
+
+        await interaction.deferUpdate();
+
+        const {
+            aestheticId,
+            color,
+            request,
+            profileSetId,
+        } = state.data;
 
         const matchingSets =
             await getMatchingProfileSets({
@@ -49,13 +73,18 @@ module.exports = {
         const profileSet =
             matchingSets.find(
                 (set) =>
-                    set.id === setId
+                    set.id ===
+                    profileSetId
             );
 
         if (!profileSet) {
-            throw new Error(
-                `Profile set ${setId} is no longer available for ${aestheticId}.`
-            );
+            await interaction.followUp({
+                content:
+                    "That profile set is no longer available. Run `/aesthetic` again.",
+                flags: MessageFlags.Ephemeral,
+            });
+
+            return;
         }
 
         const {
@@ -68,6 +97,7 @@ module.exports = {
                 request,
                 fixedProfileSet:
                     profileSet,
+                stateId,
             });
 
         await interaction.editReply(
