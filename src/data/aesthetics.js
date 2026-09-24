@@ -57,7 +57,151 @@ const aesthetics = {
         aiGuidance:
             "Use concise, atmospheric, mysterious language with a dark modern tone.",
     },
+    horror: {
+        id: "horror",
+        name: "Horror",
+        description:
+            "Eerie, unsettling, cinematic, and macabre.",
+        moods: [
+            "eerie",
+            "ominous",
+            "macabre",
+            "dramatic",
+        ],
+        colors: [
+            "#090909",
+            "#3A0A0A",
+            "#7A1010",
+            "#D8D8D8",
+            "#556B57",
+        ],
+        symbols: [
+            "☠",
+            "†",
+            "⛧",
+            "𖤐",
+            "☾",
+        ],
+        aiGuidance:
+            "Use eerie, atmospheric, cinematic language. Keep it aesthetic rather than graphic or excessively violent.",
+    },
 
+    nature: {
+        id: "nature",
+        name: "Nature",
+        description:
+            "Forests, skies, flowers, landscapes, and organic beauty.",
+        moods: [
+            "peaceful",
+            "natural",
+            "calm",
+            "earthy",
+        ],
+        colors: [
+            "#567D46",
+            "#8BA888",
+            "#B8C9A3",
+            "#D8E2C4",
+            "#F2E8CF",
+        ],
+        symbols: [
+            "❀",
+            "☘",
+            "𖥧",
+            "𖤣",
+            "☁",
+        ],
+        aiGuidance:
+            "Use calm nature-inspired imagery involving forests, flowers, skies, seasons, and natural scenery.",
+    },
+
+    luxury: {
+        id: "luxury",
+        name: "Luxury",
+        description:
+            "Elegant, refined, polished, and sophisticated.",
+        moods: [
+            "elegant",
+            "refined",
+            "warm",
+            "sophisticated",
+        ],
+        colors: [
+            "#0F0F0F",
+            "#49392C",
+            "#A47E3B",
+            "#D4AF61",
+            "#F4E7D3",
+        ],
+        symbols: [
+            "✦",
+            "◇",
+            "♛",
+            "❦",
+            "✧",
+        ],
+        aiGuidance:
+            "Use elegant and sophisticated language with restrained decorative elements and a polished tone.",
+    },
+
+    grunge: {
+        id: "grunge",
+        name: "Grunge",
+        description:
+            "Raw, moody, distressed, alternative, and imperfect.",
+        moods: [
+            "moody",
+            "raw",
+            "rebellious",
+            "chaotic",
+        ],
+        colors: [
+            "#111111",
+            "#3E3A36",
+            "#6A625A",
+            "#8B3030",
+            "#B7ADA1",
+        ],
+        symbols: [
+            "✦",
+            "×",
+            "†",
+            "⛓",
+            "★",
+        ],
+        aiGuidance:
+            "Use raw, alternative, slightly messy and moody language without becoming excessively aggressive.",
+    },
+
+    monochrome: {
+        id: "monochrome",
+        name: "Monochrome",
+        description:
+            "Black, white, gray, clean contrast, and restrained expression.",
+        moods: [
+            "minimal",
+            "calm",
+            "moody",
+            "clean",
+        ],
+        colors: [
+            "#050505",
+            "#333333",
+            "#777777",
+            "#CCCCCC",
+            "#FFFFFF",
+        ],
+        symbols: [
+            "○",
+            "●",
+            "◇",
+            "—",
+            "✦",
+        ],
+        aiGuidance:
+            "Use restrained, clean, high-contrast language with minimal decoration.",
+    },
+    
     kawaii: {
         id: "kawaii",
         name: "Kawaii",
@@ -385,7 +529,7 @@ function getAesthetic(id) {
 
     return (
         aesthetics[
-            id.toLowerCase().trim()
+        id.toLowerCase().trim()
         ] || null
     );
 }

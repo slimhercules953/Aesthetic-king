@@ -77,6 +77,79 @@ function drawImageCover(
     );
 }
 
+function drawWrappedText(
+    ctx,
+    text,
+    x,
+    y,
+    maxWidth,
+    lineHeight,
+    maxLines = 3
+) {
+    const words = text.split(/\s+/);
+
+    let line = "";
+    let currentY = y;
+    let linesDrawn = 0;
+
+    for (let index = 0; index < words.length; index++) {
+        const word = words[index];
+
+        const testLine =
+            line.length > 0
+                ? `${line} ${word}`
+                : word;
+
+        const testWidth =
+            ctx.measureText(
+                testLine
+            ).width;
+
+        if (
+            testWidth > maxWidth &&
+            line.length > 0
+        ) {
+            ctx.fillText(
+                line,
+                x,
+                currentY
+            );
+
+            linesDrawn++;
+
+            if (
+                linesDrawn >= maxLines
+            ) {
+                return (
+                    currentY +
+                    lineHeight
+                );
+            }
+
+            line = word;
+
+            currentY += lineHeight;
+        } else {
+            line = testLine;
+        }
+    }
+
+    if (
+        line.length > 0 &&
+        linesDrawn < maxLines
+    ) {
+        ctx.fillText(
+            line,
+            x,
+            currentY
+        );
+
+        currentY += lineHeight;
+    }
+
+    return currentY;
+}
+
 function drawCircularImage(
     ctx,
     image,
@@ -109,6 +182,35 @@ function drawCircularImage(
     );
 
     ctx.restore();
+}
+
+function getContrastTextColor(hexColor) {
+    const hex = hexColor.replace("#", "");
+
+    const r = parseInt(
+        hex.substring(0, 2),
+        16
+    );
+
+    const g = parseInt(
+        hex.substring(2, 4),
+        16
+    );
+
+    const b = parseInt(
+        hex.substring(4, 6),
+        16
+    );
+
+    // Relative perceived brightness.
+    const luminance =
+        (0.299 * r) +
+        (0.587 * g) +
+        (0.114 * b);
+
+    return luminance > 160
+        ? "#000000"
+        : "#FFFFFF";
 }
 
 async function renderProfilePreview({
@@ -146,8 +248,7 @@ async function renderProfilePreview({
         colors[4]?.hex || "#111214";
 
     const canvasWidth = 900;
-    const canvasHeight = 900;
-
+    const canvasHeight = 960;
     const canvas = createCanvas(
         canvasWidth,
         canvasHeight
@@ -178,7 +279,7 @@ async function renderProfilePreview({
         70,
         60,
         760,
-        780,
+        840,
         28,
         "#1E1F22"
     );
@@ -273,81 +374,118 @@ async function renderProfilePreview({
     ctx.fillStyle = "#B5BAC1";
     ctx.font = "24px Arial";
 
-    ctx.fillText(
-        bio,
-        130,
-        520
-    );
+    const bioBottomY =
+        drawWrappedText(
+            ctx,
+            bio,
+            130,
+            520,
+            640,
+            32,
+            3
+        );
 
     // Divider
+    const dividerY =
+        Math.max(
+            bioBottomY + 20,
+            575
+        );
+
     ctx.fillStyle = "#2B2D31";
 
     ctx.fillRect(
         130,
-        555,
+        dividerY,
         640,
         2
     );
 
     // Palette heading
+    const paletteHeadingY =
+        dividerY + 55;
+
     ctx.fillStyle = "#F2F3F5";
     ctx.font = "bold 25px Arial";
 
     ctx.fillText(
         "Profile Palette",
         130,
-        610
+        paletteHeadingY
     );
 
-    // Primary color
+    // Palette boxes
+    const paletteBoxY =
+        paletteHeadingY + 35;
+
+    const paletteBoxHeight = 105;
+
     drawRoundedRect(
         ctx,
         130,
-        645,
+        paletteBoxY,
         295,
-        105,
+        paletteBoxHeight,
         18,
         primaryColor
     );
 
-    // Secondary color
     drawRoundedRect(
         ctx,
         475,
-        645,
+        paletteBoxY,
         295,
-        105,
+        paletteBoxHeight,
         18,
         secondaryColor
     );
 
     // Hex labels
+    const paletteTextY =
+        paletteBoxY + 65;
+
     ctx.font = "bold 24px Arial";
-    ctx.fillStyle = "#FFFFFF";
     ctx.textAlign = "center";
+
+    // Primary hex label
+    ctx.fillStyle =
+        getContrastTextColor(
+            primaryColor
+        );
 
     ctx.fillText(
         primaryColor,
         277,
-        710
+        paletteTextY
     );
+
+    // Secondary hex label
+    ctx.fillStyle =
+        getContrastTextColor(
+            secondaryColor
+        );
 
     ctx.fillText(
         secondaryColor,
         622,
-        710
+        paletteTextY
     );
 
     ctx.textAlign = "start";
 
     // Footer
+    const footerY =
+        paletteBoxY +
+        paletteBoxHeight +
+        32;
+
     ctx.fillStyle = "#949BA4";
     ctx.font = "18px Arial";
 
     ctx.fillText(
         "Aesthetic King • Profile Preview",
         130,
-        800
+        footerY
     );
 
     return canvas.toBuffer("image/png");
