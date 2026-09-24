@@ -34,7 +34,14 @@ const config = {
     },
 
     ai: {
-        geminiApiKey: process.env.GEMINI_API_KEY || null,
+        ollamaUrl:
+            process.env.OLLAMA_URL || null,
+
+        ollamaModel:
+            process.env.OLLAMA_MODEL || null,
+
+        geminiApiKey:
+            process.env.GEMINI_API_KEY || null,
     },
 };
 
