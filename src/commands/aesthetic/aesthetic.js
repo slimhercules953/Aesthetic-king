@@ -29,6 +29,31 @@ module.exports = {
         )
         .addStringOption((option) =>
             option
+                .setName("color")
+                .setDescription(
+                    "Optionally filter the aesthetic by color."
+                )
+                .setRequired(false)
+                .addChoices(
+                    { name: "Black", value: "black" },
+                    { name: "White", value: "white" },
+                    { name: "Gray", value: "gray" },
+                    { name: "Red", value: "red" },
+                    { name: "Orange", value: "orange" },
+                    { name: "Yellow", value: "yellow" },
+                    { name: "Green", value: "green" },
+                    { name: "Teal", value: "teal" },
+                    { name: "Blue", value: "blue" },
+                    { name: "Indigo", value: "indigo" },
+                    { name: "Purple", value: "purple" },
+                    { name: "Pink", value: "pink" },
+                    { name: "Brown", value: "brown" },
+                    { name: "Cream", value: "cream" },
+                    { name: "Gold", value: "gold" }
+                )
+        )
+        .addStringOption((option) =>
+            option
                 .setName("prompt")
                 .setDescription(
                     "Optional inspiration for your bio."
@@ -46,6 +71,11 @@ module.exports = {
                 true
             );
 
+        const color =
+            interaction.options.getString(
+                "color"
+            ) || null;
+
         const request =
             interaction.options.getString(
                 "prompt"
@@ -57,6 +87,7 @@ module.exports = {
             await buildAestheticResponse({
                 interaction,
                 aestheticId,
+                color,
                 request,
             });
 

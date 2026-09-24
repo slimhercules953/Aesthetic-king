@@ -28,9 +28,9 @@ function getMimeTypeFromExtension(extension) {
     }
 
     switch (
-    extension
-        .toLowerCase()
-        .replace(".", "")
+        extension
+            .toLowerCase()
+            .replace(".", "")
     ) {
         case "jpg":
         case "jpeg":
@@ -47,9 +47,51 @@ function getMimeTypeFromExtension(extension) {
     }
 }
 
+function detectMimeTypeFromBuffer(buffer) {
+    if (!Buffer.isBuffer(buffer)) {
+        return null;
+    }
+
+    // JPEG
+    if (
+        buffer.length >= 3 &&
+        buffer[0] === 0xff &&
+        buffer[1] === 0xd8 &&
+        buffer[2] === 0xff
+    ) {
+        return "image/jpeg";
+    }
+
+    // PNG
+    if (
+        buffer.length >= 8 &&
+        buffer[0] === 0x89 &&
+        buffer[1] === 0x50 &&
+        buffer[2] === 0x4e &&
+        buffer[3] === 0x47 &&
+        buffer[4] === 0x0d &&
+        buffer[5] === 0x0a &&
+        buffer[6] === 0x1a &&
+        buffer[7] === 0x0a
+    ) {
+        return "image/png";
+    }
+
+    // WebP
+    if (
+        buffer.length >= 12 &&
+        buffer.toString("ascii", 0, 4) === "RIFF" &&
+        buffer.toString("ascii", 8, 12) === "WEBP"
+    ) {
+        return "image/webp";
+    }
+
+    return null;
+}
+
 async function extractColors(
     imageBuffer,
-    mimeType
+    mimeType = null
 ) {
     if (!Buffer.isBuffer(imageBuffer)) {
         throw new TypeError(
@@ -57,7 +99,11 @@ async function extractColors(
         );
     }
 
+    const detectedMimeType =
+        detectMimeTypeFromBuffer(imageBuffer);
+
     const normalizedMimeType =
+        detectedMimeType ||
         normalizeMimeType(mimeType);
 
     if (
@@ -67,7 +113,10 @@ async function extractColors(
         )
     ) {
         throw new Error(
-            `Unsupported image type: ${mimeType || "unknown"
+            `Unsupported or unknown image type: ${
+                normalizedMimeType ||
+                mimeType ||
+                "unknown"
             }`
         );
     }
@@ -111,6 +160,9 @@ async function extractColorsFromAsset(asset) {
     }
 
     const mimeType =
+        detectMimeTypeFromBuffer(
+            asset.buffer
+        ) ||
         asset.mimeType ||
         getMimeTypeFromExtension(
             asset.extension
@@ -126,4 +178,5 @@ module.exports = {
     extractColors,
     extractColorsFromAsset,
     getMimeTypeFromExtension,
+    detectMimeTypeFromBuffer,
 };

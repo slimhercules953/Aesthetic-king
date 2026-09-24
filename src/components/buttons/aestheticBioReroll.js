@@ -21,11 +21,19 @@ module.exports = {
         const aestheticId =
             parts[2];
 
-        const setId =
+        const colorState =
             parts[3];
 
+        const setId =
+            parts[4];
+
         const encodedPrompt =
-            parts.slice(4).join(":");
+            parts.slice(5).join(":");
+
+        const color =
+            colorState === "any"
+                ? null
+                : colorState;
 
         const request =
             decodeState(
@@ -35,6 +43,7 @@ module.exports = {
         const matchingSets =
             await getMatchingProfileSets({
                 aestheticId,
+                color,
             });
 
         const profileSet =
@@ -55,6 +64,7 @@ module.exports = {
             await buildAestheticResponse({
                 interaction,
                 aestheticId,
+                color,
                 request,
                 fixedProfileSet:
                     profileSet,

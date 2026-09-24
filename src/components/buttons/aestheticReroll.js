@@ -46,18 +46,79 @@ function decodeState(value) {
 async function buildAestheticResponse({
     interaction,
     aestheticId,
+    color = null,
     request = "",
     excludeSetId = null,
     fixedProfileSet = null,
 }) {
-    const profileSet =
-        fixedProfileSet ||
-        await getRandomMatchingProfileSet(
-            {
-                aestheticId,
-            },
-            excludeSetId
-        );
+    let profileSet;
+
+    try {
+        profileSet =
+            fixedProfileSet ||
+            await getRandomMatchingProfileSet(
+                {
+                    aestheticId,
+                    color,
+                },
+                excludeSetId
+            );
+    } catch (error) {
+        if (
+            error.message ===
+            "No profile sets match the requested aesthetic filters."
+        ) {
+            const {
+                getAesthetic,
+            } = require("../../data/aesthetics");
+
+            const aesthetic =
+                getAesthetic(aestheticId);
+
+            const aestheticName =
+                aesthetic?.name ||
+                aestheticId;
+
+            const colorName =
+                color
+                    ? color.charAt(0).toUpperCase() +
+                    color.slice(1)
+                    : null;
+
+            const description =
+                colorName
+                    ? `No **${aestheticName} + ${colorName}** profile sets are available yet.\n\nTry another color or generate **${aestheticName}** without a color filter.`
+                    : `No **${aestheticName}** profile sets are available yet.`;
+
+            const embed =
+                new EmbedBuilder()
+                    .setTitle(
+                        "✦ No Matching Aesthetic Found"
+                    )
+                    .setDescription(
+                        description
+                    )
+                    .setColor(
+                        0x5865F2
+                    )
+                    .setFooter({
+                        text:
+                            "Aesthetic King • Asset Library",
+                    });
+
+            return {
+                payload: {
+                    embeds: [embed],
+                    components: [],
+                    files: [],
+                },
+
+                profileSet: null,
+            };
+        }
+
+        throw error;
+    }
 
     const bannerBuffer =
         await getAssetBuffer(
@@ -95,8 +156,7 @@ async function buildAestheticResponse({
         new AttachmentBuilder(
             previewBuffer,
             {
-                name:
-                    "aesthetic-profile.png",
+                name: "aesthetic-profile.png",
             }
         );
 
@@ -138,6 +198,17 @@ async function buildAestheticResponse({
                     inline: true,
                 },
                 {
+                    name: "Color Filter",
+                    value:
+                        color
+                            ? color
+                                .charAt(0)
+                                .toUpperCase() +
+                            color.slice(1)
+                            : "Any",
+                    inline: true,
+                },
+                {
                     name: "Profile Picture",
                     value:
                         `[Open image](${profileSet.pfp.url})`,
@@ -161,12 +232,15 @@ async function buildAestheticResponse({
     const encodedPrompt =
         encodeState(request);
 
+    const colorState =
+        color || "any";
+
     const buttons =
         new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
                     .setCustomId(
-                        `aesthetic:reroll:${aestheticId}:${profileSet.id}:${encodedPrompt}`
+                        `aesthetic:reroll:${aestheticId}:${colorState}:${profileSet.id}:${encodedPrompt}`
                     )
                     .setLabel(
                         "New Aesthetic"
@@ -177,7 +251,7 @@ async function buildAestheticResponse({
 
                 new ButtonBuilder()
                     .setCustomId(
-                        `aesthetic:bio:${aestheticId}:${profileSet.id}:${encodedPrompt}`
+                        `aesthetic:bio:${aestheticId}:${colorState}:${profileSet.id}:${encodedPrompt}`
                     )
                     .setLabel(
                         "New Bio"
@@ -198,9 +272,7 @@ async function buildAestheticResponse({
                     ),
 
                 new ButtonBuilder()
-                    .setLabel(
-                        "Banner"
-                    )
+                    .setLabel("Banner")
                     .setStyle(
                         ButtonStyle.Link
                     )
@@ -234,11 +306,19 @@ module.exports = {
         const aestheticId =
             parts[2];
 
-        const currentSetId =
+        const colorState =
             parts[3];
 
+        const currentSetId =
+            parts[4];
+
         const encodedPrompt =
-            parts.slice(4).join(":");
+            parts.slice(5).join(":");
+
+        const color =
+            colorState === "any"
+                ? null
+                : colorState;
 
         const request =
             decodeState(
@@ -251,6 +331,7 @@ module.exports = {
             await buildAestheticResponse({
                 interaction,
                 aestheticId,
+                color,
                 request,
                 excludeSetId:
                     currentSetId,
