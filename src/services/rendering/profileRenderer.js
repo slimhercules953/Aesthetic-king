@@ -3,6 +3,40 @@ const {
     loadImage,
 } = require("canvas");
 
+const BODY_FONT =
+    '"Segoe UI Symbol", "DejaVu Sans", Arial, sans-serif';
+
+const SAFE_SYMBOL_REPLACEMENTS = new Map([
+    ["𖤐", "✦"],
+    ["꩜", "✧"],
+    ["𓆩♡𓆪", "♡"],
+    ["꒰ა", "♡"],
+    ["໒꒱", "♡"],
+    ["𖡼", "✿"],
+    ["𖤣", "✦"],
+    ["𖥧", "✧"],
+]);
+
+function sanitizeCanvasText(text) {
+    if (!text) {
+        return "";
+    }
+
+    let sanitized = text;
+
+    for (
+        const [symbol, replacement]
+        of SAFE_SYMBOL_REPLACEMENTS
+    ) {
+        sanitized = sanitized.replaceAll(
+            symbol,
+            replacement
+        );
+    }
+
+    return sanitized;
+}
+
 function drawRoundedRect(
     ctx,
     x,
@@ -362,22 +396,23 @@ async function renderProfilePreview({
 
     // Username
     ctx.fillStyle = "#F2F3F5";
-    ctx.font = "bold 34px Arial";
+    ctx.font = `bold 34px ${BODY_FONT}`;
 
     ctx.fillText(
         username,
         130,
         475
     );
-
+    const canvasBio =
+        sanitizeCanvasText(bio);
     // Bio
     ctx.fillStyle = "#B5BAC1";
-    ctx.font = "24px Arial";
+    ctx.font = `24px ${BODY_FONT}`;
 
     const bioBottomY =
         drawWrappedText(
             ctx,
-            bio,
+            canvasBio,
             130,
             520,
             640,
@@ -406,8 +441,8 @@ async function renderProfilePreview({
         dividerY + 55;
 
     ctx.fillStyle = "#F2F3F5";
-    ctx.font = "bold 25px Arial";
-
+    ctx.font = `bold 25px ${BODY_FONT}`;
+    
     ctx.fillText(
         "Profile Palette",
         130,

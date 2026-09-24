@@ -10,6 +10,10 @@ const {
     buildAestheticResponse,
 } = require("../../components/buttons/aestheticReroll");
 
+const {
+    getMoodChoices,
+} = require("../../data/moods");
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("aesthetic")
@@ -54,6 +58,17 @@ module.exports = {
         )
         .addStringOption((option) =>
             option
+                .setName("mood")
+                .setDescription(
+                    "Optionally choose the mood of your aesthetic."
+                )
+                .setRequired(false)
+                .addChoices(
+                    ...getMoodChoices()
+                )
+        )
+        .addStringOption((option) =>
+            option
                 .setName("prompt")
                 .setDescription(
                     "Optional inspiration for your bio."
@@ -64,6 +79,11 @@ module.exports = {
 
     async execute(interaction) {
         await interaction.deferReply();
+
+        const mood =
+            interaction.options.getString(
+                "mood"
+            ) || null;
 
         const aestheticId =
             interaction.options.getString(
@@ -88,6 +108,7 @@ module.exports = {
                 interaction,
                 aestheticId,
                 color,
+                mood,
                 request,
             });
 

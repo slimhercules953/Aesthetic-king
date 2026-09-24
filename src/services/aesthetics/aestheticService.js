@@ -19,6 +19,125 @@ function normalizeTag(value) {
         .trim();
 }
 
+const MOOD_ALIASES = {
+    dreamy: [
+        "dreamy",
+        "ethereal",
+        "surreal",
+        "floaty",
+    ],
+
+    soft: [
+        "soft",
+        "gentle",
+        "cute",
+        "delicate",
+    ],
+
+    romantic: [
+        "romantic",
+        "affectionate",
+        "intimate",
+    ],
+
+    moody: [
+        "moody",
+        "dark",
+        "melancholic",
+        "night",
+        "atmospheric",
+    ],
+
+    mysterious: [
+        "mysterious",
+        "enigmatic",
+        "secretive",
+    ],
+
+    energetic: [
+        "energetic",
+        "vibrant",
+        "bold",
+        "active",
+    ],
+
+    calm: [
+        "calm",
+        "relaxed",
+        "quiet",
+    ],
+
+    elegant: [
+        "elegant",
+        "refined",
+        "sophisticated",
+        "graceful",
+    ],
+
+    dramatic: [
+        "dramatic",
+        "intense",
+        "expressive",
+    ],
+
+    eerie: [
+        "eerie",
+        "ominous",
+        "macabre",
+        "haunting",
+        "unsettling",
+    ],
+
+    nostalgic: [
+        "nostalgic",
+        "retro",
+        "sentimental",
+    ],
+
+    peaceful: [
+        "peaceful",
+        "tranquil",
+        "serene",
+        "natural",
+    ],
+
+    minimal: [
+        "minimal",
+        "clean",
+        "restrained",
+        "simple",
+    ],
+};
+
+function matchesMood(
+    assetMoods = [],
+    requestedMood
+) {
+    if (!requestedMood) {
+        return true;
+    }
+
+    const normalizedRequestedMood =
+        normalizeTag(requestedMood);
+
+    const acceptedMoods =
+        MOOD_ALIASES[
+        normalizedRequestedMood
+        ] || [
+            normalizedRequestedMood,
+        ];
+
+    const normalizedAssetMoods =
+        assetMoods.map(normalizeTag);
+
+    return acceptedMoods.some(
+        (mood) =>
+            normalizedAssetMoods.includes(
+                normalizeTag(mood)
+            )
+    );
+}
+
 function getCatalogSetsByAesthetic(
     aestheticId
 ) {
@@ -76,7 +195,8 @@ function getCatalogSetsByMood(mood) {
         (set) =>
             set.enabled !== false &&
             Array.isArray(set.moods) &&
-            set.moods.includes(
+            matchesMood(
+                set.moods,
                 normalizedMood
             )
     );
@@ -135,7 +255,8 @@ function filterCatalog({
 
             if (
                 normalizedMood &&
-                !set.moods?.includes(
+                !matchesMood(
+                    set.moods,
                     normalizedMood
                 )
             ) {
@@ -238,7 +359,7 @@ async function getRandomMatchingProfileSet(
     const randomIndex =
         Math.floor(
             Math.random() *
-                availableSets.length
+            availableSets.length
         );
 
     return availableSets[

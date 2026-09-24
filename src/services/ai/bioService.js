@@ -47,6 +47,9 @@ RULES:
 - Decorative Unicode symbols are allowed.
 - Do not overload the bio with symbols.
 - Make the result feel intentionally written rather than generic.
+- Only use decorative symbols from the SYMBOL INSPIRATION list provided above.
+- Do not invent additional Unicode symbols.
+- Prefer common symbols that render reliably on Discord and standard fonts.
 `.trim();
 }
 
