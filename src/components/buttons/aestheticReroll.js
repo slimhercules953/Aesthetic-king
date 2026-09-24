@@ -36,10 +36,26 @@ const {
     "../../services/interactions/interactionStateService"
 );
 
+const {
+    getAesthetic,
+} = require("../../data/aesthetics");
+
+function formatFilterName(value) {
+    if (!value) {
+        return null;
+    }
+
+    return (
+        value.charAt(0).toUpperCase() +
+        value.slice(1)
+    );
+}
+
 async function buildAestheticResponse({
     interaction,
     aestheticId,
     color = null,
+    mood = null,
     request = "",
     excludeSetId = null,
     fixedProfileSet = null,
@@ -54,6 +70,7 @@ async function buildAestheticResponse({
                 {
                     aestheticId,
                     color,
+                    mood,
                 },
                 excludeSetId
             );
@@ -62,27 +79,52 @@ async function buildAestheticResponse({
             error.message ===
             "No profile sets match the requested aesthetic filters."
         ) {
-            const {
-                getAesthetic,
-            } = require("../../data/aesthetics");
-
             const aesthetic =
                 getAesthetic(aestheticId);
 
             const aestheticName =
                 aesthetic?.name ||
-                aestheticId;
+                formatFilterName(
+                    aestheticId
+                );
 
-            const colorName =
-                color
-                    ? color.charAt(0).toUpperCase() +
-                    color.slice(1)
-                    : null;
+            const activeFilters = [
+                aestheticName,
+                formatFilterName(color),
+                formatFilterName(mood),
+            ].filter(Boolean);
+
+            const filterDisplay =
+                activeFilters.join(" • ");
+
+            const optionalFilters = [
+                color && "color",
+                mood && "mood",
+            ].filter(Boolean);
+
+            let suggestion;
+
+            if (
+                optionalFilters.length ===
+                2
+            ) {
+                suggestion =
+                    "Try removing the color or mood filter to broaden your results.";
+            } else if (
+                optionalFilters.length ===
+                1
+            ) {
+                suggestion =
+                    `Try removing the ${optionalFilters[0]} filter to broaden your results.`;
+            } else {
+                suggestion =
+                    "There are currently no profile sets available for this aesthetic.";
+            }
 
             const description =
-                colorName
-                    ? `No **${aestheticName} + ${colorName}** profile sets are available yet.\n\nTry another color or generate **${aestheticName}** without a color filter.`
-                    : `No **${aestheticName}** profile sets are available yet.`;
+                `No profile sets currently match:\n` +
+                `**${filterDisplay}**\n\n` +
+                suggestion;
 
             const embed =
                 new EmbedBuilder()
@@ -138,12 +180,20 @@ async function buildAestheticResponse({
 
     const previewBuffer =
         await renderProfilePreview({
-            pfpUrl: profileSet.pfp.url,
-            bannerUrl: profileSet.banner.url,
+            pfpUrl:
+                profileSet.pfp.url,
+
+            bannerUrl:
+                profileSet.banner.url,
+
             colors,
+
             username:
-                interaction.user.globalName ||
-                interaction.user.username,
+                interaction.user
+                    .globalName ||
+                interaction.user
+                    .username,
+
             bio,
         });
 
@@ -176,6 +226,7 @@ async function buildAestheticResponse({
 
                 aestheticId,
                 color,
+                mood,
                 request,
 
                 profileSetId:
@@ -203,7 +254,9 @@ async function buildAestheticResponse({
             .setDescription(
                 "A complete matching Discord aesthetic generated for you."
             )
-            .setColor(embedColor)
+            .setColor(
+                embedColor
+            )
             .addFields(
                 {
                     name: "Bio",
@@ -224,18 +277,29 @@ async function buildAestheticResponse({
                     inline: true,
                 },
                 {
-                    name: "Color Filter",
+                    name:
+                        "Color Filter",
                     value:
                         color
-                            ? color
-                                .charAt(0)
-                                .toUpperCase() +
-                            color.slice(1)
+                            ? formatFilterName(
+                                  color
+                              )
                             : "Any",
                     inline: true,
                 },
                 {
-                    name: "Profile Picture",
+                    name: "Mood",
+                    value:
+                        mood
+                            ? formatFilterName(
+                                  mood
+                              )
+                            : "Any",
+                    inline: true,
+                },
+                {
+                    name:
+                        "Profile Picture",
                     value:
                         `[Open image](${profileSet.pfp.url})`,
                     inline: true,
@@ -306,11 +370,16 @@ async function buildAestheticResponse({
     return {
         payload: {
             embeds: [embed],
-            files: [attachment],
-            components: [buttons],
+            files: [
+                attachment,
+            ],
+            components: [
+                buttons,
+            ],
         },
 
         profileSet,
+
         stateId:
             resolvedStateId,
     };
@@ -322,14 +391,19 @@ async function sendExpiredResponse(
     await interaction.reply({
         content:
             "✦ This aesthetic session has expired. Run `/aesthetic` again to create a new one.",
-        flags: MessageFlags.Ephemeral,
+
+        flags:
+            MessageFlags.Ephemeral,
     });
 }
 
 module.exports = {
-    customId: "aesthetic:reroll",
+    customId:
+        "aesthetic:reroll",
 
-    async execute(interaction) {
+    async execute(
+        interaction
+    ) {
         const parts =
             interaction.customId.split(
                 ":"
@@ -356,7 +430,9 @@ module.exports = {
             await interaction.reply({
                 content:
                     "Only the person who generated this aesthetic can use these controls.",
-                flags: MessageFlags.Ephemeral,
+
+                flags:
+                    MessageFlags.Ephemeral,
             });
 
             return;
@@ -367,6 +443,7 @@ module.exports = {
         const {
             aestheticId,
             color,
+            mood,
             request,
             profileSetId,
         } = state.data;
@@ -378,9 +455,12 @@ module.exports = {
                 interaction,
                 aestheticId,
                 color,
+                mood,
                 request,
+
                 excludeSetId:
                     profileSetId,
+
                 stateId,
             });
 

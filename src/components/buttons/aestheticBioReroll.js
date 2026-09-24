@@ -1,12 +1,12 @@
 const {
+    MessageFlags,
+} = require("discord.js");
+
+const {
     getMatchingProfileSets,
 } = require(
     "../../services/aesthetics/aestheticService"
 );
-
-const {
-    MessageFlags,
-} = require("discord.js");
 
 const {
     getState,
@@ -49,7 +49,9 @@ module.exports = {
             await interaction.reply({
                 content:
                     "Only the person who generated this aesthetic can use these controls.",
-                flags: MessageFlags.Ephemeral,
+
+                flags:
+                    MessageFlags.Ephemeral,
             });
 
             return;
@@ -60,6 +62,7 @@ module.exports = {
         const {
             aestheticId,
             color,
+            mood,
             request,
             profileSetId,
         } = state.data;
@@ -68,6 +71,7 @@ module.exports = {
             await getMatchingProfileSets({
                 aestheticId,
                 color,
+                mood,
             });
 
         const profileSet =
@@ -81,7 +85,9 @@ module.exports = {
             await interaction.followUp({
                 content:
                     "That profile set is no longer available. Run `/aesthetic` again.",
-                flags: MessageFlags.Ephemeral,
+
+                flags:
+                    MessageFlags.Ephemeral,
             });
 
             return;
@@ -94,9 +100,12 @@ module.exports = {
                 interaction,
                 aestheticId,
                 color,
+                mood,
                 request,
+
                 fixedProfileSet:
                     profileSet,
+
                 stateId,
             });
 
