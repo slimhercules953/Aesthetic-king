@@ -65,6 +65,8 @@ module.exports = {
             mood,
             request,
             profileSetId,
+            username,
+            status,
         } = state.data;
 
         const matchingSets =
@@ -105,6 +107,12 @@ module.exports = {
 
                 fixedProfileSet:
                     profileSet,
+
+                fixedUsername:
+                    username,
+
+                fixedStatus:
+                    status,
 
                 stateId,
             });

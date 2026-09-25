@@ -3,10 +3,6 @@ const {
 } = require("discord.js");
 
 const {
-    generateBio,
-} = require("../../services/ai/bioService");
-
-const {
     getAestheticChoices,
 } = require("../../data/aesthetics");
 
@@ -55,20 +51,15 @@ module.exports = {
                 "prompt"
             ) || "";
 
-        const {
-            bio,
-            aesthetic,
-        } = await generateBio({
-            aestheticId,
-            request,
-        });
+        const response =
+            await buildBioResponse({
+                interaction,
+                aestheticId,
+                request,
+            });
 
         await interaction.editReply(
-            buildBioResponse({
-                bio,
-                aesthetic,
-                request,
-            })
+            response
         );
     },
 };

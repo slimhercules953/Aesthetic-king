@@ -37,6 +37,14 @@ const {
 );
 
 const {
+    generateStatuses,
+} = require("../../services/ai/statusService");
+
+const {
+    generateUsernames,
+} = require("../../services/ai/usernameService");
+
+const {
     getAesthetic,
 } = require("../../data/aesthetics");
 
@@ -60,6 +68,8 @@ async function buildAestheticResponse({
     excludeSetId = null,
     fixedProfileSet = null,
     stateId = null,
+    fixedUsername = null,
+    fixedStatus = null,
 }) {
     let profileSet;
 
@@ -177,23 +187,44 @@ async function buildAestheticResponse({
         aestheticId,
         request,
     });
+    let username =
+        fixedUsername;
 
+    if (!username) {
+        const usernameResult =
+            await generateUsernames({
+                aestheticId,
+                moodId: mood,
+                request,
+            });
+
+        username =
+            usernameResult.usernames[0];
+    }
+
+    let status =
+        fixedStatus;
+
+    if (!status) {
+        const statusResult =
+            await generateStatuses({
+                aestheticId,
+                moodId: mood,
+                request,
+            });
+
+        status =
+            statusResult.statuses[0];
+    }
     const previewBuffer =
         await renderProfilePreview({
             pfpUrl:
                 profileSet.pfp.url,
-
             bannerUrl:
                 profileSet.banner.url,
 
             colors,
-
-            username:
-                interaction.user
-                    .globalName ||
-                interaction.user
-                    .username,
-
+            username,
             bio,
         });
 
@@ -232,7 +263,9 @@ async function buildAestheticResponse({
                 profileSetId:
                     profileSet.id,
 
+                username,
                 bio,
+                status,
             });
     } else {
         updateState(
@@ -241,7 +274,9 @@ async function buildAestheticResponse({
                 profileSetId:
                     profileSet.id,
 
+                username,
                 bio,
+                status,
             }
         );
     }
@@ -259,8 +294,16 @@ async function buildAestheticResponse({
             )
             .addFields(
                 {
+                    name: "Username",
+                    value: `\`${username}\``,
+                },
+                {
                     name: "Bio",
                     value: bio,
+                },
+                {
+                    name: "Status",
+                    value: status,
                 },
                 {
                     name: "Palette",
@@ -277,13 +320,12 @@ async function buildAestheticResponse({
                     inline: true,
                 },
                 {
-                    name:
-                        "Color Filter",
+                    name: "Color Filter",
                     value:
                         color
                             ? formatFilterName(
-                                  color
-                              )
+                                color
+                            )
                             : "Any",
                     inline: true,
                 },
@@ -292,14 +334,13 @@ async function buildAestheticResponse({
                     value:
                         mood
                             ? formatFilterName(
-                                  mood
-                              )
+                                mood
+                            )
                             : "Any",
                     inline: true,
                 },
                 {
-                    name:
-                        "Profile Picture",
+                    name: "Profile Picture",
                     value:
                         `[Open image](${profileSet.pfp.url})`,
                     inline: true,
