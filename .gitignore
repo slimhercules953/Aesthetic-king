@@ -134,3 +134,4 @@ dist
 .pnp.*
 output-v2-theme.png
 asset-contact-sheet.png
+/src/generated/prisma

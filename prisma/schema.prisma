@@ -1,0 +1,230 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  discordId String   @unique
+
+  username    String?
+  displayName String?
+  avatarHash  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  savedAesthetics SavedAesthetic[]
+  savedPalettes   SavedPalette[]
+  collections     Collection[]
+  favorites       FavoriteAsset[]
+  history         GenerationHistory[]
+  entitlements    Entitlement[]
+  patchNotices    PatchNotification[]
+}
+
+model SavedAesthetic {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generationId String? @unique
+
+  name String
+
+  aestheticId String
+  moodId      String?
+  colorFilter String?
+
+  profileSetId String?
+
+  usernameIdea String?
+  bio          String?
+  status       String?
+
+  symbols String[]
+  palette String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([aestheticId])
+}
+
+model SavedPalette {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name String?
+
+  aestheticId String?
+  moodId      String?
+
+  colors String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model FavoriteAsset {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  assetType AssetType
+  assetKey  String
+  setId     String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, assetKey])
+  @@index([userId])
+}
+
+model Collection {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items CollectionItem[]
+
+  @@index([userId])
+}
+
+model CollectionItem {
+  id           String     @id @default(cuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  itemType CollectionItemType
+  itemId   String
+
+  createdAt DateTime @default(now())
+
+  @@unique([collectionId, itemType, itemId])
+  @@index([collectionId])
+}
+
+model Guild {
+  id        String @id @default(cuid())
+  discordId String @unique
+
+  name     String?
+  iconHash String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  settings GuildSettings?
+}
+
+model GuildSettings {
+  id      String @id @default(cuid())
+  guildId String @unique
+  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  defaultAestheticId String?
+  defaultMoodId      String?
+
+  generationChannelId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model GenerationHistory {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type GenerationType
+
+  aestheticId String?
+  moodId      String?
+
+  data Json
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model PatchNote {
+  id String @id @default(cuid())
+
+  version String @unique
+  title   String
+  body    String
+
+  publishedAt DateTime @default(now())
+
+  notifications PatchNotification[]
+}
+
+model PatchNotification {
+  userId  String
+  patchId String
+
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patch PatchNote @relation(fields: [patchId], references: [id], onDelete: Cascade)
+
+  notifiedAt DateTime @default(now())
+
+  @@id([userId, patchId])
+}
+
+model Entitlement {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type EntitlementType
+
+  source String?
+  active Boolean @default(true)
+
+  startsAt DateTime @default(now())
+  endsAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+enum AssetType {
+  PFP
+  BANNER
+}
+
+enum CollectionItemType {
+  AESTHETIC
+  PALETTE
+  ASSET
+}
+
+enum GenerationType {
+  AESTHETIC
+  BIO
+  STATUS
+  USERNAME
+  PALETTE
+}
+
+enum EntitlementType {
+  PREMIUM
+  SERVER_PREMIUM
+}

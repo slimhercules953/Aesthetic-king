@@ -405,7 +405,17 @@ async function buildAestheticResponse({
                     )
                     .setURL(
                         profileSet.banner.url
+                    ),
+                    new ButtonBuilder()
+                    .setCustomId(
+                        `aesthetic:save:${resolvedStateId}`
                     )
+                    .setLabel(
+                        "Save Aesthetic"
+                    )
+                    .setStyle(
+                        ButtonStyle.Success
+                    ),
             );
 
     return {
