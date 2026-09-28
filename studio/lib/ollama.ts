@@ -1,0 +1,60 @@
+import {
+    env,
+} from "cloudflare:workers";
+
+type OllamaGenerateResponse = {
+    response: string;
+};
+
+export async function generateOllamaText(
+    prompt: string
+) {
+    if (
+        !prompt ||
+        !prompt.trim()
+    ) {
+        throw new Error(
+            "An Ollama prompt is required."
+        );
+    }
+
+    const model =
+        process.env.OLLAMA_MODEL ||
+        "qwen3.5:latest";
+
+    const response =
+        await env.OLLAMA.fetch(
+            "http://ollama.internal/api/generate",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json",
+                },
+
+                body:
+                    JSON.stringify({
+                        model,
+                        prompt,
+                        stream: false,
+                        think: false,
+                    }),
+            }
+        );
+
+    if (!response.ok) {
+        const body =
+            await response.text();
+
+        throw new Error(
+            `Ollama request failed: ${response.status} ${response.statusText} - ${body}`
+        );
+    }
+
+    const result =
+        await response.json() as
+            OllamaGenerateResponse;
+
+    return result.response.trim();
+}

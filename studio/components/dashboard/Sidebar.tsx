@@ -1,0 +1,289 @@
+"use client";
+
+import {
+    Boxes,
+    Crown,
+    FolderHeart,
+    Home,
+    Images,
+    Palette,
+    Plus,
+    Server,
+    Settings,
+    Sparkles,
+} from "lucide-react";
+
+import {
+    usePathname,
+} from "next/navigation";
+
+type SidebarProps = {
+    username: string;
+};
+
+const primaryNavigation = [
+    {
+        label: "Home",
+        href: "/dashboard",
+        icon: Home,
+    },
+    {
+        label: "Create",
+        href: "/dashboard/create",
+        icon: Plus,
+    },
+    {
+        label: "My Aesthetics",
+        href: "/dashboard/aesthetics",
+        icon: Sparkles,
+    },
+    {
+        label: "Assets",
+        href: "/dashboard/assets",
+        icon: Images,
+    },
+    {
+        label: "Palettes",
+        href: "/dashboard/palettes",
+        icon: Palette,
+    },
+    {
+        label: "Collections",
+        href: "/dashboard/collections",
+        icon: FolderHeart,
+    },
+];
+
+const serverNavigation = [
+    {
+        label: "My Servers",
+        href: "/dashboard/servers",
+        icon: Server,
+    },
+    {
+        label: "Server Studio",
+        href: "/dashboard/server-studio",
+        icon: Boxes,
+        premium: true,
+    },
+];
+
+export default function Sidebar({
+    username,
+}: SidebarProps) {
+    const pathname =
+        usePathname();
+
+    function isActive(
+        href: string
+    ) {
+        if (
+            href ===
+            "/dashboard"
+        ) {
+            return (
+                pathname ===
+                "/dashboard"
+            );
+        }
+
+        return pathname.startsWith(
+            href
+        );
+    }
+
+    return (
+        <aside className="hidden h-full w-[270px] shrink-0 overflow-hidden border-r border-white/[0.06] bg-[#0b0b10] lg:flex lg:flex-col">
+            <div className="flex h-20 shrink-0 items-center border-b border-white/[0.06] px-6">
+                <a
+                    href="/dashboard"
+                    className="flex items-center gap-3"
+                >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/20">
+                        <Crown
+                            size={20}
+                            strokeWidth={2.2}
+                        />
+                    </div>
+
+                    <div>
+                        <p className="font-semibold tracking-tight text-white">
+                            Aesthetic King
+                        </p>
+
+                        <p className="text-xs text-zinc-500">
+                            Studio
+                        </p>
+                    </div>
+                </a>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-5">
+                <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">
+                    Studio
+                </p>
+
+                <nav className="space-y-1">
+                    {primaryNavigation.map(
+                        (item) => {
+                            const Icon =
+                                item.icon;
+
+                            const active =
+                                isActive(
+                                    item.href
+                                );
+
+                            return (
+                                <a
+                                    key={
+                                        item.href
+                                    }
+                                    href={
+                                        item.href
+                                    }
+                                    className={[
+                                        "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                                        active
+                                            ? "bg-violet-500/12 text-violet-300 shadow-inner shadow-violet-500/5"
+                                            : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100",
+                                    ].join(
+                                        " "
+                                    )}
+                                >
+                                    <Icon
+                                        size={
+                                            18
+                                        }
+                                        className={
+                                            active
+                                                ? "text-violet-400"
+                                                : "text-zinc-600 transition group-hover:text-zinc-400"
+                                        }
+                                    />
+
+                                    {
+                                        item.label
+                                    }
+
+                                    {active && (
+                                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-violet-400 shadow-[0_0_10px_rgba(167,139,250,0.8)]" />
+                                    )}
+                                </a>
+                            );
+                        }
+                    )}
+                </nav>
+
+                <div className="my-5 border-t border-white/[0.05]" />
+
+                <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">
+                    Discord
+                </p>
+
+                <nav className="space-y-1">
+                    {serverNavigation.map(
+                        (item) => {
+                            const Icon =
+                                item.icon;
+
+                            const active =
+                                isActive(
+                                    item.href
+                                );
+
+                            return (
+                                <a
+                                    key={
+                                        item.href
+                                    }
+                                    href={
+                                        item.href
+                                    }
+                                    className={[
+                                        "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                                        active
+                                            ? "bg-violet-500/12 text-violet-300"
+                                            : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100",
+                                    ].join(
+                                        " "
+                                    )}
+                                >
+                                    <Icon
+                                        size={
+                                            18
+                                        }
+                                        className="text-zinc-600 transition group-hover:text-zinc-400"
+                                    />
+
+                                    {
+                                        item.label
+                                    }
+
+                                    {item.premium && (
+                                        <span className="ml-auto rounded-full bg-gradient-to-r from-amber-400/15 to-violet-400/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-300">
+                                            Pro
+                                        </span>
+                                    )}
+                                </a>
+                            );
+                        }
+                    )}
+                </nav>
+            </div>
+
+            <div className="shrink-0 border-t border-white/[0.05] bg-[#0b0b10] p-3">
+                <a
+                    href="/dashboard/premium"
+                    className="mb-3 block rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/[0.05] to-transparent p-4 transition hover:border-violet-500/35"
+                >
+                    <div className="flex items-center gap-2 text-sm font-semibold text-violet-200">
+                        <Crown
+                            size={16}
+                        />
+
+                        Aesthetic King Pro
+                    </div>
+
+                    <p className="mt-2 text-xs leading-5 text-zinc-500">
+                        Advanced editing, collections, analysis, and more.
+                    </p>
+                </a>
+
+                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.025] p-3">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-sm font-semibold">
+                            {username
+                                .charAt(0)
+                                .toUpperCase()}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-zinc-200">
+                                {
+                                    username
+                                }
+                            </p>
+
+                            <p className="text-xs text-emerald-400">
+                                Discord connected
+                            </p>
+                        </div>
+
+                        <a
+                            href="/dashboard/settings"
+                            aria-label="Settings"
+                            className="rounded-lg p-2 text-zinc-600 transition hover:bg-white/[0.05] hover:text-zinc-300"
+                        >
+                            <Settings
+                                size={
+                                    16
+                                }
+                            />
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    );
+}
