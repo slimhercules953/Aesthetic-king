@@ -16,6 +16,7 @@ const {
 
 const {
     buildPremiumAssetsLockedEmbed,
+    buildPremiumLockedReply,
 } = require("../../components/embeds/premiumLocked");
 
 const {
@@ -31,8 +32,13 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        await interaction.deferReply();
-
+        /*
+         * The entitlement check and the pick both run before the reply is
+         * deferred. Discord decides ephemerality when the response is sent,
+         * so a public defer would lock the upsell into the channel. Both
+         * lookups are in-memory / pooled and measured at ~1ms, so the
+         * three-second interaction window is not at risk.
+         */
         const premiumUnlocked =
             await resolvePremiumAssets(
                 interaction.user.id
@@ -55,14 +61,16 @@ module.exports = {
                 throw error;
             }
 
-            await interaction.editReply({
-                embeds: [
-                    buildPremiumAssetsLockedEmbed(),
-                ],
-            });
+            await interaction.reply(
+                buildPremiumLockedReply(
+                    buildPremiumAssetsLockedEmbed()
+                )
+            );
 
             return;
         }
+
+        await interaction.deferReply();
 
         await interaction.editReply(
             buildProfileResponse(profileSet)

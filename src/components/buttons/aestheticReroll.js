@@ -186,6 +186,8 @@ async function buildAestheticResponse({
             ].filter(Boolean);
 
             return {
+                locked: true,
+
                 payload: {
                     embeds: [
                         buildPremiumAssetsLockedEmbed({
@@ -769,6 +771,7 @@ module.exports = {
 
         const {
             payload,
+            locked,
         } =
             await buildAestheticResponse({
                 interaction,
@@ -798,6 +801,21 @@ module.exports = {
                     packSymbols ??
                     [],
             });
+
+        /*
+         * `deferUpdate` leaves the original message alone, so the upsell
+         * is delivered as an ephemeral follow-up. The public post keeps
+         * the set it already had rather than being replaced with a
+         * "buy Premium" note everyone in the channel can read.
+         */
+        if (locked) {
+            await interaction.followUp({
+                ...payload,
+                flags: MessageFlags.Ephemeral,
+            });
+
+            return;
+        }
 
         await interaction.editReply(
             payload

@@ -3,10 +3,11 @@
  *
  *   node scripts/testPremiumGate.js
  *
- * Checks the three things that actually matter: a free user can never
- * be handed a premium set, an unlocked user can, and a free user whose
+ * Checks the things that actually matter: a free user can never
+ * be handed a premium set, an unlocked user can, a free user whose
  * filters only match premium sets gets the upsell error rather than a
- * "the library is empty" error.
+ * "the library is empty" error, and that upsell is always ephemeral so
+ * nobody else in the channel sees it.
  */
 
 const {
@@ -284,6 +285,122 @@ async function main() {
     } catch (error) {
         console.log(
             `  SKIP  database unavailable — ${error.message}`
+        );
+    }
+
+    /*
+     * 6. Ephemerality. Discord fixes whether a response is ephemeral when
+     * it is sent, so a locked upsell must never travel through a public
+     * `editReply`. These checks cover both halves of that rule: the shared
+     * payload carries the flag, and no call site edits a locked embed into
+     * an already-public message.
+     */
+    console.log("\n[6] locked replies are ephemeral");
+
+    const {
+        buildPremiumAssetsLockedEmbed,
+        buildPremiumLockedReply,
+    } = require("../src/components/embeds/premiumLocked");
+
+    const { MessageFlags } = require("discord.js");
+
+    const lockedReply = buildPremiumLockedReply(
+        buildPremiumAssetsLockedEmbed()
+    );
+
+    check(
+        "locked reply payload is ephemeral",
+        (lockedReply.flags & MessageFlags.Ephemeral) ===
+            MessageFlags.Ephemeral,
+        `flags ${lockedReply.flags}`
+    );
+
+    check(
+        "locked reply payload strips components",
+        Array.isArray(lockedReply.components) &&
+            lockedReply.components.length === 0
+    );
+
+    const fs = require("fs");
+    const path = require("path");
+
+    const readSource = (relative) =>
+        fs.readFileSync(
+            path.join(__dirname, "..", relative),
+            "utf8"
+        );
+
+    /*
+     * Commands and buttons that pick a set themselves must resolve the
+     * entitlement before acknowledging the interaction, otherwise the
+     * reply is already public and the upsell cannot be hidden.
+     */
+    for (const file of [
+        "src/commands/profile/profile.js",
+        "src/commands/profile/theme.js",
+        "src/components/buttons/profileReroll.js",
+        "src/components/buttons/themeReroll.js",
+    ]) {
+        const source = readSource(file);
+
+        const gateAt = source.indexOf("resolvePremiumAssets(");
+        const deferAt = source.search(
+            /interaction\.defer(Reply|Update)\(/
+        );
+
+        check(
+            `${path.basename(file)} checks entitlement before deferring`,
+            gateAt !== -1 && deferAt !== -1 && gateAt < deferAt
+        );
+
+        check(
+            `${path.basename(file)} replies to a lock with the ephemeral payload`,
+            /interaction\.reply\(\s*buildPremiumLockedReply\(/.test(
+                source
+            )
+        );
+    }
+
+    /*
+     * `buildAestheticResponse` returns its payload instead of sending it,
+     * so it flags the locked case and every caller answers privately.
+     */
+    const helperSource = readSource(
+        "src/components/buttons/aestheticReroll.js"
+    );
+
+    check(
+        "buildAestheticResponse marks the locked case",
+        /return\s*\{\s*locked:\s*true,/.test(helperSource)
+    );
+
+    for (const file of [
+        "src/components/buttons/aestheticReroll.js",
+        "src/commands/aesthetic/aesthetic.js",
+    ]) {
+        const source = readSource(file);
+
+        check(
+            `${path.basename(file)} sends a locked aesthetic result ephemerally`,
+            /if\s*\(locked\)\s*\{[\s\S]*?followUp\(\{[\s\S]*?MessageFlags\.Ephemeral/.test(
+                source
+            )
+        );
+    }
+
+    for (const file of [
+        "src/commands/profile/profile.js",
+        "src/commands/profile/theme.js",
+        "src/components/buttons/profileReroll.js",
+        "src/components/buttons/themeReroll.js",
+        "src/components/buttons/aestheticReroll.js",
+        "src/commands/aesthetic/aesthetic.js",
+    ]) {
+        check(
+            `${path.basename(file)} never edits a locked embed into a public message`,
+            !/editReply\(\s*\{[\s\S]{0,120}?buildPremium(Assets)?LockedEmbed/.test(
+                readSource(file)
+            )
         );
     }
 

@@ -1,5 +1,6 @@
 const {
     SlashCommandBuilder,
+    MessageFlags,
 } = require("discord.js");
 
 const {
@@ -301,6 +302,7 @@ module.exports = {
 
         const {
             payload,
+            locked,
         } =
             await buildAestheticResponse({
                 interaction,
@@ -325,6 +327,38 @@ module.exports = {
                     pack?.symbols ??
                     [],
             });
+
+        /*
+         * This command resolves guild settings before it can pick a set,
+         * so the reply is already deferred (and therefore public) by the
+         * time a premium lock is known. The upsell is sent as an ephemeral
+         * follow-up and the empty "thinking" placeholder is deleted, which
+         * leaves the person who triggered it with only the private note.
+         */
+        if (locked) {
+            await interaction.followUp({
+                ...payload,
+                flags: MessageFlags.Ephemeral,
+            });
+
+            /*
+             * The person already has their private upsell; a failure to
+             * tidy up the placeholder must not turn into an error reply.
+             */
+            try {
+                await interaction.deleteReply();
+            } catch {
+                await interaction
+                    .editReply({
+                        content: "—",
+                        embeds: [],
+                        components: [],
+                    })
+                    .catch(() => null);
+            }
+
+            return;
+        }
 
         await interaction.editReply(
             payload

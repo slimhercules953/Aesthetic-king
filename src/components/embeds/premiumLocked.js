@@ -1,5 +1,6 @@
 const {
     EmbedBuilder,
+    MessageFlags,
 } = require("discord.js");
 
 const config = require("../../config/env");
@@ -88,6 +89,26 @@ function buildFeatureLockedEmbed(featureLabel, path = PREMIUM_PAGE_PATH) {
     });
 }
 
+/**
+ * Wraps a locked embed into a complete reply payload.
+ *
+ * Every "you need Premium" message is ephemeral: the upsell is between the
+ * bot and the person who hit the lock, and a public one singles out anyone
+ * using the free tier. Discord fixes ephemerality when the reply is sent, so
+ * callers must evaluate the entitlement check *before* deferring — an
+ * ephemeral response cannot be produced out of an already-deferred public one.
+ *
+ * @param {import("discord.js").EmbedBuilder} embed
+ * @returns {import("discord.js").BaseMessageOptions}
+ */
+function buildPremiumLockedReply(embed) {
+    return {
+        embeds: [embed],
+        components: [],
+        flags: MessageFlags.Ephemeral,
+    };
+}
+
 module.exports = {
     PREMIUM_PAGE_PATH,
     ASSETS_PAGE_PATH,
@@ -96,4 +117,5 @@ module.exports = {
     buildPremiumLockedEmbed,
     buildPremiumAssetsLockedEmbed,
     buildFeatureLockedEmbed,
+    buildPremiumLockedReply,
 };

@@ -16,6 +16,7 @@ const {
 
 const {
     buildPremiumAssetsLockedEmbed,
+    buildPremiumLockedReply,
 } = require("../../components/embeds/premiumLocked");
 
 const {
@@ -31,8 +32,10 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        await interaction.deferReply();
-
+        /*
+         * Resolved before deferring so the upsell can be ephemeral — see
+         * the note in `profile.js`.
+         */
         const premiumUnlocked =
             await resolvePremiumAssets(
                 interaction.user.id
@@ -51,14 +54,16 @@ module.exports = {
                 throw error;
             }
 
-            await interaction.editReply({
-                embeds: [
-                    buildPremiumAssetsLockedEmbed(),
-                ],
-            });
+            await interaction.reply(
+                buildPremiumLockedReply(
+                    buildPremiumAssetsLockedEmbed()
+                )
+            );
 
             return;
         }
+
+        await interaction.deferReply();
 
         const response =
             await buildThemeResponse(

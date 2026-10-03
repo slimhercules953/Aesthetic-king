@@ -63,7 +63,7 @@ Node.js + discord.js v14. Runs from `src/index.js`.
 | `/premium` | Read-only Premium plan, Crown balance and active unlocks, with a link to Studio |
 | `/ping` | Diagnostic (always available, never Pack- or config-affected) |
 
-All responses are **embed-first**: polished Discord embeds rather than plain text, including errors, permission denials, and configuration confirmations. Generated creative content is public; administrative messages are ephemeral. `/premium` is the deliberate exception — a plan and Crown balance are nothing to hide, and its link to the unlock page is worth showing to the whole channel.
+All responses are **embed-first**: polished Discord embeds rather than plain text, including errors, permission denials, and configuration confirmations. Generated creative content is public; anything directed at one person — permission denials, errors, and every "you need Premium" upsell — is ephemeral, so nobody is called out in channel for hitting a lock. Because Discord fixes ephemerality when a response is sent, a command must evaluate the entitlement check *before* it defers; `buildPremiumLockedReply()` in `src/components/embeds/premiumLocked.js` is the only sanctioned way to answer a lock. `/premium` is the deliberate exception — a plan and Crown balance are nothing to hide, and its link to the unlock page is worth showing to the whole channel.
 
 ### Server Configuration
 
@@ -179,7 +179,7 @@ npm run deploy   # deploy to Cloudflare Workers
 
 Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `testOllama.js`, `testColors.js`, `testRenderer.js`, `testAestheticService.js`, `testPremiumGate.js`, `testPremiumStatus.js`, `testUserService.js`, `testSavedAestheticService.js`, plus asset catalog tooling (`generateAssetCatalog.js`, `seedAssetClassifications.js`, `tagAssetSet.js`) and command management (`clearGlobalCommands.js`, `clearGuildCommands.js`, `deleteGuildCommand.js`). Run individually, e.g. `node scripts/testDatabase.js`.
 
-`node scripts/testPremiumGate.js` verifies the bot-side Premium Assets gate: that a free user is never handed a premium set (catalog path and R2 path), that an unlocked user still is, that premium-only filters produce the upsell rather than an empty-library reply, and that plans resolve from live entitlements.
+`node scripts/testPremiumGate.js` verifies the bot-side Premium Assets gate: that a free user is never handed a premium set (catalog path and R2 path), that an unlocked user still is, that premium-only filters produce the upsell rather than an empty-library reply, that plans resolve from live entitlements, and that every upsell is answered ephemerally.
 
 `node scripts/testPremiumStatus.js` verifies `/premium`: Crown balance arithmetic, that expired unlocks and BOOST unlocks are excluded, that stacked purchases collapse to the latest expiry, and that the command renders for both plans. It seeds a fixture user and deletes it again.
 

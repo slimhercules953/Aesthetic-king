@@ -21,6 +21,7 @@ const {
 
 const {
     buildPremiumAssetsLockedEmbed,
+    buildPremiumLockedReply,
 } = require("../../components/embeds/premiumLocked");
 
 const {
@@ -169,14 +170,17 @@ module.exports = {
     customId: "theme:reroll",
 
     async execute(interaction) {
-        await interaction.deferUpdate();
-
         const parts =
             interaction.customId.split(":");
 
         const currentSetId =
             parts[2] || null;
 
+        /*
+         * Resolved before acknowledging the button so the upsell can be
+         * ephemeral. Replying privately also leaves the original preview
+         * and its reroll button untouched.
+         */
         const premiumUnlocked =
             await resolvePremiumAssets(
                 interaction.user.id
@@ -195,21 +199,16 @@ module.exports = {
                 throw error;
             }
 
-            /*
-             * The previous reply carried a rendered preview; clearing
-             * files and components drops it along with the reroll
-             * button that would just fail again.
-             */
-            await interaction.editReply({
-                embeds: [
-                    buildPremiumAssetsLockedEmbed(),
-                ],
-                files: [],
-                components: [],
-            });
+            await interaction.reply(
+                buildPremiumLockedReply(
+                    buildPremiumAssetsLockedEmbed()
+                )
+            );
 
             return;
         }
+
+        await interaction.deferUpdate();
 
         const response =
             await buildThemeResponse(

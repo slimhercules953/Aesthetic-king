@@ -19,6 +19,7 @@ const {
 
 const {
     buildPremiumAssetsLockedEmbed,
+    buildPremiumLockedReply,
 } = require("../../components/embeds/premiumLocked");
 
 function buildProfileResponse(profileSet) {
@@ -71,12 +72,16 @@ module.exports = {
     customId: "profile:reroll",
 
     async execute(interaction) {
-        await interaction.deferUpdate();
-
         const parts = interaction.customId.split(":");
 
         const currentSetId = parts[2] || null;
 
+        /*
+         * The entitlement check and pick happen before the interaction is
+         * acknowledged, so a locked reroll can be answered ephemerally.
+         * Replying privately also leaves the original public message (and
+         * its working button) alone instead of replacing it with an upsell.
+         */
         const premiumUnlocked =
             await resolvePremiumAssets(
                 interaction.user.id
@@ -95,15 +100,16 @@ module.exports = {
                 throw error;
             }
 
-            await interaction.editReply({
-                embeds: [
-                    buildPremiumAssetsLockedEmbed(),
-                ],
-                components: [],
-            });
+            await interaction.reply(
+                buildPremiumLockedReply(
+                    buildPremiumAssetsLockedEmbed()
+                )
+            );
 
             return;
         }
+
+        await interaction.deferUpdate();
 
         await interaction.editReply(
             buildProfileResponse(profileSet)
