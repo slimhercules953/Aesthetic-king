@@ -88,12 +88,30 @@ function detectMimeTypeFromBuffer(buffer) {
         return "image/webp";
     }
 
+    // Recognised but unsupported, so the bot can name the format instead of
+    // reporting "unknown".
+    if (
+        buffer.length >= 3 &&
+        buffer.toString("ascii", 0, 3) === "GIF"
+    ) {
+        return "image/gif";
+    }
+
+    if (
+        buffer.length >= 2 &&
+        buffer[0] === 0x42 &&
+        buffer[1] === 0x4d
+    ) {
+        return "image/bmp";
+    }
+
     return null;
 }
 
 async function extractColors(
     imageBuffer,
-    mimeType = null
+    mimeType = null,
+    count = null
 ) {
     if (!Buffer.isBuffer(imageBuffer)) {
         throw new TypeError(
@@ -125,7 +143,8 @@ async function extractColors(
 
     const colors =
         await extractDominantColors(
-            imageBuffer
+            imageBuffer,
+            count ?? undefined
         );
 
     if (!colors || colors.length === 0) {
@@ -170,4 +189,5 @@ module.exports = {
     extractColorsFromAsset,
     getMimeTypeFromExtension,
     detectMimeTypeFromBuffer,
+    SUPPORTED_MIME_TYPES,
 };

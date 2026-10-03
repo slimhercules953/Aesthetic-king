@@ -272,13 +272,19 @@ async function extractDominantColors(
             (a, b) =>
                 b.length - a.length
         )
-        .slice(0, target)
-        .map(averageBucket);
+        .slice(0, target);
 
-    return buckets.map(([r, g, b]) => ({
-        hex: toHex(r, g, b).toUpperCase(),
-        rgb: { r, g, b },
-    }));
+    return buckets.map((bucket) => {
+        const [r, g, b] = averageBucket(bucket);
+
+        return {
+            hex: toHex(r, g, b).toUpperCase(),
+            rgb: { r, g, b },
+            // Share of the sampled pixels this bucket covers. Useful for
+            // telling an accent colour apart from the image's dominant one.
+            population: bucket.length / pixels.length,
+        };
+    });
 }
 
 module.exports = {
