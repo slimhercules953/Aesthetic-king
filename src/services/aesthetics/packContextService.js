@@ -163,7 +163,7 @@ async function resolveGenerationContext({
         );
     }
 
-    return {
+    const context = {
         pack,
         packUnavailable: unavailable,
 
@@ -174,8 +174,23 @@ async function resolveGenerationContext({
         packColors: getPackColors(pack),
         packSymbols: getPackSymbols(pack),
     };
-}
 
+    /*
+     * Published for the usage logger in interactionCreate. Every generation
+     * command already resolves its context here, so recording the ids at the
+     * source means analytics cannot drift from what the command rendered —
+     * and no command has to remember to log anything.
+     */
+    if (interaction && typeof interaction === "object") {
+        interaction.aestheticUsage = {
+            aestheticId: resolvedAestheticId,
+            moodId: resolvedMoodId,
+            packId: pack?.id ?? null,
+        };
+    }
+
+    return context;
+}
 function getPackColors(pack) {
     return normalizePackColors(pack?.colors);
 }

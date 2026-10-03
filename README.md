@@ -69,7 +69,14 @@ All responses are **embed-first**: polished Discord embeds rather than plain tex
 
 ### Server Configuration
 
-Servers can be configured from the Studio (see below): a **generation channel** that restricts generation commands, a **default aesthetic/mood**, per-**command enable/disable**, and a **default Aesthetic Pack**. The bot reads all of this live from PostgreSQL.
+Servers are configured from the Studio (see below), and the bot reads all of it live from PostgreSQL — no restart, and changes apply to the next command rather than to messages already sent.
+
+- **Generation** — a channel that restricts generation commands, plus a default aesthetic/mood.
+- **Commands** — enable or disable any command per server.
+- **Aesthetic Packs** — curated presets, with one set as the server default.
+- **Appearance** — embed colour, footer text, and which parts of a reply are shown.
+- **Access** — allow/deny rules by role or channel.
+- **Analytics** — usage over the last 30 days.
 
 ### Pack Resolution
 
@@ -99,14 +106,28 @@ A web workspace at [`studio/`](studio/) — Vinext (React Server Components) dep
 - **Palette Studio** — build and save color palettes
 - **Aesthetics / Assets / Collections** — saved library with search and detail views
 - **Discover** — community feed of shared aesthetics (likes + comments)
-- **My Servers → Server Studio** — per-server Overview, Generation settings, Command management, and Aesthetic Packs management
+- **My Servers → Server Studio** — per-server Overview, Generation settings, Command management, Aesthetic Packs, Appearance, Access, and Analytics
 - **Premium** — plan comparison, usage meters, Crowns balance, billing status
+
+### Server Studio
+
+Every Server Studio tab is backed by real state — the Overview reports what is actually configured ("Generation locked to #general", "3 packs created", "2 deny rules", "17 generations in 30 days") rather than static copy, and links to all six areas.
+
+**Appearance** changes how the bot's replies look in one server: embed colour, footer text, and whether the pack badge, generated images, and reroll buttons are shown. Rather than touching every reply site, [`src/services/database/guildAppearanceService.js`](src/services/database/guildAppearanceService.js) wraps `reply`/`editReply`/`update`/`followUp` once per interaction. When nothing is customised, `applyGuildAppearance()` returns the *identical* payload object, so the patch costs nothing in the overwhelmingly common case. Two details are worth knowing before editing it: `EmbedBuilder.setImage(null)` writes `image: null`, which the Discord API rejects, so image removal deletes the key instead; and when a custom footer replaces a builder's own footer the expiry notice is re-added to the description, but only if the previous footer actually mentioned expiry.
+
+**Access** decides who may use the bot, as ordered allow/deny rules over roles and channels. The semantics are identical in both codebases and are worth stating once: no rules means open; a matching DENY denies unconditionally; if any ALLOW exists the member must match one; otherwise it is open. The bot fails **open** on a database error — losing the bot briefly is better than locking a whole server out of a broken query — while the Studio returns 502 so the owner sees the failure.
+
+**Analytics** reads a `GuildUsageEvent` append-only log written by the bot after a command resolves. That table deliberately has **no foreign keys** and `recordUsageEvent()` swallows every error, because logging must never be able to fail a user's command.
+
+All three are guarded by `requireManagedGuild()` (pages) and `guardGuildAccess()` (API routes), which re-verify Discord ownership or Manage Server on every request — a client-supplied guild ID is never trusted.
 
 ### Data access
 
 Every Studio query goes through [`studio/lib/database.ts`](studio/lib/database.ts), which holds one `pg.Pool` per isolate and reads `HYPERDRIVE.connectionString`. Do not add a helper that opens its own `pg.Client`: connecting costs a TCP handshake plus backend startup plus auth, so a page that issued three queries would pay for three connections. Hyperdrive is designed to multiplex many pooled clients across isolates onto a small pool of real backends, so pooling is what makes it fast.
 
 `withTransaction()` checks a client out of that pool for the duration of a `BEGIN`/`COMMIT` — Crown spending depends on it being atomic. Inside the callback use the `client` it hands you, never the module-level `query()`, which would run on a different connection outside the transaction.
+
+Because these are hand-written queries, **qualify every column in a joined query**. `Guild`, `GuildSettings`, `GuildAccessRule` and `GuildUsageEvent` all carry `createdAt`/`updatedAt`, and most Studio queries join `"Guild" g` to resolve a Discord ID — an unqualified `"createdAt"` there is a runtime `500` that TypeScript cannot see.
 
 ### Premium, Crowns and feature gating
 
@@ -186,11 +207,13 @@ npm run deploy   # deploy to Cloudflare Workers
 
 ### Tests & utilities
 
-Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `testOllama.js`, `testColors.js`, `testRenderer.js`, `testAestheticService.js`, `testPremiumGate.js`, `testPremiumStatus.js`, `testUserService.js`, `testSavedAestheticService.js`, plus asset catalog tooling (`generateAssetCatalog.js`, `seedAssetClassifications.js`, `tagAssetSet.js`) and command management (`clearGlobalCommands.js`, `clearGuildCommands.js`, `deleteGuildCommand.js`). Run individually, e.g. `node scripts/testDatabase.js`.
+Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `testOllama.js`, `testColors.js`, `testRenderer.js`, `testAestheticService.js`, `testPremiumGate.js`, `testPremiumStatus.js`, `testUserService.js`, `testSavedAestheticService.js`, `testStudioPhase2.js`, plus asset catalog tooling (`generateAssetCatalog.js`, `seedAssetClassifications.js`, `tagAssetSet.js`) and command management (`clearGlobalCommands.js`, `clearGuildCommands.js`, `deleteGuildCommand.js`). Run individually, e.g. `node scripts/testDatabase.js`.
 
 `node scripts/testPremiumGate.js` verifies the bot-side Premium Assets gate: that a free user is never handed a premium set (catalog path and R2 path), that an unlocked user still is, that premium-only filters produce the upsell rather than an empty-library reply, that plans resolve from live entitlements, and that every upsell is answered ephemerally.
 
 `node scripts/testPremiumStatus.js` verifies `/premium`: Crown balance arithmetic, that expired unlocks and BOOST unlocks are excluded, that stacked purchases collapse to the latest expiry, and that the command renders for both plans. It seeds a fixture user and deletes it again.
+
+`node scripts/testStudioPhase2.js` covers the Server Studio features against the real database without needing Discord: access-rule evaluation (open by default, deny precedence, allow-list behaviour, role and channel targets), the appearance patch (colour, footer, pack badge, image stripping, reroll-button removal, and that default settings return the identical payload), usage-event logging, and a "Studio SQL" section that runs the Studio's hand-written queries — the appearance upsert, rule upsert/delete, analytics aggregates — against the real schema, since the Studio has no Prisma client and nothing else checks that SQL. It creates a throwaway guild and deletes it again.
 
 ---
 
@@ -206,12 +229,12 @@ Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `t
 
 ## Roadmap
 
-The product direction is incremental. Current foundation: bot V2, aesthetic/mood system, R2 assets with color extraction, profile rendering, Ollama AI, Discord OAuth, PostgreSQL persistence, My Servers, Server Studio (generation settings, command management, Aesthetic Packs), Create/Palette Studio, Favorites, Collections, Discover feed, and the Premium/entitlement framework.
+The product direction is incremental. Current foundation: bot V2, aesthetic/mood system, R2 assets with color extraction, profile rendering, Ollama AI, Discord OAuth, PostgreSQL persistence, My Servers, Server Studio (generation settings, command management, Aesthetic Packs, Appearance, Access, Analytics), Create/Palette Studio, Favorites, Collections, Discover feed, and the Premium/entitlement framework.
 
 | Phase | Focus |
 |---|---|
-| **1** | Finish meaningful Pack integration across `/profile`, `/theme`, `/palette`, `/symbols`, `/status`, `/username` (not `/bio`); improve Pack defaults |
-| **2** | Complete Server Studio: Overview, Appearance, Access, Analytics |
+| **1** ✅ | Finish meaningful Pack integration across `/profile`, `/theme`, `/palette`, `/symbols`, `/status`, `/username` (not `/bio`); improve Pack defaults |
+| **2** ✅ | Complete Server Studio: Overview, Appearance, Access, Analytics |
 | **3** | Asset Explorer — searchable R2 library with aesthetic/mood/color metadata, tags, filters, profile sets |
 | **4** | Profile Builder — visual Discord-style profile construction with live preview |
 | **5** | Complete My Profile — coordinate a full identity from one starting element (PFP, banner, palette, aesthetic…) |

@@ -68,6 +68,26 @@ function buildWrongChannelEmbed(
     });
 }
 
+function buildAccessDeniedEmbed(
+    reason
+) {
+    const guidance =
+        reason === "ALLOW_LIST"
+            ? "This server restricts Aesthetic King to specific roles or channels, and you do not have one of them."
+            : "This server restricted Aesthetic King for your role or the channel you used.";
+
+    return buildSystemEmbed({
+        title:
+            "Not Available Here",
+
+        description:
+            `${guidance}\n\nA server administrator can change this in Aesthetic King Studio under **Server → Access**.`,
+
+        type:
+            "warning",
+    });
+}
+
 function buildInteractionErrorEmbed() {
     return buildSystemEmbed({
         title:
@@ -85,5 +105,6 @@ module.exports = {
     buildSystemEmbed,
     buildCommandDisabledEmbed,
     buildWrongChannelEmbed,
+    buildAccessDeniedEmbed,
     buildInteractionErrorEmbed,
 };

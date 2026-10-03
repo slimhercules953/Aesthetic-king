@@ -161,6 +161,7 @@ model Guild {
   settings        GuildSettings?
   commandSettings GuildCommandSetting[]
   aestheticPacks  AestheticPack[]
+  accessRules     GuildAccessRule[]
 }
 
 model GuildSettings {
@@ -175,6 +176,16 @@ model GuildSettings {
 
   defaultPackId String?
   defaultPack   AestheticPack? @relation("DefaultAestheticPack", fields: [defaultPackId], references: [id], onDelete: SetNull)
+
+  /// Presentation choices for this server, edited in Server Studio >
+  /// Appearance. Every field is nullable/optional so a server that has
+  /// never opened the tab keeps the bot's built-in behaviour instead of
+  /// inheriting an arbitrary default.
+  embedColor         String?
+  footerText         String?
+  showPackBadge      Boolean   @default(true)
+  showGeneratedImages Boolean  @default(true)
+  showRerollButtons  Boolean   @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -221,6 +232,56 @@ model AestheticPack {
   @@unique([guildId, name])
   @@index([guildId])
   @@index([enabled])
+}
+
+/// Who may use the bot inside a server, edited in Server Studio > Access.
+///
+/// Kept separate from GuildSettings because the cardinality differs: a
+/// server has exactly one settings row but an unbounded set of rules.
+/// `kind` is ROLE or CHANNEL; `effect` is ALLOW or DENY. An empty rule set
+/// means the bot is open to the whole server, so a server that never
+/// touches this tab is never accidentally locked out.
+model GuildAccessRule {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  kind   String
+  effect String  @default("ALLOW")
+  targetId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, kind, targetId])
+  @@index([guildId])
+}
+
+/// Append-only usage log behind Server Studio > Analytics.
+///
+/// Deliberately denormalised: `guildId` and `discordUserId` are raw
+/// Discord snowflakes with no foreign keys, because this is written on the
+/// hot path of every interaction and an insert must never fail because of
+/// referential integrity or an unsynced row. Analytics are therefore
+/// best-effort counts, not an authoritative ledger.
+model GuildUsageEvent {
+  id String @id @default(cuid())
+
+  guildId       String
+  discordUserId String
+
+  commandName String
+  component   String   @default("command")
+
+  aestheticId String?
+  moodId      String?
+  packId      String?
+  premium     Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([guildId, createdAt])
+  @@index([guildId, commandName])
 }
 
 model SharedPost {

@@ -25,15 +25,13 @@ import {
 } from "./guildSettings";
 
 import {
+    canManageGuild,
+} from "./guildAccess";
+
+import {
     SESSION_COOKIE_NAME,
     verifySessionToken,
 } from "./session";
-
-const ADMINISTRATOR =
-    BigInt(1) << BigInt(3);
-
-const MANAGE_GUILD =
-    BigInt(1) << BigInt(5);
 
 export type ServerStudioContext = {
     guild: DiscordGuild;
@@ -41,28 +39,6 @@ export type ServerStudioContext = {
     settings: GuildSettings | null;
     iconUrl: string | null;
 };
-
-function canManageGuild(
-    guild: DiscordGuild
-) {
-    if (guild.owner) {
-        return true;
-    }
-
-    const permissions =
-        BigInt(
-            guild.permissions
-        );
-
-    return (
-        (permissions &
-            ADMINISTRATOR) !==
-            BigInt(0) ||
-        (permissions &
-            MANAGE_GUILD) !==
-            BigInt(0)
-    );
-}
 
 function getGuildIconUrl(
     guild: DiscordGuild

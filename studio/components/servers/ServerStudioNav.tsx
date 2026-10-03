@@ -54,21 +54,21 @@ const items = [
         label: "Appearance",
         icon: Palette,
         path: "/appearance",
-        enabled: false,
+        enabled: true,
     },
     {
         id: "access",
         label: "Access",
         icon: LockKeyhole,
         path: "/access",
-        enabled: false,
+        enabled: true,
     },
     {
         id: "analytics",
         label: "Analytics",
         icon: TrendingUp,
         path: "/analytics",
-        enabled: false,
+        enabled: true,
     },
 ] as const;
 

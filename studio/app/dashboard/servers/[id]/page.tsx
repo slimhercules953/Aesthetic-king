@@ -19,6 +19,34 @@ import {
     getServerStudioContext,
 } from "../../../../lib/serverStudio";
 
+import {
+    getGuildAppearance,
+    type GuildAppearance,
+} from "../../../../lib/guildAppearance";
+
+import {
+    getAccessRules,
+    type AccessRule,
+} from "../../../../lib/guildAccessRules";
+
+import {
+    getServerAestheticPacks,
+    type ServerAestheticPack,
+} from "../../../../lib/aestheticPacks";
+
+import {
+    getGuildAnalytics,
+    type GuildAnalytics,
+} from "../../../../lib/guildAnalytics";
+
+import {
+    getGuildCommandSettings,
+} from "../../../../lib/commandSettings";
+
+import {
+    SERVER_MANAGEABLE_COMMANDS,
+} from "../../../../lib/serverCommands";
+
 type PageProps = {
     params: Promise<{
         id: string;
@@ -65,6 +93,58 @@ export default async function ServerPage({
             aestheticConfigured,
             moodConfigured,
         ].filter(Boolean).length;
+
+    /*
+     * Every tab is live now, so the Overview reads their state instead of
+     * labelling them "Planned". One round trip, and each loader already
+     * returns a harmless empty value for a guild that has not configured
+     * the area yet.
+     */
+    const [
+        appearance,
+        accessRules,
+        packs,
+        commandSettings,
+        analytics,
+    ]: [
+        GuildAppearance | null,
+        AccessRule[],
+        ServerAestheticPack[],
+        Record<string, boolean>,
+        GuildAnalytics | null,
+    ] = installed
+        ? await Promise.all([
+              getGuildAppearance(id),
+              getAccessRules(id),
+              getServerAestheticPacks(id),
+              getGuildCommandSettings(id),
+              getGuildAnalytics(id, 30),
+          ])
+        : [null, [], [], {}, null];
+
+    const disabledCommands =
+        SERVER_MANAGEABLE_COMMANDS.filter(
+            (command) =>
+                commandSettings[
+                    command.name
+                ] === false
+        ).length;
+
+    const allowRules = accessRules.filter(
+        (rule) => rule.effect === "ALLOW"
+    ).length;
+
+    const denyRules =
+        accessRules.length - allowRules;
+
+    const appearanceCustomised =
+        Boolean(
+            appearance?.embedColor ||
+            appearance?.footerText
+        ) ||
+        appearance?.showPackBadge === false ||
+        appearance?.showGeneratedImages === false ||
+        appearance?.showRerollButtons === false;
 
     return (
         <>
@@ -363,6 +443,11 @@ export default async function ServerPage({
                     description="Configure generation channels and your server's default aesthetic and mood."
                     href={`/dashboard/servers/${guild.id}/generation`}
                     status="Available"
+                    detail={
+                        generationConfigured
+                            ? `Generation locked to #${settings?.generationChannelId}`
+                            : "Any channel can generate"
+                    }
                 />
 
                 <StudioAreaCard
@@ -375,7 +460,13 @@ export default async function ServerPage({
                     }
                     title="Commands"
                     description="Control which Aesthetic King commands are available in your server."
-                    status="Coming next"
+                    href={`/dashboard/servers/${guild.id}/commands`}
+                    status="Available"
+                    detail={
+                        disabledCommands > 0
+                            ? `${disabledCommands} command${disabledCommands === 1 ? "" : "s"} turned off`
+                            : "All commands enabled"
+                    }
                 />
 
                 <StudioAreaCard
@@ -388,7 +479,13 @@ export default async function ServerPage({
                     }
                     title="Aesthetic Packs"
                     description="Create coordinated aesthetic presets for your Discord community."
-                    status="Planned"
+                    href={`/dashboard/servers/${guild.id}/packs`}
+                    status="Available"
+                    detail={
+                        packs.length > 0
+                            ? `${packs.length} pack${packs.length === 1 ? "" : "s"} created`
+                            : "No packs yet"
+                    }
                 />
 
                 <StudioAreaCard
@@ -400,8 +497,14 @@ export default async function ServerPage({
                         />
                     }
                     title="Appearance"
-                    description="Customize how Aesthetic King presents itself and generated content."
-                    status="Planned"
+                    description="Customize embed colour, footer, and which controls appear under a result."
+                    href={`/dashboard/servers/${guild.id}/appearance`}
+                    status="Available"
+                    detail={
+                        appearanceCustomised
+                            ? "Customised"
+                            : "Bot defaults"
+                    }
                 />
 
                 <StudioAreaCard
@@ -414,7 +517,15 @@ export default async function ServerPage({
                     }
                     title="Access"
                     description="Control which channels and roles can access Aesthetic King features."
-                    status="Planned"
+                    href={`/dashboard/servers/${guild.id}/access`}
+                    status="Available"
+                    detail={
+                        accessRules.length === 0
+                            ? "Open to everyone"
+                            : allowRules > 0
+                              ? `Allow list • ${allowRules} rule${allowRules === 1 ? "" : "s"}`
+                              : `${denyRules} blocked`
+                    }
                 />
 
                 <StudioAreaCard
@@ -427,7 +538,15 @@ export default async function ServerPage({
                     }
                     title="Analytics"
                     description="Understand how your community uses Aesthetic King."
-                    status="Planned"
+                    href={`/dashboard/servers/${guild.id}/analytics`}
+                    status="Available"
+                    detail={
+                        analytics &&
+                        analytics.summary.totalEvents >
+                            0
+                            ? `${analytics.summary.totalEvents} generations in 30 days`
+                            : "No activity recorded yet"
+                    }
                 />
             </div>
 
@@ -550,12 +669,14 @@ function StudioAreaCard({
     description,
     href,
     status,
+    detail,
 }: {
     icon: React.ReactNode;
     title: string;
     description: string;
     href?: string;
     status: string;
+    detail?: string;
 }) {
     const content = (
         <>
@@ -582,6 +703,12 @@ function StudioAreaCard({
             <p className="mt-2 min-h-12 text-sm leading-6 text-zinc-600">
                 {description}
             </p>
+
+            {detail && (
+                <p className="mt-3 text-xs text-zinc-500">
+                    {detail}
+                </p>
+            )}
 
             <div
                 className={
