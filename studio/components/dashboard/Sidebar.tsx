@@ -3,6 +3,7 @@
 import {
     Activity,
     Boxes,
+    CircleUserRound,
     Coins,
     Compass,
     CreditCard,
@@ -58,6 +59,11 @@ const primaryNavigation = [
         label: "My Aesthetics",
         href: "/dashboard/aesthetics",
         icon: Sparkles,
+    },
+    {
+        label: "Profile Builder",
+        href: "/dashboard/profile",
+        icon: CircleUserRound,
     },
     {
         label: "Assets",

@@ -238,3 +238,63 @@ The Studio has no test runner, so `node scripts/testAssetExplorer.js`
 esbuild and asserts against the real shipped module rather than a
 JavaScript copy that could drift.
 
+## Profile Builder
+
+`/dashboard/profile` builds a Discord profile — display name, username,
+pronouns, bio, status, palette, symbols, accent colour and an optional
+asset set — against a live preview of the card.
+
+**The preview is DOM, not canvas.** The bot draws profiles with
+`node-canvas` in `src/services/rendering/profileRenderer.js`, and the
+Studio runs on Workers, which has no canvas binding. So
+`components/profile/ProfilePreview.tsx` renders the card in markup. It is
+a server component with no state and no handlers: every colour and string
+arrives already resolved in a `ProfilePreviewState`, which is why the
+fallback rules (what shows when the name is blank, what colour text goes
+on a mid-tone background, how a one-colour palette is padded) live in
+`lib/profileModel.ts` where they can be asserted rather than in JSX. It
+is a likeness of Discord's card, not a pixel copy.
+
+**A `Profile` is not a `SavedAesthetic`.** They overlap in fields and
+share nothing in code. A saved aesthetic is a palette someone kept out of
+the library; a profile is the identity they present, with its own text,
+its own active flag and its own renderer. Splitting them keeps the
+aesthetic library from growing a bio column every time the card gains a
+field.
+
+**Everything is clamped on the way in.** `parseProfileInput` in
+`lib/profileModel.ts` enforces `PROFILE_LIMITS` and normalises colours,
+symbols and the discriminator before anything reaches SQL, and
+`lib/profiles.ts` runs the same function on create *and* update. The
+limits match the bot's renderer, so a profile that saves is a profile
+that renders. Text is clamped by code point, not `.length`, because an
+emoji is one visible character and two or more UTF-16 units.
+
+**One field per patch.** `parseProfileInput` rejects a profile with
+neither a palette nor a set — a sensible rule about a whole profile and a
+nonsense one about a patch carrying only `name`. So `PATCH` does not call
+it; each route validates what it was actually sent.
+
+**Free users get one version.** `canCreateMoreProfiles(count, unlocked)`
+is the whole rule, and `unlocked` comes from
+`access.PREMIUM_ASSETS.allowed`, never from the plan column. Premium
+assets are also crown-unlockable, and a Crown holder's `User.plan` still
+reads `FREE`, so gating on the plan would lock out people who paid.
+
+**Exactly one active profile.** `isActive` is maintained in a
+transaction: the create path clears the previous active row in the same
+transaction it inserts, and `setActiveProfileForDiscordUser` clears the
+others before setting one. Two active profiles would make the bot's
+"what do I render" question unanswerable, so it is never a legal state
+even briefly.
+
+### Testing it
+
+`node scripts/testProfileBuilder.js` (from the repo root) has two halves.
+The first asserts the pure model — clamping, normalisation, contrast,
+preview fallbacks, completeness. The second connects to the real
+database and runs `lib/profiles.ts`'s SQL against the real schema,
+because the Studio has no Prisma client: every statement is hand-written
+text, so a wrong column name is only discoverable as a 500 in a browser.
+It skips itself when the database is unreachable rather than failing.
+

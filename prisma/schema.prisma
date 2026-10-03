@@ -19,6 +19,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   savedAesthetics SavedAesthetic[]
+  profiles        Profile[]
   savedPalettes   SavedPalette[]
   collections     Collection[]
   favorites       FavoriteAsset[]
@@ -83,6 +84,51 @@ model SavedAesthetic {
 
   @@index([userId])
   @@index([aestheticId])
+}
+
+/**
+ * A profile the user is building in the Studio Profile Builder.
+ *
+ * Deliberately separate from `SavedAesthetic`. A saved aesthetic is a
+ * snapshot of a generation and cannot exist without an `aestheticId`;
+ * a profile is something the user assembles by hand and may borrow
+ * from several generations. Merging the two would force a hand-built
+ * profile to invent a fake `aestheticId` just to satisfy the column.
+ *
+ * Exactly one profile per user has `isActive` true: the one the
+ * Builder opens with and the one "Apply" refers to.
+ */
+model Profile {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name     String
+  isActive Boolean @default(false)
+
+  profileSetId String?
+
+  username      String?
+  discriminator String?
+  pronouns      String?
+
+  bio    String?
+  status String?
+
+  symbols String[]
+  palette String[]
+
+  /**
+   * Banner/accent colour when the profile uses no profile set, as a
+   * `#rrggbb` string. Null means "fall back to the palette".
+   */
+  accentColor String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, isActive])
 }
 
 model SavedPalette {
