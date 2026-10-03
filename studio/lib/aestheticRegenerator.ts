@@ -7,6 +7,10 @@ import {
 } from "./ollama";
 
 import {
+    resolveColorTag,
+    resolveMoodTag,
+} from "./moods";
+import {
     selectMatchingProfileSet,
 } from "./profileSetSelector";
 
@@ -114,6 +118,15 @@ async function generateJson(
     }
 }
 
+function cleanOptional(
+    value?: string | null
+) {
+    const cleaned =
+        value?.trim().toLowerCase();
+
+    return cleaned || null;
+}
+
 function buildContext(
     input: RegenerateAestheticInput
 ) {
@@ -165,9 +178,28 @@ export async function regenerateAestheticPart(
                     input.premiumUnlocked ?? false,
             });
 
+        /*
+         * A new set is a new mood and colour, so the resolved tags travel
+         * back with it. The client merges this object over the current
+         * result, which keeps the saved record in step with whatever the
+         * profile actually looks like now. A filter the user picked still
+         * wins — the set was chosen to match it.
+         */
         return {
             profileSetId:
                 profileSet.id,
+
+            moodId:
+                cleanOptional(
+                    input.moodId
+                ) ??
+                resolveMoodTag(profileSet.moods),
+
+            colorFilter:
+                cleanOptional(
+                    input.colorFilter
+                ) ??
+                resolveColorTag(profileSet.colors),
         };
     }
 

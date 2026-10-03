@@ -10,6 +10,10 @@ import {
     getAssetSets,
 } from "./assetCatalog";
 import {
+    resolveColorTag,
+    resolveMoodTag,
+} from "./moods";
+import {
     selectMatchingProfileSet,
 } from "./profileSetSelector";
 
@@ -375,13 +379,26 @@ RULES:
             parsed
         );
 
+    /*
+     * The requested mood and color are often both absent, but the set
+     * that got picked is full of mood and color tags. Returning the
+     * resolved pair means a saved aesthetic describes what was actually
+     * generated. The prompt above still uses the requested values so the
+     * model is never told a preference the user did not state.
+     */
     return {
         generationId:
             createGenerationId(),
 
         aestheticId,
-        moodId,
-        colorFilter,
+
+        moodId:
+            moodId ??
+            resolveMoodTag(profileSet.moods),
+
+        colorFilter:
+            colorFilter ??
+            resolveColorTag(profileSet.colors),
 
         profileSetId:
             profileSet.id,

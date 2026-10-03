@@ -177,6 +177,9 @@ export default async function MyAestheticsPage() {
                                         {
                                             aesthetic.aestheticId
                                         }
+                                        {aesthetic.colorFilter
+                                            ? ` • ${aesthetic.colorFilter}`
+                                            : ""}
                                         {aesthetic.moodId
                                             ? ` • ${aesthetic.moodId}`
                                             : ""}

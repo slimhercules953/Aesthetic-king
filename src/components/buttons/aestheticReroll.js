@@ -9,6 +9,7 @@ const {
 
 const {
     getRandomMatchingProfileSet,
+    resolveProfileSetAttributes,
 } = require("../../services/aesthetics/aestheticService");
 
 const {
@@ -402,6 +403,21 @@ async function buildAestheticResponse({
     let resolvedStateId =
         stateId;
 
+    /*
+     * The filters the user picked may both be absent, but the set that
+     * was picked for them is full of mood and colour tags. Recording
+     * those alongside the request means a saved aesthetic describes
+     * what was generated rather than what was asked for. They live in
+     * their own keys because `color` and `mood` are re-used as filters
+     * by the reroll handlers — overwriting them would quietly narrow
+     * every later reroll to this one set's tags.
+     */
+    const resolvedAttributes =
+        resolveProfileSetAttributes(
+            profileSet,
+            { color, mood }
+        );
+
     const stateData = {
         profileSetId:
             profileSet.id,
@@ -409,6 +425,12 @@ async function buildAestheticResponse({
         username,
         bio,
         status,
+
+        resolvedColor:
+            resolvedAttributes.color,
+
+        resolvedMood:
+            resolvedAttributes.mood,
 
         packId,
         packName,

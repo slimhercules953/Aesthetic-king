@@ -293,10 +293,12 @@ export default function CreateAestheticStudio({
                                     result.aestheticId,
 
                                 moodId:
-                                    result.moodId,
+                                    moodId ||
+                                    null,
 
                                 colorFilter:
-                                    result.colorFilter,
+                                    colorFilter ||
+                                    null,
 
                                 request:
                                     request ||

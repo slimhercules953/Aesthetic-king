@@ -75,6 +75,8 @@ module.exports = {
             aestheticId,
             color,
             mood,
+            resolvedColor,
+            resolvedMood,
             profileSetId,
             username,
             bio,
@@ -82,6 +84,18 @@ module.exports = {
             palette = [],
             symbols = [],
         } = state.data;
+
+        /*
+         * The resolved pair is what the profile actually looks like;
+         * the raw filters are null whenever the user left the options
+         * out. Fall back to the filters for sessions created before the
+         * resolved values were recorded.
+         */
+        const savedColor =
+            resolvedColor ?? color ?? null;
+
+        const savedMood =
+            resolvedMood ?? mood ?? null;
 
         const existing =
             await getSavedAestheticByGenerationId(
@@ -111,11 +125,11 @@ module.exports = {
             ),
 
             formatName(
-                color
+                savedColor
             ),
 
             formatName(
-                mood
+                savedMood
             ),
         ].filter(Boolean);
 
@@ -137,10 +151,10 @@ module.exports = {
                 aestheticId,
 
                 moodId:
-                    mood,
+                    savedMood,
 
                 colorFilter:
-                    color,
+                    savedColor,
 
                 profileSetId,
 
