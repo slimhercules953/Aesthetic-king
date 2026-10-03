@@ -3,6 +3,14 @@
 import Link from "next/link";
 
 import {
+    useState,
+} from "react";
+
+import {
+    useRouter,
+} from "next/navigation";
+
+import {
     Coins,
     Sparkles,
 } from "lucide-react";
@@ -15,16 +23,106 @@ import type { FeatureDeniedBody } from "../../lib/denied";
  * The product rule: never a bare "Premium required". Every refusal
  * offers a way forward, and if Crowns can unlock the action that
  * option sits right next to the upgrade link.
+ *
+ * The Crown button spends for real. When the caller passes
+ * `onUnlocked` it can retry whatever the user was doing, so paying
+ * and continuing is one click; otherwise the page refreshes so the
+ * new allowance shows up.
  */
 export default function UpgradePrompt({
     denied,
+    onUnlocked,
     className = "",
 }: {
     denied: FeatureDeniedBody;
+    onUnlocked?: () => void;
     className?: string;
 }) {
+    const router =
+        useRouter();
+
+    const [
+        busy,
+        setBusy,
+    ] = useState(false);
+
+    const [
+        failure,
+        setFailure,
+    ] = useState<string | null>(
+        null
+    );
+
     const isLocked =
         denied.code === "FEATURE_LOCKED";
+
+    const canBuy =
+        denied.crownUnlockAvailable &&
+        denied.crownCost !== null;
+
+    async function buy() {
+        if (busy) {
+            return;
+        }
+
+        setBusy(true);
+        setFailure(null);
+
+        try {
+            const response =
+                await fetch(
+                    "/api/crowns/unlock",
+                    {
+                        method:
+                            "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                        },
+
+                        body:
+                            JSON.stringify({
+                                feature:
+                                    denied.feature,
+                            }),
+                    }
+                );
+
+            const payload =
+                await response
+                    .json()
+                    .catch(
+                        () =>
+                            null
+                    );
+
+            if (!response.ok) {
+                setFailure(
+                    (
+                        payload as {
+                            error?: string;
+                        } | null
+                    )?.error ??
+                    "Could not complete that purchase."
+                );
+
+                return;
+            }
+
+            if (onUnlocked) {
+                onUnlocked();
+            } else {
+                router.refresh();
+            }
+        } catch {
+            setFailure(
+                "Could not reach Aesthetic King. Try again."
+            );
+        } finally {
+            setBusy(false);
+        }
+    }
 
     return (
         <div
@@ -75,8 +173,10 @@ export default function UpgradePrompt({
 
                 {denied.crownUnlockAvailable &&
                     denied.crownCost !== null && (
-                        <Link
-                            href={denied.crownsHref}
+                        <button
+                            type="button"
+                            onClick={buy}
+                            disabled={busy}
                             className="
                                 inline-flex
                                 items-center
@@ -90,14 +190,39 @@ export default function UpgradePrompt({
                                 text-amber-200
                                 transition-colors
                                 hover:bg-amber-400/20
+                                disabled:opacity-50
                             "
                         >
                             <Coins className="h-3.5 w-3.5" />
-                            Use {denied.crownCost}{" "}
-                            Crowns
-                        </Link>
+                            {busy
+                                ? "Spending…"
+                                : `Use ${denied.crownCost} Crowns`}
+                        </button>
                     )}
             </div>
+
+            {failure && (
+                <p className="mt-3 text-xs text-rose-300">
+                    {failure}
+                </p>
+            )}
+
+            {denied.crownUnlockAvailable &&
+                denied.crownCost !== null && (
+                    <p className="mt-3 text-[11px] text-zinc-500">
+                        <Link
+                            href={denied.crownsHref}
+                            className="
+                                underline
+                                decoration-zinc-700
+                                underline-offset-2
+                                hover:text-zinc-300
+                            "
+                        >
+                            View Crown balance and history
+                        </Link>
+                    </p>
+                )}
         </div>
     );
 }

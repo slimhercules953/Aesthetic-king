@@ -256,6 +256,12 @@ export default function ShareToFeedButton({
                             <UpgradePrompt
                                 denied={denied}
                                 className="mt-4"
+                                onUnlocked={() => {
+                                    setDenied(
+                                        null
+                                    );
+                                    void share();
+                                }}
                             />
                         )}
 

@@ -55,6 +55,12 @@ type MeteredFeatureConfig = {
 
     crownUnlockAvailable: boolean;
     crownCost: number | null;
+
+    /**
+     * Extra uses a Crown purchase buys inside the current window.
+     * Only read when `crownUnlockAvailable` is true.
+     */
+    crownUnlockBoost: number | null;
 };
 
 type GatedFeatureConfig = {
@@ -67,6 +73,12 @@ type GatedFeatureConfig = {
 
     crownUnlockAvailable: boolean;
     crownCost: number | null;
+
+    /**
+     * How many days a Crown purchase keeps a gated feature open.
+     * Only read when `crownUnlockAvailable` is true.
+     */
+    crownUnlockDays: number | null;
 };
 
 export type FeatureConfig =
@@ -99,6 +111,7 @@ export const FEATURES = {
 
         crownUnlockAvailable: false,
         crownCost: null,
+        crownUnlockBoost: null,
     },
 
     COLLECTION_LIMIT: {
@@ -119,6 +132,7 @@ export const FEATURES = {
 
         crownUnlockAvailable: false,
         crownCost: null,
+        crownUnlockBoost: null,
     },
 
     SAVED_PROFILE_LIMIT: {
@@ -139,6 +153,7 @@ export const FEATURES = {
 
         crownUnlockAvailable: false,
         crownCost: null,
+        crownUnlockBoost: null,
     },
 
     AI_GENERATION_LIMIT: {
@@ -160,6 +175,7 @@ export const FEATURES = {
 
         crownUnlockAvailable: true,
         crownCost: 10,
+        crownUnlockBoost: 10,
     },
 
     COMPLETE_PROFILE_LIMIT: {
@@ -180,6 +196,7 @@ export const FEATURES = {
 
         crownUnlockAvailable: true,
         crownCost: 40,
+        crownUnlockBoost: 5,
     },
 
     COMMUNITY_PUBLISH_LIMIT: {
@@ -200,6 +217,7 @@ export const FEATURES = {
 
         crownUnlockAvailable: false,
         crownCost: null,
+        crownUnlockBoost: null,
     },
 
     IMAGE_TO_AESTHETIC: {
@@ -213,6 +231,7 @@ export const FEATURES = {
 
         crownUnlockAvailable: true,
         crownCost: 25,
+        crownUnlockDays: 30,
     },
 
     PREMIUM_ASSETS: {
@@ -226,6 +245,7 @@ export const FEATURES = {
 
         crownUnlockAvailable: true,
         crownCost: 20,
+        crownUnlockDays: 30,
     },
 
     ADVANCED_PROFILE_BUILDER: {
@@ -239,6 +259,7 @@ export const FEATURES = {
 
         crownUnlockAvailable: false,
         crownCost: null,
+        crownUnlockDays: null,
     },
 
     ADVANCED_EXPORTS: {
@@ -252,6 +273,7 @@ export const FEATURES = {
 
         crownUnlockAvailable: false,
         crownCost: null,
+        crownUnlockDays: null,
     },
 
     CREATOR_ANALYTICS: {
@@ -265,6 +287,7 @@ export const FEATURES = {
 
         crownUnlockAvailable: false,
         crownCost: null,
+        crownUnlockDays: null,
     },
 } satisfies Record<
     FeatureId,
@@ -539,4 +562,70 @@ export function getPeriodEnd(
     }
 
     return end;
+}
+
+export type CrownUnlockTerms =
+    | {
+        kind: "BOOST";
+
+        cost: number;
+
+        /**
+         * Extra uses granted inside the current window.
+         */
+        allowance: number;
+    }
+    | {
+        kind: "TIMED";
+
+        cost: number;
+
+        /**
+         * How long the gated feature stays open.
+         */
+        days: number;
+    };
+
+/**
+ * What a Crown purchase actually buys for a feature, or null when
+ * the feature cannot be bought. Derived from the registry so the
+ * store, the button and the purchase route can never disagree about
+ * a price.
+ */
+export function getCrownUnlockTerms(
+    feature: FeatureId
+): CrownUnlockTerms | null {
+    const config =
+        FEATURES[
+            feature
+        ];
+
+    if (
+        !config.crownUnlockAvailable ||
+        config.crownCost === null
+    ) {
+        return null;
+    }
+
+    if (config.kind === "metered") {
+        if (config.crownUnlockBoost === null) {
+            return null;
+        }
+
+        return {
+            kind: "BOOST",
+            cost: config.crownCost,
+            allowance: config.crownUnlockBoost,
+        };
+    }
+
+    if (config.crownUnlockDays === null) {
+        return null;
+    }
+
+    return {
+        kind: "TIMED",
+        cost: config.crownCost,
+        days: config.crownUnlockDays,
+    };
 }

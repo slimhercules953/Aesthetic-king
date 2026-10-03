@@ -28,6 +28,7 @@ model User {
 
   featureUsage     FeatureUsage[]
   crownTransactions CrownTransaction[]
+  crownUnlocks     CrownUnlock[]
 
   shares        SharedPost[]
   sharedLikes   SharedPostLike[]
@@ -401,6 +402,54 @@ enum CrownTransactionType {
   SPEND
   ADJUSTMENT
   REFUND
+}
+
+/// How a Crown unlock relaxes a limit.
+enum CrownUnlockKind {
+  /// Extra allowance on a metered feature, scoped to one reset window.
+  BOOST
+
+  /// Access to a gated feature until `expiresAt`.
+  TIMED
+}
+
+/// A feature paid for with Crowns instead of a subscription.
+///
+/// Metered features get a `BOOST`: `allowance` extra uses inside
+/// `periodKey`, which expires on its own when the window rolls over.
+/// Gated features get a `TIMED` unlock that runs until `expiresAt`.
+///
+/// `periodKey` is always set — timed unlocks use the literal
+/// `TIMED` — so the unique index keeps exactly one row per
+/// (user, feature, window) and a repeat purchase updates that row
+/// instead of buying a second one. That is what stops a
+/// double-clicked button from spending Crowns twice.
+model CrownUnlock {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  feature String
+  kind    CrownUnlockKind
+
+  /// Window a boost applies to, or `TIMED` for gated unlocks.
+  periodKey String
+
+  /// Extra uses a boost grants. Null for TIMED.
+  allowance Int?
+
+  /// When a timed unlock stops applying. Null for BOOST.
+  expiresAt DateTime?
+
+  /// The CrownTransaction that paid for this unlock.
+  transactionId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, feature, periodKey], map: "CrownUnlock_userId_feature_periodKey_key")
+  @@index([userId, feature])
+  @@index([userId, expiresAt])
 }
 
 enum AssetType {

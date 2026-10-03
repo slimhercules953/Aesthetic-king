@@ -8,7 +8,9 @@ import {
     ArrowUpRight,
     CircleSlash,
     Crown,
+    LockKeyhole,
     SlidersHorizontal,
+    Zap,
 } from "lucide-react";
 
 import StatCard from "../../../../components/dashboard/StatCard";
@@ -27,7 +29,14 @@ import {
 import {
     FEATURE_IDS,
     FEATURES,
+    getFeatureConfig,
+    isFeatureId,
 } from "../../../../lib/features";
+
+import {
+    getUnlockSummary,
+    type UnlockSummaryRow,
+} from "../../../../lib/unlocks";
 
 import {
     crownDevToolsEnabled,
@@ -79,6 +88,39 @@ function formatDateTime(
     );
 }
 
+/**
+ * Human wording for a live unlock.
+ *
+ * A boost is extra allowance inside the current period, so it is
+ * described in uses; a timed unlock is a window of access, so it is
+ * described in dates. Showing the wrong unit would make a purchase
+ * look like it had done something different from what it did.
+ */
+function describeUnlock(
+    row: UnlockSummaryRow
+): string | null {
+    if (!isFeatureId(row.feature)) {
+        return null;
+    }
+
+    const config =
+        getFeatureConfig(row.feature);
+
+    if (row.kind === "BOOST") {
+        return row.allowance === null
+            ? null
+            : `+${row.allowance} ${config.label} this period`;
+    }
+
+    if (!row.expiresAt) {
+        return null;
+    }
+
+    return `${config.label} unlocked until ${formatDateTime(
+        row.expiresAt
+    )}`;
+}
+
 export default async function PremiumCrownsPage() {
     const cookieStore =
         await cookies();
@@ -101,13 +143,21 @@ export default async function PremiumCrownsPage() {
         return null;
     }
 
-    const [balance, history] =
+    const [
+        balance,
+        history,
+        unlocks,
+    ] =
         await Promise.all([
             getCrownBalance(
                 identity.discordId
             ),
 
             getCrownHistory(
+                identity.discordId
+            ),
+
+            getUnlockSummary(
                 identity.discordId
             ),
         ]);
@@ -245,6 +295,65 @@ export default async function PremiumCrownsPage() {
                     change before the economy is finalised.
                 </p>
             </section>
+
+            {
+                unlocks.length > 0 && (
+                    <section className="mt-6 rounded-3xl border border-white/[0.06] bg-[#101015] p-6 lg:p-7">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-600">
+                            Active unlocks
+                        </p>
+
+                        <p className="mt-2 text-xs leading-6 text-zinc-500">
+                            Extra allowance and temporary access you
+                            have already paid for. Boosts expire when
+                            the period resets; timed unlocks expire on
+                            their own date.
+                        </p>
+
+                        <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+                            {unlocks.map((row) => {
+                                const description =
+                                    describeUnlock(row);
+
+                                if (!description) {
+                                    return null;
+                                }
+
+                                const isBoost =
+                                    row.kind === "BOOST";
+
+                                return (
+                                    <li
+                                        key={row.id}
+                                        className="flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-[#0c0c11] px-4 py-3"
+                                    >
+                                        <span className="mt-0.5 rounded-lg border border-white/[0.08] bg-white/[0.03] p-2 text-amber-300">
+                                            {isBoost ? (
+                                                <Zap size={14} />
+                                            ) : (
+                                                <LockKeyhole size={14} />
+                                            )}
+                                        </span>
+
+                                        <div className="min-w-0">
+                                            <p className="text-sm text-zinc-200">
+                                                {description}
+                                            </p>
+
+                                            <p className="mt-1 text-[11px] text-zinc-600">
+                                                Purchased{" "}
+                                                {formatDateTime(
+                                                    row.createdAt
+                                                )}
+                                            </p>
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </section>
+                )
+            }
 
             {
                 devEnabled && (

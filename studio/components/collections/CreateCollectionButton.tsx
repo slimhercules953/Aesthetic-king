@@ -202,6 +202,12 @@ export default function CreateCollectionButton() {
                                     denied
                                 }
                                 className="mt-4"
+                                onUnlocked={() => {
+                                    setDenied(
+                                        null
+                                    );
+                                    void create();
+                                }}
                             />
                         )}
 
