@@ -17,6 +17,10 @@ import {
     getSavedAestheticsByDiscordId,
 } from "../../../lib/savedAesthetics";
 
+import {
+    tryGetProfileAssets,
+} from "../../../lib/assets";
+
 import ShareToFeedButton from "../../../components/feed/ShareToFeedButton";
 
 function formatDate(
@@ -143,7 +147,18 @@ export default async function MyAestheticsPage() {
                     {aesthetics.map(
                         (
                             aesthetic
-                        ) => (
+                        ) => {
+                            /*
+                             * The images are not stored with the save; the
+                             * set id is, and the catalog says which pfp and
+                             * banner belong to it.
+                             */
+                            const assets =
+                                tryGetProfileAssets(
+                                    aesthetic.profileSetId
+                                );
+
+                            return (
                             <div
                                 key={
                                     aesthetic.id
@@ -151,18 +166,36 @@ export default async function MyAestheticsPage() {
                                 className="group relative overflow-hidden rounded-3xl border border-white/[0.06] bg-[#101015] transition duration-200 hover:-translate-y-1 hover:border-violet-500/20 hover:shadow-2xl hover:shadow-violet-950/20"
                             >
                                 <div className="relative h-24 overflow-hidden bg-gradient-to-br from-violet-500/10 via-fuchsia-500/[0.05] to-transparent">
-                                    <div className="absolute inset-0 opacity-80">
-                                        <div className="absolute -left-10 top-4 h-32 w-32 rounded-full bg-violet-500/10 blur-3xl" />
-
-                                        <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-fuchsia-500/10 blur-3xl" />
-                                    </div>
-
-                                    <div className="absolute bottom-4 left-5 flex h-12 w-12 items-center justify-center rounded-xl border border-white/[0.08] bg-black/40 text-violet-300 backdrop-blur">
-                                        <Sparkles
-                                            size={
-                                                20
-                                            }
+                                    {assets ? (
+                                        <img
+                                            src={assets.bannerUrl}
+                                            alt={`Profile Set ${assets.setId} banner`}
+                                            className="absolute inset-0 h-full w-full object-cover opacity-70"
                                         />
+                                    ) : (
+                                        <div className="absolute inset-0 opacity-80">
+                                            <div className="absolute -left-10 top-4 h-32 w-32 rounded-full bg-violet-500/10 blur-3xl" />
+
+                                            <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-fuchsia-500/10 blur-3xl" />
+                                        </div>
+                                    )}
+
+                                    <div className="absolute bottom-4 left-5 h-12 w-12 overflow-hidden rounded-xl border border-white/[0.08] bg-black/40 shadow-lg backdrop-blur">
+                                        {assets ? (
+                                            <img
+                                                src={assets.pfpUrl}
+                                                alt={`Profile Set ${assets.setId} profile picture`}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="flex h-full w-full items-center justify-center text-violet-300">
+                                                <Sparkles
+                                                    size={
+                                                        20
+                                                    }
+                                                />
+                                            </div>
+                                        )}
                                     </div>
 
                                     <span className="absolute right-4 top-4 rounded-full border border-white/[0.07] bg-black/30 px-2.5 py-1 text-[10px] text-zinc-500 backdrop-blur">
@@ -244,7 +277,8 @@ export default async function MyAestheticsPage() {
                                     className="absolute inset-0 z-0"
                                 />
                             </div>
-                        )
+                            );
+                        }
                     )}
                 </div>
             )}

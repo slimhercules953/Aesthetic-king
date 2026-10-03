@@ -30,6 +30,10 @@ import {
 } from "../../../../lib/savedAesthetics";
 
 import {
+    tryGetProfileAssets,
+} from "../../../../lib/assets";
+
+import {
     SESSION_COOKIE_NAME,
     verifySessionToken,
 } from "../../../../lib/session";
@@ -117,6 +121,17 @@ export default async function SavedAestheticPage({
             aesthetic.id
         );
 
+    /*
+     * The pfp and banner are not stored with the save — the set id is, and
+     * the catalog says which images belong to it. Deriving them keeps a
+     * re-uploaded asset working and avoids leaving a permanent direct link
+     * to a premium image sitting in a row.
+     */
+    const assets =
+        tryGetProfileAssets(
+            aesthetic.profileSetId
+        );
+
     return (
         <>
             <a
@@ -184,9 +199,25 @@ export default async function SavedAestheticPage({
             <div className="mt-8 grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
                 <section className="overflow-hidden rounded-3xl border border-white/[0.06] bg-[#101015]">
                     <div className="relative min-h-72 overflow-hidden bg-gradient-to-br from-violet-500/10 via-[#121218] to-fuchsia-500/[0.06] p-8">
-                        <div className="absolute -right-24 -top-28 h-72 w-72 rounded-full bg-violet-500/10 blur-3xl" />
+                        {assets && (
+                            <img
+                                src={assets.bannerUrl}
+                                alt={`Profile Set ${assets.setId} banner`}
+                                className="absolute inset-0 h-full w-full object-cover opacity-60"
+                            />
+                        )}
 
-                        <div className="absolute -bottom-20 left-12 h-52 w-52 rounded-full bg-fuchsia-500/[0.07] blur-3xl" />
+                        {assets && (
+                            <div className="absolute inset-0 bg-gradient-to-b from-[#101015]/60 via-[#101015]/80 to-[#101015]" />
+                        )}
+
+                        {!assets && (
+                            <>
+                                <div className="absolute -right-24 -top-28 h-72 w-72 rounded-full bg-violet-500/10 blur-3xl" />
+
+                                <div className="absolute -bottom-20 left-12 h-52 w-52 rounded-full bg-fuchsia-500/[0.07] blur-3xl" />
+                            </>
+                        )}
 
                         <div className="relative">
                             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-600">
@@ -194,11 +225,21 @@ export default async function SavedAestheticPage({
                             </p>
 
                             <div className="mt-10 flex items-start gap-5">
-                                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-4 border-[#15151c] bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-xl shadow-violet-950/40">
-                                    <CircleUserRound
-                                        size={34}
-                                    />
-                                </div>
+                                {assets ? (
+                                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border-4 border-[#15151c] bg-zinc-900 shadow-xl shadow-violet-950/40">
+                                        <img
+                                            src={assets.pfpUrl}
+                                            alt={`Profile Set ${assets.setId} profile picture`}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-4 border-[#15151c] bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-xl shadow-violet-950/40">
+                                        <CircleUserRound
+                                            size={34}
+                                        />
+                                    </div>
+                                )}
 
                                 <div className="min-w-0 pt-2">
                                     <p className="font-mono text-xl font-semibold text-zinc-100">

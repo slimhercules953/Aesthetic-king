@@ -46,6 +46,22 @@ function buildAssetUrl(
     return `${base}/${encodedKey}`;
 }
 
+/*
+ * Returns null rather than throwing when R2 is not configured. Callers that
+ * merely decorate a page (a saved aesthetic's banner, say) should degrade to
+ * their placeholder instead of failing outright the way a required asset
+ * listing would.
+ */
+export function tryGetProfileAssets(
+    setId: string | null
+): ProfileAssets | null {
+    if (!process.env.R2_PUBLIC_URL) {
+        return null;
+    }
+
+    return getProfileAssets(setId);
+}
+
 export function getProfileAssets(
     setId: string | null
 ): ProfileAssets | null {
