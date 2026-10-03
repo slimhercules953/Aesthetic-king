@@ -12,8 +12,17 @@ import {
 } from "../../../lib/savedAesthetics";
 
 import {
+    deniedResponse,
     requireFeature,
 } from "../../../lib/gate";
+
+import {
+    getFeatureAccess,
+} from "../../../lib/featureAccess";
+
+import {
+    isPremiumSet,
+} from "../../../lib/assetCatalog";
 
 import {
     SESSION_COOKIE_NAME,
@@ -107,6 +116,23 @@ export async function POST(
 
     if (!gate.allowed) {
         return gate.response;
+    }
+
+    // The library is browsable by everyone, so a free user can name a
+    // premium set. Refuse the save rather than trust the client to
+    // have hidden the button.
+    if (isPremiumSet(body.profileSetId)) {
+        const assetsAccess =
+            await getFeatureAccess(
+                session.discordId,
+                "PREMIUM_ASSETS"
+            );
+
+        if (!assetsAccess.allowed) {
+            return deniedResponse(
+                assetsAccess
+            );
+        }
     }
 
     try {

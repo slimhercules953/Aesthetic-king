@@ -16,6 +16,10 @@ import {
 } from "../../../../lib/gate";
 
 import {
+    getFeatureAccess,
+} from "../../../../lib/featureAccess";
+
+import {
     recordUsage,
     refundUsage,
 } from "../../../../lib/usage";
@@ -115,6 +119,12 @@ export async function POST(
     );
 
     try {
+        const assets =
+            await getFeatureAccess(
+                session.discordId,
+                "PREMIUM_ASSETS"
+            );
+
         const aesthetic =
             await generateAesthetic({
                 aestheticId:
@@ -128,6 +138,9 @@ export async function POST(
 
                 request:
                     body.request,
+
+                premiumUnlocked:
+                    assets.allowed,
             });
 
         return NextResponse.json({

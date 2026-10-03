@@ -13,6 +13,14 @@ import {
     removeAssetFromCollection,
 } from "../../../../lib/collections";
 
+import {
+    requireFeature,
+} from "../../../../lib/gate";
+
+import {
+    isPremiumSet,
+} from "../../../../lib/assetCatalog";
+
 async function getSession(
     request: NextRequest
 ) {
@@ -69,6 +77,22 @@ export async function POST(
                 status: 400,
             }
         );
+    }
+
+    // Saving premium artwork into a collection is a use of it, so it
+    // needs the same entitlement as saving an aesthetic. Removing an
+    // item stays allowed - a locked set may already be in a collection
+    // from before, and hiding the remove button would trap it there.
+    if (isPremiumSet(body.setId)) {
+        const assets =
+            await requireFeature(
+                session.discordId,
+                "PREMIUM_ASSETS"
+            );
+
+        if (!assets.allowed) {
+            return assets.response;
+        }
     }
 
     await addAssetToCollection(

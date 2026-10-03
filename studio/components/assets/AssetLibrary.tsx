@@ -1,6 +1,7 @@
 "use client";
 
 import {
+    Crown,
     Grid3X3,
     Heart,
     Search,
@@ -31,6 +32,13 @@ type AssetLibraryProps = {
     filters: Filters;
     r2PublicUrl: string;
     favoriteSetIds: string[];
+
+    /**
+     * Only changes the wording on the premium badge. The grid always
+     * shows premium sets so there is something to unlock; the detail
+     * page and the API are what actually refuse.
+     */
+    premiumUnlocked: boolean;
 };
 
 function titleCase(
@@ -53,6 +61,7 @@ export default function AssetLibrary({
     filters,
     r2PublicUrl,
     favoriteSetIds,
+    premiumUnlocked,
 }: AssetLibraryProps) {
     const [
         search,
@@ -453,6 +462,26 @@ export default function AssetLibrary({
                                                     }
                                                     fill="currentColor"
                                                 />
+                                            </span>
+                                        )}
+
+                                        {set.premium === true && (
+                                            <span
+                                                title={
+                                                    premiumUnlocked
+                                                        ? "Premium profile set"
+                                                        : "Premium profile set - unlock to use"
+                                                }
+                                                className="absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-amber-200 shadow-lg backdrop-blur"
+                                            >
+                                                <Crown
+                                                    size={
+                                                        13
+                                                    }
+                                                    fill="currentColor"
+                                                />
+
+                                                Premium
                                             </span>
                                         )}
 

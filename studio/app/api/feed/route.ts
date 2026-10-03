@@ -17,6 +17,10 @@ import {
 } from "../../../lib/gate";
 
 import {
+    isPremiumSet,
+} from "../../../lib/assetCatalog";
+
+import {
     hasSharedItem,
     shareItemToFeed,
     type SharedItemType,
@@ -116,6 +120,24 @@ export async function POST(
                 status: 400,
             }
         );
+    }
+
+    // Publishing someone else's premium artwork is a use of it, so
+    // the same entitlement that unlocks saving a set unlocks sharing
+    // it. Re-shares are checked too: the post is new either way.
+    if (
+        itemType === "ASSET" &&
+        isPremiumSet(body.itemId)
+    ) {
+        const assets =
+            await requireFeature(
+                session.discordId,
+                "PREMIUM_ASSETS"
+            );
+
+        if (!assets.allowed) {
+            return assets.response;
+        }
     }
 
     // Re-sharing an item that is already in the feed updates the

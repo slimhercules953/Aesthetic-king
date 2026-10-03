@@ -14,6 +14,10 @@ import {
 } from "../../../lib/favorites";
 
 import {
+    getFeatureAccess,
+} from "../../../lib/featureAccess";
+
+import {
     SESSION_COOKIE_NAME,
     verifySessionToken,
 } from "../../../lib/session";
@@ -59,10 +63,17 @@ export default async function AssetsPage() {
         return null;
     }
 
-    const favorites =
-        await getFavoriteAssetsByDiscordId(
-            session.discordId
-        );
+    const [favorites, assetsAccess] =
+        await Promise.all([
+            getFavoriteAssetsByDiscordId(
+                session.discordId
+            ),
+
+            getFeatureAccess(
+                session.discordId,
+                "PREMIUM_ASSETS"
+            ),
+        ]);
 
     const favoriteSetIds =
         favorites
@@ -148,6 +159,9 @@ export default async function AssetsPage() {
                 }
                 favoriteSetIds={
                     favoriteSetIds
+                }
+                premiumUnlocked={
+                    assetsAccess.allowed
                 }
             />
         </>

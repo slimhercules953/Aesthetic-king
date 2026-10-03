@@ -34,6 +34,8 @@ export type RegenerateAestheticInput = {
 
     symbols: string[];
     palette: string[];
+
+    premiumUnlocked?: boolean;
 };
 
 function extractJson(
@@ -158,6 +160,9 @@ export async function regenerateAestheticPart(
 
                 excludeSetId:
                     input.profileSetId,
+
+                premiumUnlocked:
+                    input.premiumUnlocked ?? false,
             });
 
         return {

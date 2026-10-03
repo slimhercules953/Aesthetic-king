@@ -18,7 +18,8 @@
     "colors": [
       "blue",
       "indigo"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "11",
@@ -38,7 +39,8 @@
     "colors": [
       "purple",
       "black"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "12",
@@ -58,7 +60,8 @@
     "colors": [
       "purple",
       "black"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "13",
@@ -78,7 +81,8 @@
     "colors": [
       "purple",
       "black"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "14",
@@ -98,7 +102,8 @@
     "colors": [
       "purple",
       "black"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "15",
@@ -119,7 +124,8 @@
       "white",
       "gray",
       "black"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "16",
@@ -141,7 +147,8 @@
       "white",
       "gray",
       "black"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "17",
@@ -163,7 +170,8 @@
       "black",
       "white",
       "gray"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "18",
@@ -183,7 +191,8 @@
     "colors": [
       "black",
       "white"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "19",
@@ -203,7 +212,8 @@
     "colors": [
       "green",
       "black"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "20",
@@ -223,7 +233,8 @@
     "colors": [
       "green",
       "yellow"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "21",
@@ -243,7 +254,8 @@
     "colors": [
       "green",
       "cream"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "22",
@@ -263,7 +275,8 @@
     "colors": [
       "green",
       "black"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "23",
@@ -284,7 +297,8 @@
       "brown",
       "gray",
       "black"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "24",
@@ -304,7 +318,8 @@
     "colors": [
       "blue",
       "black"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "25",
@@ -325,7 +340,8 @@
       "green",
       "black",
       "white"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "26",
@@ -346,7 +362,8 @@
       "green",
       "teal",
       "black"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "27",
@@ -367,7 +384,8 @@
     "colors": [
       "pink",
       "white"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "28",
@@ -388,7 +406,8 @@
     "colors": [
       "pink",
       "white"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "29",
@@ -409,7 +428,8 @@
       "red",
       "white",
       "black"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "30",
@@ -429,7 +449,8 @@
     "colors": [
       "blue",
       "white"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "31",
@@ -449,7 +470,8 @@
     "colors": [
       "blue",
       "white"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "32",
@@ -470,7 +492,8 @@
     "colors": [
       "cream",
       "green"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "33",
@@ -491,7 +514,8 @@
       "cream",
       "gold",
       "brown"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "34",
@@ -511,7 +535,8 @@
     "colors": [
       "black",
       "gray"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "35",
@@ -532,7 +557,8 @@
     "colors": [
       "black",
       "white"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "36",
@@ -554,7 +580,8 @@
       "black",
       "white",
       "gold"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "37",
@@ -575,7 +602,8 @@
       "pink",
       "blue",
       "black"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "38",
@@ -596,7 +624,8 @@
     "colors": [
       "red",
       "black"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "39",
@@ -617,7 +646,8 @@
       "red",
       "black",
       "gray"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "40",
@@ -638,7 +668,8 @@
     "colors": [
       "black",
       "white"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "41",
@@ -660,7 +691,8 @@
       "white",
       "gray",
       "brown"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "42",
@@ -681,7 +713,8 @@
       "white",
       "green",
       "gray"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "43",
@@ -703,7 +736,8 @@
       "cream",
       "white",
       "brown"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "44",
@@ -724,7 +758,8 @@
     "colors": [
       "blue",
       "white"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "45",
@@ -745,7 +780,8 @@
       "gray",
       "white",
       "brown"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "46",
@@ -765,7 +801,8 @@
     "colors": [
       "blue",
       "pink"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "47",
@@ -785,7 +822,8 @@
     "colors": [
       "blue",
       "black"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "48",
@@ -806,7 +844,8 @@
       "white",
       "gray",
       "black"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "49",
@@ -827,7 +866,8 @@
       "black",
       "white",
       "gray"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "50",
@@ -848,7 +888,8 @@
       "black",
       "brown",
       "gold"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "118",
@@ -868,7 +909,8 @@
     "colors": [
       "blue",
       "white"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "123",
@@ -889,7 +931,8 @@
       "black",
       "white",
       "blue"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "124",
@@ -909,7 +952,8 @@
     "colors": [
       "blue",
       "black"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "125",
@@ -929,7 +973,8 @@
     "colors": [
       "blue",
       "black"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "126",
@@ -949,7 +994,8 @@
     "colors": [
       "blue",
       "black"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "127",
@@ -969,7 +1015,8 @@
     "colors": [
       "blue",
       "white"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "129",
@@ -989,7 +1036,8 @@
     "colors": [
       "blue",
       "purple"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "130",
@@ -1009,7 +1057,8 @@
     "colors": [
       "blue",
       "white"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "131",
@@ -1029,7 +1078,8 @@
     "colors": [
       "blue",
       "white"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "132",
@@ -1049,7 +1099,8 @@
     "colors": [
       "black",
       "gold"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "133",
@@ -1069,7 +1120,8 @@
     "colors": [
       "black",
       "gold"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "134",
@@ -1090,7 +1142,8 @@
       "cream",
       "black",
       "gold"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "136",
@@ -1110,7 +1163,8 @@
     "colors": [
       "brown",
       "gold"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "137",
@@ -1131,7 +1185,8 @@
       "black",
       "gold",
       "brown"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "138",
@@ -1152,7 +1207,8 @@
     "colors": [
       "green",
       "black"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "139",
@@ -1173,7 +1229,8 @@
     "colors": [
       "red",
       "black"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "140",
@@ -1193,7 +1250,8 @@
     "colors": [
       "blue",
       "black"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "141",
@@ -1214,7 +1272,8 @@
       "blue",
       "black",
       "white"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "142",
@@ -1235,7 +1294,8 @@
       "black",
       "blue",
       "orange"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "143",
@@ -1255,7 +1315,8 @@
     "colors": [
       "black",
       "orange"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "144",
@@ -1275,7 +1336,8 @@
     "colors": [
       "black",
       "red"
-    ]
+    ],
+    "premium": false
   },
   {
     "id": "145",
@@ -1296,7 +1358,8 @@
       "orange",
       "brown",
       "black"
-    ]
+    ],
+    "premium": true
   },
   {
     "id": "146",
@@ -1316,6 +1379,7 @@
     "colors": [
       "black",
       "white"
-    ]
+    ],
+    "premium": false
   }
 ]

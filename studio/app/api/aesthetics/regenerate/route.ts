@@ -17,6 +17,10 @@ import {
 } from "../../../../lib/gate";
 
 import {
+    getFeatureAccess,
+} from "../../../../lib/featureAccess";
+
+import {
     recordUsage,
     refundUsage,
 } from "../../../../lib/usage";
@@ -166,6 +170,16 @@ export async function POST(
     );
 
     try {
+        // Only the profile-set target can hand out assets, so the
+        // entitlement is only worth looking up for that target.
+        const assets =
+            body.target === "profileSet"
+                ? await getFeatureAccess(
+                      session.discordId,
+                      "PREMIUM_ASSETS"
+                  )
+                : null;
+
         const update =
             await regenerateAestheticPart({
                 target:
@@ -200,6 +214,9 @@ export async function POST(
 
                 palette:
                     body.palette,
+
+                premiumUnlocked:
+                    assets?.allowed ?? false,
             });
 
         return NextResponse.json({

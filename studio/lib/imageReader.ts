@@ -19,6 +19,13 @@ import {
 export type ReadImagePaletteInput = {
     palette: string[];
     request?: string | null;
+
+    /**
+     * Image-to-Aesthetic and Premium Assets are separate entitlements
+     * - a Crown unlock opens one but not the other - so the matched
+     * set has to respect the asset library too.
+     */
+    premiumUnlocked?: boolean;
 };
 
 export type ImageReading = {
@@ -120,6 +127,7 @@ export function normalizeSampledPalette(
 export async function readImagePalette({
     palette,
     request = null,
+    premiumUnlocked = false,
 }: ReadImagePaletteInput): Promise<ImageReading> {
     const sampled = normalizeSampledPalette(palette);
 
@@ -273,10 +281,12 @@ export async function readImagePalette({
             aestheticId,
             moodId,
             colorFilter,
+            premiumUnlocked,
         });
     } catch {
         profileSet = selectMatchingProfileSet({
             aestheticId,
+            premiumUnlocked,
         });
     }
 

@@ -12,6 +12,13 @@ export type AssetCatalogSet = {
     moods: string[];
     colors: string[];
 
+    /**
+     * True when the set belongs to the Premium Assets library.
+     * Absent means free, so the flag can be added to the catalog one
+     * set at a time.
+     */
+    premium?: boolean;
+
     enabled: boolean;
 };
 
@@ -39,6 +46,40 @@ export function getAssetSetById(
             (set) =>
                 set.id === id
         ) ?? null
+    );
+}
+
+export function isPremiumSet(
+    id: string | null | undefined
+) {
+    if (!id) {
+        return false;
+    }
+
+    return (
+        getAssetSetById(id)?.premium === true
+    );
+}
+
+/**
+ * The sets a user without PREMIUM_ASSETS may be given.
+ *
+ * Free users still browse the whole library - a locked set they can
+ * see is an upsell - but nothing that hands over a set id may pick a
+ * premium one for them.
+ */
+export function getUsableAssetSets(
+    premiumUnlocked: boolean
+): AssetCatalogSet[] {
+    const sets =
+        getAssetSets();
+
+    if (premiumUnlocked) {
+        return sets;
+    }
+
+    return sets.filter(
+        (set) => set.premium !== true
     );
 }
 

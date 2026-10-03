@@ -3,7 +3,7 @@ import {
 } from "./apiError";
 
 import {
-    getAssetSets,
+    getUsableAssetSets,
 } from "./assetCatalog";
 
 type SelectProfileSetInput = {
@@ -11,6 +11,13 @@ type SelectProfileSetInput = {
     moodId?: string | null;
     colorFilter?: string | null;
     excludeSetId?: string | null;
+
+    /**
+     * Whether the requester holds PREMIUM_ASSETS. The generator hands
+     * out the set id it picks, so a caller without the entitlement
+     * must not be offered a premium set in the first place.
+     */
+    premiumUnlocked?: boolean;
 };
 
 export function selectMatchingProfileSet({
@@ -18,9 +25,12 @@ export function selectMatchingProfileSet({
     moodId = null,
     colorFilter = null,
     excludeSetId = null,
+    premiumUnlocked = false,
 }: SelectProfileSetInput) {
     const sets =
-        getAssetSets();
+        getUsableAssetSets(
+            premiumUnlocked
+        );
 
     let candidates =
         sets.filter(

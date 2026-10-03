@@ -18,6 +18,7 @@ export type GenerateAestheticInput = {
     moodId?: string | null;
     colorFilter?: string | null;
     request?: string | null;
+    premiumUnlocked?: boolean;
 };
 
 export type GeneratedAesthetic = {
@@ -284,6 +285,8 @@ export async function generateAesthetic(
             aestheticId,
             moodId,
             colorFilter,
+            premiumUnlocked:
+                input.premiumUnlocked ?? false,
         });
 
     const prompt = `

@@ -75,6 +75,11 @@ function createNewCatalogEntry(set) {
         moods: [],
         colors: [],
 
+        // New uploads land in the free library. Tagging a set premium
+        // is an editorial decision made in assetCatalog.json, so the
+        // generator never sets it on its own.
+        premium: false,
+
         enabled: true,
     };
 }
@@ -116,6 +121,10 @@ function mergeCatalogEntry(
             )
                 ? existingEntry.colors
                 : [],
+
+        // Editorial flag, kept across regenerations.
+        premium:
+            existingEntry.premium === true,
 
         enabled:
             existingEntry.enabled !==

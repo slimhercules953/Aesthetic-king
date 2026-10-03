@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { handleRouteError } from "../../../lib/apiError";
 import { requireFeature } from "../../../lib/gate";
+import { getFeatureAccess } from "../../../lib/featureAccess";
 import { recordUsage, refundUsage } from "../../../lib/usage";
 import { FEATURES } from "../../../lib/features";
 import {
@@ -85,9 +86,15 @@ export async function POST(request: NextRequest) {
     );
 
     try {
+        const assets = await getFeatureAccess(
+            session.discordId,
+            "PREMIUM_ASSETS"
+        );
+
         const reading = await readImagePalette({
             palette: body.palette as string[],
             request: body.request ?? null,
+            premiumUnlocked: assets.allowed,
         });
 
         return NextResponse.json({ reading });
