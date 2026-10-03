@@ -10,7 +10,7 @@ import CreateCollectionButton from "../../../components/collections/CreateCollec
 
 import {
     getCollectionsByDiscordId,
-    getCollectionItems,
+    getCollectionItemCountByDiscordId,
 } from "../../../lib/collections";
 
 import {
@@ -40,30 +40,27 @@ export default async function CollectionsPage() {
         return null;
     }
 
-    const collections =
-        await getCollectionsByDiscordId(
+    const [
+        collections,
+        itemCounts,
+    ] = await Promise.all([
+        getCollectionsByDiscordId(
             session.discordId
-        );
+        ),
+        getCollectionItemCountByDiscordId(
+            session.discordId
+        ),
+    ]);
 
     const collectionsWithCounts =
-        await Promise.all(
-            collections.map(
-                async (
-                    collection
-                ) => {
-                    const items =
-                        await getCollectionItems(
-                            collection.id,
-                            session.discordId
-                        );
-
-                    return {
-                        ...collection,
-                        itemCount:
-                            items.length,
-                    };
-                }
-            )
+        collections.map(
+            (collection) => ({
+                ...collection,
+                itemCount:
+                    itemCounts.get(
+                        collection.id
+                    ) ?? 0,
+            })
         );
 
     return (

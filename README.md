@@ -54,10 +54,13 @@ Node.js + discord.js v14. Runs from `src/index.js`.
 | `/profile` | Coordinated Discord profile concepts |
 | `/theme` | Coordinated aesthetic themes |
 | `/palette` | Aesthetic color palettes |
+| `/palette-image` | Extract a palette from an uploaded image |
+| `/legibility` | Checks whether text is readable over a background |
 | `/symbols` | Aesthetic symbol sets by visual style |
 | `/status` | Discord status ideas from aesthetic + mood |
 | `/username` | Aesthetic username ideas |
 | `/bio` | Aesthetic Discord bios |
+| `/premium` | Read-only Premium plan, Crown balance and active unlocks, with a link to Studio |
 | `/ping` | Diagnostic (always available, never Pack- or config-affected) |
 
 All responses are **embed-first**: polished Discord embeds rather than plain text, including errors, permission denials, and configuration confirmations. Generated creative content is public; administrative messages are ephemeral.
@@ -90,13 +93,19 @@ A web workspace at [`studio/`](studio/) — Vinext (React Server Components) dep
 - **My Servers → Server Studio** — per-server Overview, Generation settings, Command management, and Aesthetic Packs management
 - **Premium** — plan comparison, usage meters, Crowns balance, billing status
 
+### Data access
+
+Every Studio query goes through [`studio/lib/database.ts`](studio/lib/database.ts), which holds one `pg.Pool` per isolate and reads `HYPERDRIVE.connectionString`. Do not add a helper that opens its own `pg.Client`: connecting costs a TCP handshake plus backend startup plus auth, so a page that issued three queries would pay for three connections. Hyperdrive is designed to multiplex many pooled clients across isolates onto a small pool of real backends, so pooling is what makes it fast.
+
+`withTransaction()` checks a client out of that pool for the duration of a `BEGIN`/`COMMIT` — Crown spending depends on it being atomic. Inside the callback use the `client` it hands you, never the module-level `query()`, which would run on a different connection outside the transaction.
+
 ### Premium, Crowns and feature gating
 
 Entitlements, per-feature usage limits, and Crown prices live in a single registry: [`studio/lib/features.ts`](studio/lib/features.ts). **All numbers there are product placeholders** — change them there, never at call sites. Checkout is intentionally not connected; Premium is granted via provider webhook, Discord SKU, grandfathering, or dev-only grant routes (fail-closed behind `CROWN_DEV` / `BILLING_DEV` + `NODE_ENV=development` + Discord ID allowlists). See [`studio/README.md`](studio/README.md) for details.
 
 The bot reads the same entitlements but cannot enforce every rule, so it enforces the one that matters where it can serve the goods: **Premium Assets**. [`src/services/entitlements/featureAccessService.js`](src/services/entitlements/featureAccessService.js) derives a user's plan from the `Entitlement` and `CrownUnlock` tables — it never stores a plan of its own, so revocations and grandfathered grants reach the bot the moment they reach the Studio. The two products present the lock differently on purpose: Studio shows premium sets to everyone with a crown badge and refuses to open them, because browsing is the upsell. The bot has no browse surface, so it keeps premium sets out of the pool and only mentions them when they were the *only* match for the user's filters. Which sets are premium is tagged in [`src/data/assetCatalog.json`](src/data/assetCatalog.json) and read by both.
 
-A user who has never signed into Studio has no entitlement row and is therefore treated as FREE. That is deliberate — a paid feature should fail closed — but it means the bot cannot itself sell Premium or Crowns yet.
+A user who has never signed into Studio has no entitlement row and is therefore treated as FREE. That is deliberate — a paid feature should fail closed — but it means the bot cannot itself sell Premium or Crowns yet. [`src/commands/premium/premium.js`](src/commands/premium/premium.js) reports that status (`/premium`: plan, Crown balance, live unlocks, link to Studio) through [`src/services/entitlements/premiumStatusService.js`](src/services/entitlements/premiumStatusService.js), which reads the same tables and spends nothing.
 
 ---
 
@@ -168,9 +177,11 @@ npm run deploy   # deploy to Cloudflare Workers
 
 ### Tests & utilities
 
-Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `testOllama.js`, `testColors.js`, `testRenderer.js`, `testAestheticService.js`, `testPremiumGate.js`, `testUserService.js`, `testSavedAestheticService.js`, plus asset catalog tooling (`generateAssetCatalog.js`, `seedAssetClassifications.js`, `tagAssetSet.js`) and command management (`clearGlobalCommands.js`, `clearGuildCommands.js`, `deleteGuildCommand.js`). Run individually, e.g. `node scripts/testDatabase.js`.
+Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `testOllama.js`, `testColors.js`, `testRenderer.js`, `testAestheticService.js`, `testPremiumGate.js`, `testPremiumStatus.js`, `testUserService.js`, `testSavedAestheticService.js`, plus asset catalog tooling (`generateAssetCatalog.js`, `seedAssetClassifications.js`, `tagAssetSet.js`) and command management (`clearGlobalCommands.js`, `clearGuildCommands.js`, `deleteGuildCommand.js`). Run individually, e.g. `node scripts/testDatabase.js`.
 
 `node scripts/testPremiumGate.js` verifies the bot-side Premium Assets gate: that a free user is never handed a premium set (catalog path and R2 path), that an unlocked user still is, that premium-only filters produce the upsell rather than an empty-library reply, and that plans resolve from live entitlements.
+
+`node scripts/testPremiumStatus.js` verifies `/premium`: Crown balance arithmetic, that expired unlocks and BOOST unlocks are excluded, that stacked purchases collapse to the latest expiry, and that the command renders for both plans. It seeds a fixture user and deletes it again.
 
 ---
 

@@ -158,10 +158,19 @@ export default async function DiscoverPage({
             }
         );
 
-    const hydrated =
-        await hydrateFeedPosts(
+    const [
+        hydrated,
+        commentsByPostId,
+    ] = await Promise.all([
+        hydrateFeedPosts(
             posts
-        );
+        ),
+        getSharedPostCommentsByPostIds(
+            posts.map(
+                (post) => post.id
+            )
+        ),
+    ]);
 
     const cards: FeedCardData[] =
         hydrated.map(
@@ -185,13 +194,6 @@ export default async function DiscoverPage({
                     post.likedByViewer,
                 media: post.media,
             })
-        );
-
-    const commentsByPostId =
-        await getSharedPostCommentsByPostIds(
-            posts.map(
-                (post) => post.id
-            )
         );
 
     const commentsByPost: Record<

@@ -247,6 +247,53 @@ export async function getCollectionItems(
     return result.rows;
 }
 
+/**
+ * Item counts for every collection a user owns, in one query.
+ *
+ * The collections list page used to call `getCollectionItems` once per
+ * collection just to read `.length`, which is one query per card and
+ * fetches every row of every collection to count them in JavaScript.
+ * Collections are capped per plan, so the old version was never
+ * catastrophic — but it made the page's cost grow with how much the
+ * user had saved, which is the wrong direction.
+ *
+ * Collections with no items are absent from the result rather than
+ * returned as zero, so callers default with `?? 0`.
+ */
+export async function getCollectionItemCountByDiscordId(
+    discordId: string
+): Promise<Map<string, number>> {
+    const result =
+        await query<{ collectionId: string; count: string }>(
+            `
+            SELECT
+                c.id AS "collectionId",
+                COUNT(ci.id)::text AS count
+            FROM "Collection" c
+            INNER JOIN "User" u
+                ON u.id = c."userId"
+            LEFT JOIN "CollectionItem" ci
+                ON ci."collectionId" = c.id
+            WHERE
+                u."discordId" = $1
+            GROUP BY
+                c.id
+            `,
+            [
+                discordId,
+            ]
+        );
+
+    return new Map(
+        result.rows.map(
+            (row) => [
+                row.collectionId,
+                Number(row.count),
+            ]
+        )
+    );
+}
+
 export async function addAssetToCollection(
     collectionId: string,
     discordId: string,
@@ -417,6 +464,91 @@ export async function getCollectionsForPalette(
         );
 
     return result.rows;
+}
+
+/**
+ * Collection membership for many palettes at once.
+ *
+ * `getCollectionsForPalette` answers "which of my collections hold this
+ * palette?" for one palette, so the palette grid called it once per
+ * palette to badge each card — a user with 40 palettes issued 40
+ * queries that each scanned every one of their collections.
+ *
+ * This issues two queries regardless of how many palettes are passed:
+ * one for the collections, one for the relevant membership rows. The
+ * result is keyed by palette id and every palette is present, even when
+ * it belongs to no collection, so a card can render its badges without
+ * a lookup miss.
+ */
+export async function getCollectionsForPalettes(
+    discordId: string,
+    paletteIds: string[]
+): Promise<Map<string, CollectionPaletteMembership[]>> {
+    const collections =
+        await getCollectionsByDiscordId(
+            discordId
+        );
+
+    const memberships = new Map(
+        paletteIds.map(
+            (paletteId) => [
+                paletteId,
+                collections.map(
+                    (collection) => ({
+                        ...collection,
+                        containsPalette: false,
+                    })
+                ),
+            ]
+        )
+    );
+
+    if (paletteIds.length === 0) {
+        return memberships;
+    }
+
+    const contained =
+        await query<{
+            collectionId: string;
+            itemId: string;
+        }>(
+            `
+            SELECT
+                ci."collectionId",
+                ci."itemId"
+            FROM "CollectionItem" ci
+            INNER JOIN "Collection" c
+                ON c.id = ci."collectionId"
+            INNER JOIN "User" u
+                ON u.id = c."userId"
+            WHERE
+                u."discordId" = $1
+                AND ci."itemType" = 'PALETTE'
+                AND ci."itemId" = ANY($2::text[])
+            `,
+            [
+                discordId,
+                paletteIds,
+            ]
+        );
+
+    const containedPairs = new Set(
+        contained.rows.map(
+            (row) =>
+                `${row.collectionId}\u0000${row.itemId}`
+        )
+    );
+
+    for (const [paletteId, entries] of memberships) {
+        for (const entry of entries) {
+            entry.containsPalette =
+                containedPairs.has(
+                    `${entry.id}\u0000${paletteId}`
+                );
+        }
+    }
+
+    return memberships;
 }
 
 export async function addPaletteToCollection(

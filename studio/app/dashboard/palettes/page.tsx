@@ -5,7 +5,7 @@ import {
 import PaletteStudio from "../../../components/palettes/PaletteStudio";
 
 import {
-    getCollectionsForPalette,
+    getCollectionsForPalettes,
 } from "../../../lib/collections";
 
 import {
@@ -46,17 +46,10 @@ export default async function PalettesPage() {
 
     const paletteCollections =
         Object.fromEntries(
-            await Promise.all(
+            await getCollectionsForPalettes(
+                session.discordId,
                 palettes.map(
-                    async (
-                        palette
-                    ) => [
-                            palette.id,
-                            await getCollectionsForPalette(
-                                session.discordId,
-                                palette.id
-                            ),
-                        ]
+                    (palette) => palette.id
                 )
             )
         );
