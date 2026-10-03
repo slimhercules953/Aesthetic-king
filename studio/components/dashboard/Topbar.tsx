@@ -27,6 +27,10 @@ const mobileNavigation = [
         href: "/dashboard/create",
     },
     {
+        label: "Image to Aesthetic",
+        href: "/dashboard/image-to-aesthetic",
+    },
+    {
         label: "My Aesthetics",
         href: "/dashboard/aesthetics",
     },

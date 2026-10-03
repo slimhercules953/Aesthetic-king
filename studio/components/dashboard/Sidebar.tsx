@@ -10,6 +10,7 @@ import {
     FolderHeart,
     Home,
     Images,
+    ImagePlus,
     Palette,
     Plus,
     Server,
@@ -42,6 +43,11 @@ const primaryNavigation = [
         label: "Create",
         href: "/dashboard/create",
         icon: Plus,
+    },
+    {
+        label: "Image to Aesthetic",
+        href: "/dashboard/image-to-aesthetic",
+        icon: ImagePlus,
     },
     {
         label: "Discover",
