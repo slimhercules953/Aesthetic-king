@@ -9,6 +9,18 @@ const {
     getRandomProfileSet,
 } = require("../../services/assets/assetService");
 
+const {
+    isPremiumOnlyError,
+} = require("../../services/assets/premiumSets");
+
+const {
+    resolvePremiumAssets,
+} = require("../../services/entitlements/featureAccessService");
+
+const {
+    buildPremiumAssetsLockedEmbed,
+} = require("../../components/embeds/premiumLocked");
+
 function buildProfileResponse(profileSet) {
     const embed = new EmbedBuilder()
         .setTitle("✦ Your Aesthetic Profile")
@@ -65,8 +77,33 @@ module.exports = {
 
         const currentSetId = parts[2] || null;
 
-        const profileSet =
-            await getRandomProfileSet(currentSetId);
+        const premiumUnlocked =
+            await resolvePremiumAssets(
+                interaction.user.id
+            );
+
+        let profileSet;
+
+        try {
+            profileSet =
+                await getRandomProfileSet(
+                    currentSetId,
+                    premiumUnlocked
+                );
+        } catch (error) {
+            if (!isPremiumOnlyError(error)) {
+                throw error;
+            }
+
+            await interaction.editReply({
+                embeds: [
+                    buildPremiumAssetsLockedEmbed(),
+                ],
+                components: [],
+            });
+
+            return;
+        }
 
         await interaction.editReply(
             buildProfileResponse(profileSet)

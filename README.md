@@ -94,6 +94,10 @@ A web workspace at [`studio/`](studio/) — Vinext (React Server Components) dep
 
 Entitlements, per-feature usage limits, and Crown prices live in a single registry: [`studio/lib/features.ts`](studio/lib/features.ts). **All numbers there are product placeholders** — change them there, never at call sites. Checkout is intentionally not connected; Premium is granted via provider webhook, Discord SKU, grandfathering, or dev-only grant routes (fail-closed behind `CROWN_DEV` / `BILLING_DEV` + `NODE_ENV=development` + Discord ID allowlists). See [`studio/README.md`](studio/README.md) for details.
 
+The bot reads the same entitlements but cannot enforce every rule, so it enforces the one that matters where it can serve the goods: **Premium Assets**. [`src/services/entitlements/featureAccessService.js`](src/services/entitlements/featureAccessService.js) derives a user's plan from the `Entitlement` and `CrownUnlock` tables — it never stores a plan of its own, so revocations and grandfathered grants reach the bot the moment they reach the Studio. The two products present the lock differently on purpose: Studio shows premium sets to everyone with a crown badge and refuses to open them, because browsing is the upsell. The bot has no browse surface, so it keeps premium sets out of the pool and only mentions them when they were the *only* match for the user's filters. Which sets are premium is tagged in [`src/data/assetCatalog.json`](src/data/assetCatalog.json) and read by both.
+
+A user who has never signed into Studio has no entitlement row and is therefore treated as FREE. That is deliberate — a paid feature should fail closed — but it means the bot cannot itself sell Premium or Crowns yet.
+
 ---
 
 ## Tech Stack
@@ -131,6 +135,7 @@ cp .env.example .env
 | `R2_PUBLIC_URL` | Bot, Studio | Public bucket URL (`https://pub-<hash>.r2.dev` or custom domain) — required by `/profile` and `/theme` |
 | `R2_ENDPOINT` | Bot | Optional endpoint override (defaults to the account's `r2.cloudflarestorage.com` host) |
 | `OLLAMA_URL` / `OLLAMA_MODEL` | Bot, Studio | Self-hosted AI endpoint and model |
+| `STUDIO_URL` | Bot | Optional Studio URL used in "unlock this" prompts; falls back to `NEXT_PUBLIC_APP_URL`, and to naming the path if neither is set |
 | `DATABASE_URL` | Prisma | PostgreSQL connection string (migrations + bot) |
 | `NODE_ENV` | Both | `development` enables dev-only tooling; anything else is treated as production |
 
@@ -163,7 +168,9 @@ npm run deploy   # deploy to Cloudflare Workers
 
 ### Tests & utilities
 
-Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `testOllama.js`, `testColors.js`, `testRenderer.js`, `testAestheticService.js`, `testUserService.js`, `testSavedAestheticService.js`, plus asset catalog tooling (`generateAssetCatalog.js`, `seedAssetClassifications.js`, `tagAssetSet.js`) and command management (`clearGlobalCommands.js`, `clearGuildCommands.js`, `deleteGuildCommand.js`). Run individually, e.g. `node scripts/testDatabase.js`.
+Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `testOllama.js`, `testColors.js`, `testRenderer.js`, `testAestheticService.js`, `testPremiumGate.js`, `testUserService.js`, `testSavedAestheticService.js`, plus asset catalog tooling (`generateAssetCatalog.js`, `seedAssetClassifications.js`, `tagAssetSet.js`) and command management (`clearGlobalCommands.js`, `clearGuildCommands.js`, `deleteGuildCommand.js`). Run individually, e.g. `node scripts/testDatabase.js`.
+
+`node scripts/testPremiumGate.js` verifies the bot-side Premium Assets gate: that a free user is never handed a premium set (catalog path and R2 path), that an unlocked user still is, that premium-only filters produce the upsell rather than an empty-library reply, and that plans resolve from live entitlements.
 
 ---
 

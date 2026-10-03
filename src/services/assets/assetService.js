@@ -9,6 +9,11 @@ const {
     getR2Client,
 } = require("./r2Client");
 
+const {
+    PREMIUM_SETS_ONLY_ERROR,
+    getUsableSets,
+} = require("./premiumSets");
+
 const ASSET_PATTERN =
     /^(.+?)\s+(pfp|banner)\.(jpg|jpeg|png|webp)$/i;
 
@@ -259,16 +264,30 @@ async function getCompleteProfileSets() {
 }
 
 async function getRandomProfileSet(
-    excludeSetId = null
+    excludeSetId = null,
+    premiumUnlocked = false
 ) {
-    const sets =
+    const completeSets =
         await getCompleteProfileSets();
+
+    const sets = getUsableSets(
+        completeSets,
+        premiumUnlocked
+    );
 
     if (
         sets.length === 0
     ) {
+        /*
+         * Distinguish "the library is broken" from "everything left is
+         * premium" so the caller can upsell rather than report a
+         * storage failure.
+         */
         throw new Error(
-            "No complete PFP/banner sets were found in R2."
+            completeSets.length > 0 &&
+                !premiumUnlocked
+                ? PREMIUM_SETS_ONLY_ERROR
+                : "No complete PFP/banner sets were found in R2."
         );
     }
 

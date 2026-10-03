@@ -15,6 +15,12 @@ const {
 );
 
 const {
+    resolvePremiumAssets,
+} = require(
+    "../../services/entitlements/featureAccessService"
+);
+
+const {
     buildAestheticResponse,
     sendExpiredResponse,
 } = require("./aestheticReroll");
@@ -69,11 +75,24 @@ module.exports = {
             status,
         } = state.data;
 
+        const premiumUnlocked =
+            await resolvePremiumAssets(
+                interaction.user.id
+            );
+
+        /*
+         * Re-finding the set the user already has, through the same
+         * premium filter the original pick used. If the unlock lapsed
+         * since the message was posted, the set is gone from the pool
+         * and the existing "no longer available" reply applies — a
+         * reroll must not resurrect content the user can no longer use.
+         */
         const matchingSets =
             await getMatchingProfileSets({
                 aestheticId,
                 color,
                 mood,
+                premiumUnlocked,
             });
 
         const profileSet =
@@ -107,6 +126,8 @@ module.exports = {
 
                 fixedProfileSet:
                     profileSet,
+
+                premiumUnlocked,
 
                 fixedUsername:
                     username,

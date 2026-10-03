@@ -54,6 +54,19 @@ const config = {
         geminiApiKey:
             process.env.GEMINI_API_KEY || null,
     },
+
+    /*
+     * Where the Studio lives. Only used to point users at the page
+     * that unlocks a premium feature, so an unset value degrades to a
+     * plain path mention instead of breaking the command.
+     */
+    studio: {
+        url: (
+            process.env.STUDIO_URL ||
+            process.env.NEXT_PUBLIC_APP_URL ||
+            ""
+        ).replace(/\/+$/, ""),
+    },
 };
 
 module.exports = config;

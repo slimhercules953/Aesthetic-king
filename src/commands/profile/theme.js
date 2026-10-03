@@ -7,6 +7,18 @@ const {
 } = require("../../services/assets/assetService");
 
 const {
+    isPremiumOnlyError,
+} = require("../../services/assets/premiumSets");
+
+const {
+    resolvePremiumAssets,
+} = require("../../services/entitlements/featureAccessService");
+
+const {
+    buildPremiumAssetsLockedEmbed,
+} = require("../../components/embeds/premiumLocked");
+
+const {
     buildThemeResponse,
 } = require("../../components/buttons/themeReroll");
 
@@ -21,8 +33,32 @@ module.exports = {
     async execute(interaction) {
         await interaction.deferReply();
 
-        const profileSet =
-            await getRandomProfileSet();
+        const premiumUnlocked =
+            await resolvePremiumAssets(
+                interaction.user.id
+            );
+
+        let profileSet;
+
+        try {
+            profileSet =
+                await getRandomProfileSet(
+                    null,
+                    premiumUnlocked
+                );
+        } catch (error) {
+            if (!isPremiumOnlyError(error)) {
+                throw error;
+            }
+
+            await interaction.editReply({
+                embeds: [
+                    buildPremiumAssetsLockedEmbed(),
+                ],
+            });
+
+            return;
+        }
 
         const response =
             await buildThemeResponse(

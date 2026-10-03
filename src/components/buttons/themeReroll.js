@@ -12,6 +12,18 @@ const {
 } = require("../../services/assets/assetService");
 
 const {
+    isPremiumOnlyError,
+} = require("../../services/assets/premiumSets");
+
+const {
+    resolvePremiumAssets,
+} = require("../../services/entitlements/featureAccessService");
+
+const {
+    buildPremiumAssetsLockedEmbed,
+} = require("../../components/embeds/premiumLocked");
+
+const {
     extractColors,
     getMimeTypeFromExtension,
 } = require("../../services/colors/colorService");
@@ -165,10 +177,39 @@ module.exports = {
         const currentSetId =
             parts[2] || null;
 
-        const profileSet =
-            await getRandomProfileSet(
-                currentSetId
+        const premiumUnlocked =
+            await resolvePremiumAssets(
+                interaction.user.id
             );
+
+        let profileSet;
+
+        try {
+            profileSet =
+                await getRandomProfileSet(
+                    currentSetId,
+                    premiumUnlocked
+                );
+        } catch (error) {
+            if (!isPremiumOnlyError(error)) {
+                throw error;
+            }
+
+            /*
+             * The previous reply carried a rendered preview; clearing
+             * files and components drops it along with the reroll
+             * button that would just fail again.
+             */
+            await interaction.editReply({
+                embeds: [
+                    buildPremiumAssetsLockedEmbed(),
+                ],
+                files: [],
+                components: [],
+            });
+
+            return;
+        }
 
         const response =
             await buildThemeResponse(

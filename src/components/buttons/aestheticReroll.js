@@ -12,6 +12,18 @@ const {
 } = require("../../services/aesthetics/aestheticService");
 
 const {
+    isPremiumOnlyError,
+} = require("../../services/assets/premiumSets");
+
+const {
+    resolvePremiumAssets,
+} = require("../../services/entitlements/featureAccessService");
+
+const {
+    buildPremiumAssetsLockedEmbed,
+} = require("../embeds/premiumLocked");
+
+const {
     getAssetBuffer,
 } = require("../../services/assets/assetService");
 
@@ -138,7 +150,18 @@ async function buildAestheticResponse({
     packName = null,
     packColors = [],
     packSymbols = [],
+    premiumUnlocked = null,
 }) {
+    /*
+     * Callers that already resolved the entitlement pass it in; the
+     * bio reroll does, since it looked the set up with the same flag.
+     */
+    const unlocked =
+        premiumUnlocked ??
+        await resolvePremiumAssets(
+            interaction.user.id
+        );
+
     let profileSet;
 
     try {
@@ -149,10 +172,37 @@ async function buildAestheticResponse({
                     aestheticId,
                     color,
                     mood,
+                    premiumUnlocked: unlocked,
                 },
                 excludeSetId
             );
     } catch (error) {
+        if (isPremiumOnlyError(error)) {
+            const activeFilters = [
+                getAesthetic(aestheticId)?.name ||
+                    formatFilterName(aestheticId),
+                formatFilterName(color),
+                formatFilterName(mood),
+            ].filter(Boolean);
+
+            return {
+                payload: {
+                    embeds: [
+                        buildPremiumAssetsLockedEmbed({
+                            filterDisplay:
+                                activeFilters.join(" • "),
+                        }),
+                    ],
+
+                    components: [],
+                    files: [],
+                },
+
+                profileSet: null,
+                stateId: null,
+            };
+        }
+
         if (
             error.message ===
             "No profile sets match the requested aesthetic filters."

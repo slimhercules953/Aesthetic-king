@@ -9,6 +9,30 @@ const {
     getCompleteProfileSets,
 } = require("../assets/assetService");
 
+/*
+ * Premium sets are tagged in the catalog, the same flag the Studio
+ * reads. The bot cannot browse the library the way the Studio does, so
+ * instead of showing a locked card it keeps premium sets out of the
+ * pool entirely and only mentions them when they were the only match.
+ */
+const {
+    PREMIUM_SETS_ONLY_ERROR,
+    isPremiumCatalogSet,
+    isPremiumOnlyError,
+    getUsableSets,
+} = require("../assets/premiumSets");
+
+function getUsableCatalogSets(
+    catalogSets,
+    premiumUnlocked = false
+) {
+    return getUsableSets(
+        catalogSets,
+        premiumUnlocked,
+        isPremiumCatalogSet
+    );
+}
+
 function normalizeTag(value) {
     if (!value) {
         return null;
@@ -206,6 +230,7 @@ function filterCatalog({
     aestheticId = null,
     color = null,
     mood = null,
+    premiumUnlocked = false,
 } = {}) {
     const normalizedAesthetic =
         normalizeTag(aestheticId);
@@ -227,7 +252,7 @@ function filterCatalog({
         );
     }
 
-    return assetCatalog.filter(
+    const matchingSets = assetCatalog.filter(
         (set) => {
             if (
                 set.enabled === false
@@ -265,6 +290,11 @@ function filterCatalog({
 
             return true;
         }
+    );
+
+    return getUsableCatalogSets(
+        matchingSets,
+        premiumUnlocked
     );
 }
 
@@ -337,8 +367,25 @@ async function getRandomMatchingProfileSet(
         );
 
     if (sets.length === 0) {
+        /*
+         * The pool is empty. Either the aesthetic genuinely has no
+         * sets, or every matching set was filtered out because it is
+         * premium and this user has not unlocked it. Those deserve
+         * different replies, so compare against the unfiltered
+         * catalog rather than assuming the library is empty.
+         */
+        const premiumOnly =
+            filters.premiumUnlocked !== true &&
+            filterCatalog(filters).length === 0 &&
+            filterCatalog({
+                ...filters,
+                premiumUnlocked: true,
+            }).length > 0;
+
         throw new Error(
-            "No profile sets match the requested aesthetic filters."
+            premiumOnly
+                ? PREMIUM_SETS_ONLY_ERROR
+                : "No profile sets match the requested aesthetic filters."
         );
     }
 
@@ -368,6 +415,11 @@ async function getRandomMatchingProfileSet(
 }
 
 module.exports = {
+    PREMIUM_SETS_ONLY_ERROR,
+    isPremiumOnlyError,
+    getUsableCatalogSets,
+
+
     getCatalogSetsByAesthetic,
     getCatalogSetsByColor,
     getCatalogSetsByMood,
