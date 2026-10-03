@@ -19,6 +19,8 @@ import CopyButton from "../../../../components/aesthetics/CopyButton";
 
 import AddAestheticToCollectionButton from "../../../../components/collections/AddAestheticToCollectionButton";
 
+import ShareToFeedButton from "../../../../components/feed/ShareToFeedButton";
+
 import {
     getCollectionsForAesthetic,
 } from "../../../../lib/collections";
@@ -149,6 +151,16 @@ export default async function SavedAestheticPage({
                 </div>
 
                 <div className="flex flex-wrap gap-3">
+                    <ShareToFeedButton
+                        itemType="AESTHETIC"
+                        itemId={
+                            aesthetic.id
+                        }
+                        defaultTitle={
+                            aesthetic.name
+                        }
+                    />
+
                     <AddAestheticToCollectionButton
                         aestheticId={
                             aesthetic.id

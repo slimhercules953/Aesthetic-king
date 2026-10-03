@@ -2,6 +2,7 @@
 
 import {
     Boxes,
+    Compass,
     Crown,
     FolderHeart,
     Home,
@@ -38,6 +39,11 @@ const primaryNavigation = [
         label: "Create",
         href: "/dashboard/create",
         icon: Plus,
+    },
+    {
+        label: "Discover",
+        href: "/dashboard/discover",
+        icon: Compass,
     },
     {
         label: "My Aesthetics",

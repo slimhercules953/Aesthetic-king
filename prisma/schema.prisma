@@ -26,6 +26,10 @@ model User {
   entitlements    Entitlement[]
   patchNotices    PatchNotification[]
 
+  shares        SharedPost[]
+  sharedLikes   SharedPostLike[]
+  sharedComment SharedPostComment[]
+
   discordOAuth DiscordOAuthCredential?
 }
 
@@ -215,6 +219,61 @@ model AestheticPack {
   @@index([enabled])
 }
 
+model SharedPost {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  itemType SharedItemType
+  itemId   String
+
+  caption String?
+  tags    String[]
+
+  likeCount    Int @default(0)
+  commentCount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  likes    SharedPostLike[]
+  comments SharedPostComment[]
+
+  @@unique([userId, itemType, itemId])
+  @@index([createdAt])
+  @@index([likeCount])
+  @@index([itemType, itemId])
+}
+
+model SharedPostLike {
+  userId String
+  postId String
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post SharedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([userId, postId])
+  @@index([postId])
+}
+
+model SharedPostComment {
+  id     String @id @default(cuid())
+  postId String
+  post   SharedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  body String
+
+  createdAt DateTime @default(now())
+
+  @@index([postId, createdAt])
+  @@index([userId])
+}
+
 model GenerationHistory {
   id     String @id @default(cuid())
   userId String
@@ -292,6 +351,12 @@ enum GenerationType {
   STATUS
   USERNAME
   PALETTE
+}
+
+enum SharedItemType {
+  AESTHETIC
+  PALETTE
+  ASSET
 }
 
 enum EntitlementType {

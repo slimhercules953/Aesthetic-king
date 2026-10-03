@@ -12,6 +12,8 @@ import {
 
 import AddPaletteToCollectionButton from "../collections/AddPaletteToCollectionButton";
 
+import ShareToFeedButton from "../feed/ShareToFeedButton";
+
 import {
     useRouter,
 } from "next/navigation";
@@ -858,6 +860,16 @@ function SavedPaletteCard({
                             collections={
                                 collections
                             }
+                        />
+
+                        <ShareToFeedButton
+                            itemType="PALETTE"
+                            itemId={palette.id}
+                            defaultTitle={
+                                palette.name ||
+                                "Untitled Palette"
+                            }
+                            compact
                         />
 
                         <button

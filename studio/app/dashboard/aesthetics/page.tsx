@@ -17,6 +17,8 @@ import {
     getSavedAestheticsByDiscordId,
 } from "../../../lib/savedAesthetics";
 
+import ShareToFeedButton from "../../../components/feed/ShareToFeedButton";
+
 function formatDate(
     value: Date
 ) {
@@ -142,12 +144,11 @@ export default async function MyAestheticsPage() {
                         (
                             aesthetic
                         ) => (
-                            <a
+                            <div
                                 key={
                                     aesthetic.id
                                 }
-                                href={`/dashboard/aesthetics/${aesthetic.id}`}
-                                className="group overflow-hidden rounded-3xl border border-white/[0.06] bg-[#101015] transition duration-200 hover:-translate-y-1 hover:border-violet-500/20 hover:shadow-2xl hover:shadow-violet-950/20"
+                                className="group relative overflow-hidden rounded-3xl border border-white/[0.06] bg-[#101015] transition duration-200 hover:-translate-y-1 hover:border-violet-500/20 hover:shadow-2xl hover:shadow-violet-950/20"
                             >
                                 <div className="relative h-24 overflow-hidden bg-gradient-to-br from-violet-500/10 via-fuchsia-500/[0.05] to-transparent">
                                     <div className="absolute inset-0 opacity-80">
@@ -171,7 +172,7 @@ export default async function MyAestheticsPage() {
                                     </span>
                                 </div>
 
-                                <div className="p-5">
+                                <div className="relative z-10 p-5">
                                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-600">
                                         {
                                             aesthetic.aestheticId
@@ -217,7 +218,7 @@ export default async function MyAestheticsPage() {
                                         </div>
                                     )}
 
-                                    <div className="mt-5 flex items-center justify-between border-t border-white/[0.05] pt-4 text-xs text-zinc-600">
+                                    <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/[0.05] pt-4 text-xs text-zinc-600">
                                         <span>
                                             Saved{" "}
                                             {formatDate(
@@ -225,12 +226,21 @@ export default async function MyAestheticsPage() {
                                             )}
                                         </span>
 
-                                        <span className="text-violet-500 opacity-0 transition group-hover:opacity-100">
-                                            Open →
-                                        </span>
+                                        <ShareToFeedButton
+                                            itemType="AESTHETIC"
+                                            itemId={aesthetic.id}
+                                            defaultTitle={aesthetic.name}
+                                            compact
+                                        />
                                     </div>
                                 </div>
-                            </a>
+
+                                <a
+                                    href={`/dashboard/aesthetics/${aesthetic.id}`}
+                                    aria-label={`Open ${aesthetic.name}`}
+                                    className="absolute inset-0 z-0"
+                                />
+                            </div>
                         )
                     )}
                 </div>

@@ -15,6 +15,8 @@ import FavoriteButton from "../../../../components/assets/FavoriteButton";
 
 import AddToCollectionButton from "../../../../components/collections/AddToCollectionButton";
 
+import ShareToFeedButton from "../../../../components/feed/ShareToFeedButton";
+
 import {
     getAssetSetById,
 } from "../../../../lib/assetCatalog";
@@ -152,6 +154,16 @@ export default async function AssetDetailPage({
                 </div>
 
                 <div className="flex flex-wrap gap-3">
+                    <ShareToFeedButton
+                        itemType="ASSET"
+                        itemId={
+                            set.id
+                        }
+                        defaultTitle={
+                            `Profile Set ${set.id}`
+                        }
+                    />
+
                     <FavoriteButton
                         setId={
                             set.id
