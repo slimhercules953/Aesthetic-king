@@ -1,23 +1,38 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai")
 const { createCanvas, loadImage } = require('canvas');
 const fs = require('fs');
-const getColors = require('get-image-colors');
+const { extractDominantColors } = require('../src/services/colors/canvasColorExtractor');
 const { S3Client, ListObjectsV2Command, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { AttachmentBuilder } = require("discord.js")
 const fetch = require('node-fetch'); // Needed to fetch images from URLs
+const config = require('../src/config/env');
 
-// Configure AWS SDK for Cloudflare R2
+// Configure AWS SDK for Cloudflare R2. The endpoint comes from
+// configuration so the Cloudflare account ID stays out of source.
+if (!config.r2.endpoint) {
+  throw new Error('R2_ACCOUNT_ID (or R2_ENDPOINT) is not configured.');
+}
+
 const r2 = new S3Client({
-  endpoint: 'https://a6e0195cedde864ddf51dee117a96a14.r2.cloudflarestorage.com', // Replace with your R2 account endpoint
+  endpoint: config.r2.endpoint,
   region: 'auto',
   credentials: {
-    accessKeyId: process.env.r2accesskey, // Your R2 access key
-    secretAccessKey: process.env.r2SAK,  // Your R2 secret key
+    accessKeyId: config.r2.accessKeyId || process.env.r2accesskey, // Your R2 access key
+    secretAccessKey: config.r2.secretAccessKey || process.env.r2SAK,  // Your R2 secret key
     // sessionToken: process.env.r2token,
   },
 });
 
-const bucketName = 'aesthetic-king'; // Replace with your R2 bucket name
+const bucketName = config.r2.bucketName || 'aesthetic-king'; // Replace with your R2 bucket name
+
+// Public bucket URLs also embed the account ID, so they come from
+// R2_PUBLIC_URL rather than being written into source.
+if (!config.r2.publicUrl) {
+  throw new Error('R2_PUBLIC_URL is not configured.');
+}
+
+const publicBaseUrl = config.r2.publicUrl.replace(/\/+$/, '');
+const publicUrl = (key) => `${publicBaseUrl}/${key}`;
 
 // Helper function to fetch all files from the R2 bucket and group by prefix
 async function fetchPrefixMap(bucketName) {
@@ -85,14 +100,14 @@ module.exports = {
         const pfpurl = pfpFiles[0].split(" ").join("%20")
         const bannerurl = bannerFiles[0].split(" ").join("%20")
 
-        const testurl = `https://pub-d57423038d524235af4d68d744e4aaf2.r2.dev/${bannerurl}`
+        const testurl = publicUrl(bannerurl)
         // Fetch the image and create a buffer
         const response = await fetch(testurl);
         if (!response.ok) throw new Error('Failed to fetch the image.');
         const imageBuffer = await response.buffer();
 
-        // Extract colors using get-image-colors
-        const hmm = await getColors(imageBuffer, 'image/jpeg'); // Specify the image type (e.g., 'image/png' or 'image/jpeg')
+        // Extract colors using the canvas-based extractor
+        const hmm = await extractDominantColors(imageBuffer); // Decodes via `canvas`, no mime argument needed
 
         if (!hmm.length) {
         await interaction.followUp({
@@ -100,17 +115,21 @@ module.exports = {
         });
         return;
         }
+
+        // Median cut can collapse to fewer buckets than requested on
+        // near-flat images; the drawing code below indexes 0..4.
+        while (hmm.length < 5) hmm.push(hmm[hmm.length - 1]);
         
         // Format extracted colors
         const colorDescriptions = hmm
         .map((color1, index) => {
-            const hex = color1.hex();
+            const hex = color1.hex;
             return `**Color ${index + 1}:** ${hex}`;
         })
         .join('\n');
 
     // const imageResp = await fetch(
-    //     `https://pub-d57423038d524235af4d68d744e4aaf2.r2.dev/${pfpurl}`
+    //     publicUrl(pfpurl)
     // )
     //     .then((response) => response.arrayBuffer());
 
@@ -167,7 +186,7 @@ module.exports = {
     // Main function to draw the design
     async function drawDesign() {
         // Step 1: Black Background
-        ctx.fillStyle = hmm[4].hex(); // Black background
+        ctx.fillStyle = hmm[4].hex; // Black background
         ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
         // Add the new rectangle
@@ -190,7 +209,7 @@ module.exports = {
         const squareSize = Math.min(rectWidth, rectHeight);
 
         // Load and draw the profile picture as a square
-        const profilePicture4 = await loadImage(`https://pub-d57423038d524235af4d68d744e4aaf2.r2.dev/${pfpurl}`); // Replace with actual path
+        const profilePicture4 = await loadImage(publicUrl(pfpurl)); // Replace with actual path
 
         // Draw the square profile picture
         ctx.drawImage(profilePicture4, rectX, rectY, squareSize, squareSize);
@@ -206,7 +225,7 @@ module.exports = {
         const squareHeight2 = rectHeight2 * 0.75; // Make the height 75% of the original height
 
         // Load and draw the profile picture as a square
-        const profilePicture2 = await loadImage(`https://pub-d57423038d524235af4d68d744e4aaf2.r2.dev/${bannerurl}`); // Replace with actual path
+        const profilePicture2 = await loadImage(publicUrl(bannerurl)); // Replace with actual path
 
         // Draw the square profile picture in the new position
         ctx.drawImage(profilePicture2, rectX2, rectY2, squareWidth2, squareHeight2);
@@ -229,18 +248,18 @@ module.exports = {
         ctx.fillText('Primary Color', primaryTextAbovePositionX, primaryTextAbovePositionY);
 
         // Draw the rounded rectangle with the new variable names
-        drawRoundedRect(ctx, boxX, boxY, boxWidth, boxHeight, cornerRadius, hmm[0].hex());
+        drawRoundedRect(ctx, boxX, boxY, boxWidth, boxHeight, cornerRadius, hmm[0].hex);
 
         // Set the text properties
         ctx.fillStyle = '#ffffff'; // White text
         ctx.font = '35px Arial';
 
         // Calculate the position to center the text inside the box
-        const textPositionX = boxX + (boxWidth / 2) - (ctx.measureText(hmm[0].hex()).width / 2); // Center text horizontally
+        const textPositionX = boxX + (boxWidth / 2) - (ctx.measureText(hmm[0].hex).width / 2); // Center text horizontally
         const textPositionY = boxY + (boxHeight / 2) + 8; // Center text vertically (adjust for font size)
 
         // Draw the centered text
-        ctx.fillText(hmm[0].hex(), textPositionX, textPositionY);
+        ctx.fillText(hmm[0].hex, textPositionX, textPositionY);
 
     
         // Step 4: Secondary Color Box
@@ -261,18 +280,18 @@ module.exports = {
 
 
         // Draw the rounded rectangle with the new variable names for secondary
-        drawRoundedRect(ctx, secondaryBoxX, secondaryBoxY, secondaryBoxWidth, secondaryBoxHeight, secondaryCornerRadius, hmm[1].hex());
+        drawRoundedRect(ctx, secondaryBoxX, secondaryBoxY, secondaryBoxWidth, secondaryBoxHeight, secondaryCornerRadius, hmm[1].hex);
 
         // Set the text properties
         ctx.fillStyle = '#ffffff'; // White text
         ctx.font = '35px Arial';
 
         // Calculate the position to center the text inside the secondary box
-        const secondaryTextPositionX = secondaryBoxX + (secondaryBoxWidth / 2) - (ctx.measureText(hmm[1].hex()).width / 2); // Center text horizontally
+        const secondaryTextPositionX = secondaryBoxX + (secondaryBoxWidth / 2) - (ctx.measureText(hmm[1].hex).width / 2); // Center text horizontally
         const secondaryTextPositionY = secondaryBoxY + (secondaryBoxHeight / 2) + 8; // Center text vertically (adjust for font size)
 
         // Draw the centered text inside the secondary box
-        ctx.fillText(hmm[1].hex(), secondaryTextPositionX, secondaryTextPositionY);
+        ctx.fillText(hmm[1].hex, secondaryTextPositionX, secondaryTextPositionY);
 
     
         // Rectangle coordinates (from the HTML <area> tag for the third rectangle)
@@ -286,7 +305,7 @@ module.exports = {
         const squareHeight3 = rectHeight3 * 0.75; // Optionally reduce the height by 25%
 
         // Load and draw the profile picture or any other content at the third rectangle's location
-        const profilePicture3 = await loadImage(`https://pub-d57423038d524235af4d68d744e4aaf2.r2.dev/${bannerurl}`); // Replace with actual path
+        const profilePicture3 = await loadImage(publicUrl(bannerurl)); // Replace with actual path
 
         // Draw the image or content inside the third rectangle
         ctx.drawImage(profilePicture3, rectX3, rectY3, squareWidth3, squareHeight3);

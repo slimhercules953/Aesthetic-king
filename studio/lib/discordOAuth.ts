@@ -1,4 +1,8 @@
 import {
+    ExpectedError,
+} from "./apiError";
+
+import {
     query,
 } from "./database";
 
@@ -122,7 +126,7 @@ export async function saveDiscordOAuthCredentials(
         (result.rowCount ?? 0) ===
         0
     ) {
-        throw new Error(
+        throw new ExpectedError(
             "Unable to store Discord OAuth credentials."
         );
     }

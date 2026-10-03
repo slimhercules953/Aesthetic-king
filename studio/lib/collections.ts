@@ -1,4 +1,8 @@
 import {
+    ExpectedError,
+} from "./apiError";
+
+import {
     query,
 } from "./database";
 
@@ -91,7 +95,7 @@ export async function createCollection(
         name.trim();
 
     if (!trimmedName) {
-        throw new Error(
+        throw new ExpectedError(
             "Collection name is required."
         );
     }
@@ -136,7 +140,7 @@ export async function createCollection(
         result.rows[0];
 
     if (!collection) {
-        throw new Error(
+        throw new ExpectedError(
             "Unable to create collection."
         );
     }
@@ -153,7 +157,7 @@ export async function renameCollection(
         name.trim();
 
     if (!trimmedName) {
-        throw new Error(
+        throw new ExpectedError(
             "Collection name is required."
         );
     }

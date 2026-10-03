@@ -31,6 +31,17 @@ const config = {
         secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || null,
         bucketName: process.env.R2_BUCKET_NAME || null,
         publicUrl: process.env.R2_PUBLIC_URL || null,
+
+        // The account ID is embedded in the endpoint hostname, so it
+        // belongs in configuration rather than being written into
+        // source where it ends up in every clone of the repository.
+        endpoint:
+            process.env.R2_ENDPOINT ||
+            (
+                process.env.R2_ACCOUNT_ID
+                    ? `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+                    : null
+            ),
     },
 
     ai: {

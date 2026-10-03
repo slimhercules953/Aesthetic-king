@@ -3,11 +3,10 @@
     "@aws-sdk/client-s3": "^3.696.0",
     "@google/generative-ai": "^0.21.0",
     "@prisma/client": "^6.19.3",
-    "axios": "^1.7.7",
+    "axios": "^1.20.0",
     "canvas": "^3.0.0-rc2",
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.5",
-    "get-image-colors": "^4.0.1",
     "glob": "^13.0.6",
     "openai": "^4.73.0",
     "uuid": "^14.0.1"
@@ -36,5 +35,19 @@
   "devDependencies": {
     "eslint": "^9.15.0",
     "prisma": "^6.19.3"
+  },
+  "overrides": {
+    "undici": "^6.29.0",
+    "js-yaml": "^4.3.2",
+    "@humanfs/node": "^0.16.8",
+    "@prisma/config": {
+      "deepmerge-ts": "^8.0.2"
+    },
+    "minimatch@3": {
+      "brace-expansion": "^1.1.21"
+    },
+    "minimatch@10": {
+      "brace-expansion": "^5.0.12"
+    }
   }
 }

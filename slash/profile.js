@@ -1,17 +1,32 @@
 const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const { S3Client, ListObjectsV2Command, GetObjectCommand } = require('@aws-sdk/client-s3');
+const config = require('../src/config/env');
 
-// Configure AWS SDK for Cloudflare R2
+// Configure AWS SDK for Cloudflare R2. The endpoint and public URL come
+// from configuration so the Cloudflare account ID stays out of source.
+if (!config.r2.endpoint) {
+  throw new Error('R2_ACCOUNT_ID (or R2_ENDPOINT) is not configured.');
+}
+
 const r2 = new S3Client({
-  endpoint: 'https://a6e0195cedde864ddf51dee117a96a14.r2.cloudflarestorage.com', // Replace with your R2 account endpoint
+  endpoint: config.r2.endpoint,
   region: 'auto',
   credentials: {
-    accessKeyId: process.env.r2accesskey, // Your R2 access key
-    secretAccessKey: process.env.r2SAK,  // Your R2 secret key
+    accessKeyId: config.r2.accessKeyId || process.env.r2accesskey, // Your R2 access key
+    secretAccessKey: config.r2.secretAccessKey || process.env.r2SAK,  // Your R2 secret key
   },
 });
 
-const bucketName = 'aesthetic-king'; // Replace with your R2 bucket name
+const bucketName = config.r2.bucketName || 'aesthetic-king'; // Replace with your R2 bucket name
+
+// Public bucket URLs also embed the account ID, so they come from
+// R2_PUBLIC_URL rather than being written into source.
+if (!config.r2.publicUrl) {
+  throw new Error('R2_PUBLIC_URL is not configured.');
+}
+
+const publicBaseUrl = config.r2.publicUrl.replace(/\/+$/, '');
+const publicUrl = (key) => `${publicBaseUrl}/${key}`;
 
 // Helper function to fetch all files from the R2 bucket and group by prefix
 async function fetchPrefixMap(bucketName) {
@@ -93,14 +108,14 @@ const bannerurl = bannerFiles[0].split(" ").join("%20")
           // Create an embed with a reference to the attachment
 
           const exampleEmbed = new EmbedBuilder()
-                  .setThumbnail(`https://pub-d57423038d524235af4d68d744e4aaf2.r2.dev/${pfpurl}`)
+                  .setThumbnail(publicUrl(pfpurl))
                   .addFields(
-                      { name: 'Your recommended **Profile Picture**', value: `[Download the Profile Picture](https://pub-d57423038d524235af4d68d744e4aaf2.r2.dev/${pfpurl})` },
+                      { name: 'Your recommended **Profile Picture**', value: `[Download the Profile Picture](${publicUrl(pfpurl)})` },
                       { name: '\u200B', value: '\u200B' },
-                      { name: 'Your recommended **Profile Banner**', value: `[Download the Banner](https://pub-d57423038d524235af4d68d744e4aaf2.r2.dev/${bannerurl})`, inline: true },
+                      { name: 'Your recommended **Profile Banner**', value: `[Download the Banner](${publicUrl(bannerurl)})`, inline: true },
                       ///{ name: '\u200B', value: '\u200B', inline: true },
                   )
-                  .setImage(`https://pub-d57423038d524235af4d68d744e4aaf2.r2.dev/${bannerurl}`)
+                  .setImage(publicUrl(bannerurl))
                   .setTimestamp()
           
               interaction.followUp({ embeds: [exampleEmbed] });

@@ -1,4 +1,8 @@
 import {
+    ExpectedError,
+} from "./apiError";
+
+import {
     query,
 } from "./database";
 
@@ -136,7 +140,7 @@ export async function createServerAestheticPack(
         result.rows[0];
 
     if (!pack) {
-        throw new Error(
+        throw new ExpectedError(
             "Aesthetic King is not installed in this Discord server."
         );
     }
@@ -209,7 +213,7 @@ export async function updateServerAestheticPack(
         result.rows[0];
 
     if (!pack) {
-        throw new Error(
+        throw new ExpectedError(
             "Aesthetic Pack was not found."
         );
     }
@@ -243,7 +247,7 @@ export async function deleteServerAestheticPack(
         (result.rowCount ?? 0) ===
         0
     ) {
-        throw new Error(
+        throw new ExpectedError(
             "Aesthetic Pack was not found."
         );
     }
@@ -319,7 +323,7 @@ export async function setDefaultAestheticPack(
             (packResult.rowCount ??
                 0) === 0
         ) {
-            throw new Error(
+            throw new ExpectedError(
                 "Aesthetic Pack was not found."
             );
         }
@@ -367,7 +371,7 @@ export async function setDefaultAestheticPack(
         (result.rowCount ?? 0) ===
         0
     ) {
-        throw new Error(
+        throw new ExpectedError(
             "Could not update the default Aesthetic Pack."
         );
     }

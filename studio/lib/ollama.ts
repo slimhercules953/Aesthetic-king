@@ -1,4 +1,8 @@
 import {
+    ExpectedError,
+} from "./apiError";
+
+import {
     env,
 } from "cloudflare:workers";
 
@@ -13,7 +17,7 @@ export async function generateOllamaText(
         !prompt ||
         !prompt.trim()
     ) {
-        throw new Error(
+        throw new ExpectedError(
             "An Ollama prompt is required."
         );
     }
@@ -47,8 +51,14 @@ export async function generateOllamaText(
         const body =
             await response.text();
 
-        throw new Error(
+        // Upstream bodies name internal hosts and model-registry
+        // details; keep them in the log only.
+        console.error(
             `Ollama request failed: ${response.status} ${response.statusText} - ${body}`
+        );
+
+        throw new Error(
+            "The generation service is unavailable right now. Please try again shortly."
         );
     }
 

@@ -26,6 +26,9 @@ model User {
   entitlements    Entitlement[]
   patchNotices    PatchNotification[]
 
+  featureUsage     FeatureUsage[]
+  crownTransactions CrownTransaction[]
+
   shares        SharedPost[]
   sharedLikes   SharedPostLike[]
   sharedComment SharedPostComment[]
@@ -315,6 +318,8 @@ model PatchNotification {
   @@id([userId, patchId])
 }
 
+/// A grant of access. Rows are never deleted, only deactivated, so
+/// what a user once paid for stays auditable.
 model Entitlement {
   id     String @id @default(cuid())
   userId String
@@ -325,6 +330,15 @@ model Entitlement {
   source String?
   active Boolean @default(true)
 
+  /// The store SKU this grant came from, e.g. a Discord Application
+  /// Store SKU ID. Null for manual, staff and dev grants.
+  skuId String?
+
+  /// The provider's own entitlement/purchase ID. Kept so a replayed
+  /// webhook is recognised as a duplicate and so a refund can revoke
+  /// the exact grant it applies to rather than "any Premium".
+  externalEntitlementId String?
+
   startsAt DateTime @default(now())
   endsAt   DateTime?
 
@@ -332,6 +346,61 @@ model Entitlement {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+
+  /// A webhook may be delivered more than once. This makes the second
+  /// delivery findable. Partial (non-null only) so many manual grants
+  /// can coexist.
+  @@unique([externalEntitlementId], map: "Entitlement_externalEntitlementId_key")
+}
+
+/// One row per (user, feature, reset window). Consumption is
+/// accumulated here rather than recomputed from feature tables so
+/// that limits stay cheap to check and survive source-data churn.
+model FeatureUsage {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  feature  String
+  periodKey String
+
+  used Int     @default(0)
+  lastUsedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, feature, periodKey])
+  @@index([userId, feature])
+}
+
+/// Append-only Crown ledger. The balance is the SUM of amounts, so
+/// there is no single mutable column to drift out of sync.
+model CrownTransaction {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type   CrownTransactionType
+  amount Int
+
+  reason String
+  source String?
+
+  /// Client-generated key that makes a retried spend a no-op.
+  idempotencyKey String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt])
+}
+
+enum CrownTransactionType {
+  EARN
+  SPEND
+  ADJUSTMENT
+  REFUND
 }
 
 enum AssetType {

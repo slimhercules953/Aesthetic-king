@@ -1,4 +1,8 @@
 import {
+    handleRouteError,
+} from "../../../../../lib/apiError";
+
+import {
     NextRequest,
     NextResponse,
 } from "next/server";
@@ -357,16 +361,10 @@ export async function POST(
             pack,
         });
     } catch (error) {
-        return NextResponse.json(
-            {
-                error:
-                    error instanceof Error
-                        ? error.message
-                        : "Could not create Aesthetic Pack.",
-            },
-            {
-                status: 400,
-            }
+        return handleRouteError(
+            error,
+            400,
+            "Could not create Aesthetic Pack."
         );
     }
 }

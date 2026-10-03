@@ -1,18 +1,46 @@
 import {
+    NextRequest,
     NextResponse,
 } from "next/server";
 
 import {
+    createPkcePair,
     getDiscordAuthorizeUrl,
+    OAUTH_STATE_COOKIE_NAME,
+    OAUTH_VERIFIER_COOKIE_NAME,
+    resolveAppOrigin,
+    shouldUseSecureCookies,
 } from "../../../../lib/auth";
 
-export async function GET() {
+/**
+ * Both cookies live for the length of the redirect dance and nothing
+ * longer. A stale verifier is worse than none, because it would be
+ * replayed against a code the browser never requested.
+ */
+const OAUTH_COOKIE_MAX_AGE =
+    60 * 10;
+
+export async function GET(
+    request: NextRequest
+) {
     const state =
         crypto.randomUUID();
 
+    const appUrl =
+        resolveAppOrigin(
+            request.url
+        );
+
+    const {
+        codeVerifier,
+        codeChallenge,
+    } = await createPkcePair();
+
     const authorizeUrl =
         getDiscordAuthorizeUrl(
-            state
+            state,
+            appUrl,
+            codeChallenge
         );
 
     const response =
@@ -20,22 +48,31 @@ export async function GET() {
             authorizeUrl
         );
 
+    const cookieOptions = {
+        httpOnly: true,
+
+        sameSite: "lax" as const,
+
+        secure:
+            shouldUseSecureCookies(
+                request.url
+            ),
+
+        maxAge: OAUTH_COOKIE_MAX_AGE,
+
+        path: "/",
+    };
+
     response.cookies.set(
-        "discord_oauth_state",
+        OAUTH_STATE_COOKIE_NAME,
         state,
-        {
-            httpOnly: true,
+        cookieOptions
+    );
 
-            sameSite: "lax",
-
-            secure:
-                process.env.NODE_ENV ===
-                "production",
-
-            maxAge: 60 * 10,
-
-            path: "/",
-        }
+    response.cookies.set(
+        OAUTH_VERIFIER_COOKIE_NAME,
+        codeVerifier,
+        cookieOptions
     );
 
     return response;

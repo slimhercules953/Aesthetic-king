@@ -22,6 +22,13 @@ import {
     getR2AssetUrl,
 } from "../../lib/r2Assets";
 
+import UpgradePrompt from "../ui/UpgradePrompt";
+
+import {
+    readDeniedBody,
+    type FeatureDeniedBody,
+} from "../../lib/denied";
+
 type Filters = {
     aesthetics: string[];
     moods: string[];
@@ -142,6 +149,13 @@ export default function CreateAestheticStudio({
         string | null
     >(null);
 
+    const [
+        denied,
+        setDenied,
+    ] = useState<
+        FeatureDeniedBody | null
+    >(null);
+
     const profileSet =
         result
             ? assetSets.find(
@@ -161,6 +175,7 @@ export default function CreateAestheticStudio({
 
         setGenerating(true);
         setError(null);
+        setDenied(null);
 
         try {
             const response =
@@ -206,6 +221,17 @@ export default function CreateAestheticStudio({
                 !response.ok ||
                 !body.aesthetic
             ) {
+                const refusal =
+                    readDeniedBody(
+                        response.status,
+                        body
+                    );
+
+                if (refusal) {
+                    setDenied(refusal);
+                    return;
+                }
+
                 throw new Error(
                     body.error ||
                         "Unable to generate aesthetic."
@@ -244,6 +270,7 @@ export default function CreateAestheticStudio({
         );
 
         setError(null);
+        setDenied(null);
 
         try {
             const response =
@@ -309,6 +336,17 @@ export default function CreateAestheticStudio({
                 !response.ok ||
                 !body.update
             ) {
+                const refusal =
+                    readDeniedBody(
+                        response.status,
+                        body
+                    );
+
+                if (refusal) {
+                    setDenied(refusal);
+                    return;
+                }
+
                 throw new Error(
                     body.error ||
                         "Unable to regenerate."
@@ -351,6 +389,7 @@ export default function CreateAestheticStudio({
 
         setSaving(true);
         setError(null);
+        setDenied(null);
 
         try {
             const response =
@@ -402,6 +441,18 @@ export default function CreateAestheticStudio({
                 !response.ok ||
                 !body.aesthetic
             ) {
+                const refusal =
+                    readDeniedBody(
+                        response.status,
+                        body
+                    );
+
+                if (refusal) {
+                    setDenied(refusal);
+                    setSaving(false);
+                    return;
+                }
+
                 throw new Error(
                     body.error ||
                         "Unable to save aesthetic."
@@ -626,6 +677,13 @@ export default function CreateAestheticStudio({
                             error
                         }
                     </p>
+                )}
+
+                {denied && (
+                    <UpgradePrompt
+                        denied={denied}
+                        className="mt-5"
+                    />
                 )}
 
                 <button

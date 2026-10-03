@@ -1,4 +1,8 @@
 import {
+    ExpectedError,
+} from "./apiError";
+
+import {
     generateOllamaText,
 } from "./ollama";
 
@@ -58,7 +62,7 @@ function extractJson(
         end === -1 ||
         end < start
     ) {
-        throw new Error(
+        throw new ExpectedError(
             "Ollama did not return valid JSON."
         );
     }
@@ -102,7 +106,7 @@ async function generateJson(
             unknown
         >;
     } catch {
-        throw new Error(
+        throw new ExpectedError(
             "Ollama returned malformed JSON."
         );
     }
@@ -198,7 +202,7 @@ Rules:
                 "string" ||
                 !result.usernameIdea.trim()
             ) {
-                throw new Error(
+                throw new ExpectedError(
                     "Ollama did not return a valid username."
                 );
             }
@@ -242,7 +246,7 @@ Rules:
                 "string" ||
                 !result.bio.trim()
             ) {
-                throw new Error(
+                throw new ExpectedError(
                     "Ollama did not return a valid bio."
                 );
             }
@@ -286,7 +290,7 @@ Rules:
                 "string" ||
                 !result.status.trim()
             ) {
-                throw new Error(
+                throw new ExpectedError(
                     "Ollama did not return a valid status."
                 );
             }
@@ -362,7 +366,7 @@ Rules:
                 palette.length <
                 3
             ) {
-                throw new Error(
+                throw new ExpectedError(
                     "Ollama did not return a valid palette."
                 );
             }
@@ -429,7 +433,7 @@ Rules:
                 symbols.length <
                 3
             ) {
-                throw new Error(
+                throw new ExpectedError(
                     "Ollama did not return valid symbols."
                 );
             }

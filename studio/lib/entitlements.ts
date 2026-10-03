@@ -1,0 +1,517 @@
+import {
+    query,
+    withTransaction,
+} from "./database";
+
+import type {
+    Plan,
+} from "./features";
+
+export type EntitlementType =
+    | "PREMIUM"
+    | "SERVER_PREMIUM";
+
+export type EntitlementRecord = {
+    id: string;
+    type: EntitlementType;
+    source: string | null;
+    active: boolean;
+    startsAt: Date;
+    endsAt: Date | null;
+
+    /**
+     * Store SKU this came from, or null for staff/trial/dev grants.
+     */
+    skuId: string | null;
+
+    /**
+     * The provider's own entitlement ID. Used to recognise a replayed
+     * webhook and to revoke the exact grant a refund applies to.
+     */
+    externalEntitlementId: string | null;
+};
+
+/**
+ * An entitlement is live only while it is flagged active AND the
+ * current instant sits inside its startsAt/endsAt window.
+ */
+const ACTIVE_PREDICATE = `
+    e."active" = true
+    AND e."startsAt" <= NOW()
+    AND (
+        e."endsAt" IS NULL
+        OR e."endsAt" > NOW()
+    )
+`;
+
+/**
+ * Shared projection so every read returns the same shape as
+ * `EntitlementRecord`.
+ */
+const ENTITLEMENT_COLUMNS = `
+    e.id,
+    e.type,
+    e.source,
+    e."active",
+    e."skuId",
+    e."externalEntitlementId",
+    e."startsAt",
+    e."endsAt"
+`;
+
+export async function getActiveEntitlements(
+    discordId: string
+): Promise<EntitlementRecord[]> {
+    const result =
+        await query<EntitlementRecord>(
+            `
+            SELECT
+                ${ENTITLEMENT_COLUMNS}
+            FROM "Entitlement" e
+            INNER JOIN "User" u
+                ON u.id = e."userId"
+            WHERE
+                u."discordId" = $1
+                AND ${ACTIVE_PREDICATE}
+            ORDER BY
+                e."startsAt" DESC
+            `,
+            [
+                discordId,
+            ]
+        );
+
+    return result.rows;
+}
+
+/**
+ * Personal plan, derived from live entitlements.
+ *
+ * There is deliberately no stored "plan" column: the plan is always
+ * whatever the entitlement table says right now, so revocations,
+ * expiries and promotions take effect immediately.
+ */
+export async function getActivePlan(
+    discordId: string
+): Promise<Plan> {
+    const result =
+        await query<{
+            exists: boolean;
+        }>(
+            `
+            SELECT EXISTS (
+                SELECT 1
+                FROM "Entitlement" e
+                INNER JOIN "User" u
+                    ON u.id = e."userId"
+                WHERE
+                    u."discordId" = $1
+                    AND e.type = 'PREMIUM'
+                    AND ${ACTIVE_PREDICATE}
+            ) AS "exists"
+            `,
+            [
+                discordId,
+            ]
+        );
+
+    return result.rows[0]
+        ?.exists
+        ? "PREMIUM"
+        : "FREE";
+}
+
+export async function hasEntitlement(
+    discordId: string,
+    type: EntitlementType
+): Promise<boolean> {
+    const result =
+        await query<{
+            exists: boolean;
+        }>(
+            `
+            SELECT EXISTS (
+                SELECT 1
+                FROM "Entitlement" e
+                INNER JOIN "User" u
+                    ON u.id = e."userId"
+                WHERE
+                    u."discordId" = $1
+                    AND e.type = $2::"EntitlementType"
+                    AND ${ACTIVE_PREDICATE}
+            ) AS "exists"
+            `,
+            [
+                discordId,
+                type,
+            ]
+        );
+
+    return Boolean(
+        result.rows[0]
+            ?.exists
+    );
+}
+
+export type EntitlementSummary = {
+    plan: Plan;
+
+    /**
+     * The live PREMIUM row driving the plan, if any.
+     */
+    premium: EntitlementRecord | null;
+
+    /**
+     * When Premium lapses, or null when it is permanent / absent.
+     */
+    renewsAt: Date | null;
+
+    /**
+     * True when the user is Premium through something other than a
+     * paid subscription (trial, staff grant, gift, promotion).
+     */
+    isPromotional: boolean;
+};
+
+/**
+ * Sources that represent a real paid subscription. Everything else
+ * is treated as a grant so the UI can label it honestly.
+ */
+const PAID_SOURCES = new Set([
+    "stripe",
+    "payment",
+    "subscription",
+    "discord-sku",
+]);
+
+export async function getEntitlementSummary(
+    discordId: string
+): Promise<EntitlementSummary> {
+    const entitlements =
+        await getActiveEntitlements(
+            discordId
+        );
+
+    const premium =
+        entitlements.find(
+            (entitlement) =>
+                entitlement.type ===
+                "PREMIUM"
+        ) ??
+        null;
+
+    const source =
+        (
+            premium?.source ?? ""
+        )
+            .trim()
+            .toLowerCase();
+
+    return {
+        plan: premium
+            ? "PREMIUM"
+            : "FREE",
+
+        premium,
+
+        renewsAt:
+            premium?.endsAt ??
+            null,
+
+        isPromotional:
+            premium !== null &&
+            !PAID_SOURCES.has(
+                source
+            ),
+    };
+}
+
+/**
+ * Grants an entitlement by superseding whatever the user already has
+ * of that type.
+ *
+ * "Entitlement" has no unique constraint on (userId, type), so a naive
+ * INSERT would stack rows and make "when does Premium end?" ambiguous.
+ * Revoking first keeps at most one live row per (user, type), which is
+ * the invariant every read above assumes.
+ *
+ * When `externalEntitlementId` is supplied the write is idempotent:
+ * a replayed webhook or a renewal for the same provider entitlement
+ * updates the existing row instead of creating a second one. That is
+ * also what makes the unique index on the column safe.
+ *
+ * Billing calls this when a payment succeeds; it is not itself a
+ * payment. The entitlement outlives the provider, so cancelling at
+ * the provider only stops future renewals.
+ */
+export async function grantEntitlement(
+    discordId: string,
+    input: {
+        type: EntitlementType;
+        source: string;
+
+        startsAt?: Date;
+        endsAt?: Date | null;
+
+        skuId?: string | null;
+        externalEntitlementId?: string | null;
+    }
+): Promise<EntitlementRecord | null> {
+    return withTransaction(
+        async (client) => {
+            const user =
+                await client.query<{
+                    id: string;
+                }>(
+                    `
+                    SELECT id
+                    FROM "User"
+                    WHERE "discordId" = $1
+                    FOR UPDATE
+                    `,
+                    [
+                        discordId,
+                    ]
+                );
+
+            const userId =
+                user.rows[0]?.id;
+
+            if (!userId) {
+                return null;
+            }
+
+            const externalId =
+                input.externalEntitlementId
+                    ?.trim() || null;
+
+            if (externalId) {
+                const existing =
+                    await client.query<
+                        EntitlementRecord
+                    >(
+                        `
+                        UPDATE "Entitlement"
+                        SET
+                            "active" = true,
+                            "endsAt" = $3,
+                            "skuId" = COALESCE(
+                                $4,
+                                "skuId"
+                            ),
+                            "updatedAt" = NOW()
+                        WHERE
+                            "externalEntitlementId" = $2
+                            AND "userId" = $1
+                        RETURNING
+                            id,
+                            type,
+                            source,
+                            "active",
+                            "skuId",
+                            "externalEntitlementId",
+                            "startsAt",
+                            "endsAt"
+                        `,
+                        [
+                            userId,
+                            externalId,
+                            input.endsAt ?? null,
+                            input.skuId ?? null,
+                        ]
+                    );
+
+                if (
+                    existing.rows.length > 0
+                ) {
+                    return (
+                        existing.rows[0] ??
+                        null
+                    );
+                }
+            }
+
+            await client.query(
+                `
+                UPDATE "Entitlement"
+                SET
+                    "active" = false,
+                    "updatedAt" = NOW()
+                WHERE
+                    "userId" = $1
+                    AND type = $2::"EntitlementType"
+                    AND "active" = true
+                `,
+                [
+                    userId,
+                    input.type,
+                ]
+            );
+
+            const inserted =
+                await client.query<EntitlementRecord>(
+                    `
+                    INSERT INTO "Entitlement" (
+                        id,
+                        "userId",
+                        type,
+                        source,
+                        "active",
+                        "skuId",
+                        "externalEntitlementId",
+                        "startsAt",
+                        "endsAt",
+                        "createdAt",
+                        "updatedAt"
+                    )
+                    VALUES (
+                        $1,
+                        $2,
+                        $3::"EntitlementType",
+                        $4,
+                        true,
+                        $5,
+                        $6,
+                        COALESCE($7::timestamptz, NOW()),
+                        $8,
+                        NOW(),
+                        NOW()
+                    )
+                    RETURNING
+                        id,
+                        type,
+                        source,
+                        "active",
+                        "skuId",
+                        "externalEntitlementId",
+                        "startsAt",
+                        "endsAt"
+                    `,
+                    [
+                        crypto.randomUUID(),
+                        userId,
+                        input.type,
+                        input.source,
+                        input.skuId ?? null,
+                        externalId,
+                        input.startsAt ?? null,
+                        input.endsAt ?? null,
+                    ]
+                );
+
+            return (
+                inserted.rows[0] ??
+                null
+            );
+        }
+    );
+}
+
+/**
+ * Ends an entitlement immediately.
+ *
+ * Sets `active` false rather than deleting, so the record of what the
+ * user once had survives for support and auditing.
+ */
+export async function revokeEntitlement(
+    discordId: string,
+    type: EntitlementType
+): Promise<number> {
+    const result =
+        await query(
+            `
+            UPDATE "Entitlement" e
+            SET
+                "active" = false,
+                "updatedAt" = NOW()
+            FROM "User" u
+            WHERE
+                e."userId" = u.id
+                AND u."discordId" = $1
+                AND e.type = $2::"EntitlementType"
+                AND e."active" = true
+            `,
+            [
+                discordId,
+                type,
+            ]
+        );
+
+    return result.rowCount ?? 0;
+}
+
+/**
+ * Ends the entitlement a provider is refunding or deleting.
+ *
+ * A refund webhook names the provider's own entitlement id, not the
+ * user, so this is the only lookup that works. Returns the number of
+ * rows ended; zero means the id was never recorded here, which is the
+ * expected answer while the store is still wired up.
+ */
+export async function revokeEntitlementByExternalId(
+    externalEntitlementId: string
+): Promise<number> {
+    const id =
+        externalEntitlementId.trim();
+
+    if (!id) {
+        return 0;
+    }
+
+    const result =
+        await query(
+            `
+            UPDATE "Entitlement"
+            SET
+                "active" = false,
+                "updatedAt" = NOW()
+            WHERE
+                "externalEntitlementId" = $1
+                AND "active" = true
+            `,
+            [
+                id,
+            ]
+        );
+
+    return result.rowCount ?? 0;
+}
+
+/**
+ * Every entitlement the user has ever had, live or expired, for the
+ * billing page. Reads the raw table rather than the active-only
+ * helpers so an expired row is visible instead of silently gone.
+ */
+export async function getAllEntitlements(
+    discordId: string
+): Promise<
+    Array<
+        EntitlementRecord & {
+            createdAt: Date;
+        }
+    >
+> {
+    const result =
+        await query<
+            EntitlementRecord & {
+                createdAt: Date;
+            }
+        >(
+            `
+            SELECT
+                ${ENTITLEMENT_COLUMNS},
+                e."createdAt"
+            FROM "Entitlement" e
+            INNER JOIN "User" u
+                ON u.id = e."userId"
+            WHERE u."discordId" = $1
+            ORDER BY e."createdAt" DESC
+            LIMIT 25
+            `,
+            [
+                discordId,
+            ]
+        );
+
+    return result.rows;
+}

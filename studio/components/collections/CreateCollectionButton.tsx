@@ -13,6 +13,13 @@ import {
     useState,
 } from "react";
 
+import UpgradePrompt from "../ui/UpgradePrompt";
+
+import {
+    readDeniedBody,
+    type FeatureDeniedBody,
+} from "../../lib/denied";
+
 export default function CreateCollectionButton() {
     const router =
         useRouter();
@@ -37,12 +44,20 @@ export default function CreateCollectionButton() {
         setBusy,
     ] = useState(false);
 
+    const [
+        denied,
+        setDenied,
+    ] = useState<
+        FeatureDeniedBody | null
+    >(null);
+
     async function create() {
         if (!name.trim()) {
             return;
         }
 
         setBusy(true);
+        setDenied(null);
 
         try {
             const response =
@@ -66,6 +81,25 @@ export default function CreateCollectionButton() {
                 );
 
             if (!response.ok) {
+                const payload =
+                    await response
+                        .json()
+                        .catch(
+                            () =>
+                                null
+                        );
+
+                const refusal =
+                    readDeniedBody(
+                        response.status,
+                        payload
+                    );
+
+                if (refusal) {
+                    setDenied(refusal);
+                    return;
+                }
+
                 throw new Error(
                     "Could not create collection."
                 );
@@ -161,6 +195,15 @@ export default function CreateCollectionButton() {
                             rows={4}
                             className="mt-3 w-full resize-none rounded-xl border border-white/[0.08] bg-black/30 p-4 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-violet-500/40"
                         />
+
+                        {denied && (
+                            <UpgradePrompt
+                                denied={
+                                    denied
+                                }
+                                className="mt-4"
+                            />
+                        )}
 
                         <div className="mt-6 flex justify-end gap-3">
                             <button

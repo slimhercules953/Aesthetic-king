@@ -1,4 +1,8 @@
 import {
+    ExpectedError,
+} from "./apiError";
+
+import {
     query,
 } from "./database";
 
@@ -25,7 +29,7 @@ export async function getGuildSettingsByDiscordId(
     discordGuildId: string
 ): Promise<GuildSettings | null> {
     if (!discordGuildId) {
-        throw new Error(
+        throw new ExpectedError(
             "A Discord guild ID is required."
         );
     }
@@ -71,7 +75,7 @@ export async function updateGenerationChannel(
         string | null
 ): Promise<GuildSettings> {
     if (!discordGuildId) {
-        throw new Error(
+        throw new ExpectedError(
             "A Discord guild ID is required."
         );
     }
@@ -127,7 +131,7 @@ export async function updateGenerationChannel(
         result.rows[0];
 
     if (!settings) {
-        throw new Error(
+        throw new ExpectedError(
             "Aesthetic King is not installed in this Discord server."
         );
     }
@@ -141,7 +145,7 @@ export async function updateDefaultAesthetic(
         string | null
 ): Promise<GuildSettings> {
     if (!discordGuildId) {
-        throw new Error(
+        throw new ExpectedError(
             "A Discord guild ID is required."
         );
     }
@@ -197,7 +201,7 @@ export async function updateDefaultAesthetic(
         result.rows[0];
 
     if (!settings) {
-        throw new Error(
+        throw new ExpectedError(
             "Aesthetic King is not installed in this Discord server."
         );
     }
@@ -211,7 +215,7 @@ export async function updateDefaultMood(
         string | null
 ): Promise<GuildSettings> {
     if (!discordGuildId) {
-        throw new Error(
+        throw new ExpectedError(
             "A Discord guild ID is required."
         );
     }
@@ -267,7 +271,7 @@ export async function updateDefaultMood(
         result.rows[0];
 
     if (!settings) {
-        throw new Error(
+        throw new ExpectedError(
             "Aesthetic King is not installed in this Discord server."
         );
     }

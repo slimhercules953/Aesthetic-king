@@ -1,4 +1,6 @@
-const getColors = require("get-image-colors");
+const {
+    extractDominantColors,
+} = require("./canvasColorExtractor");
 
 const SUPPORTED_MIME_TYPES = new Set([
     "image/jpeg",
@@ -121,10 +123,10 @@ async function extractColors(
         );
     }
 
-    const colors = await getColors(
-        imageBuffer,
-        normalizedMimeType
-    );
+    const colors =
+        await extractDominantColors(
+            imageBuffer
+        );
 
     if (!colors || colors.length === 0) {
         throw new Error(
@@ -132,18 +134,7 @@ async function extractColors(
         );
     }
 
-    return colors.map((color) => {
-        const [r, g, b] = color.rgb();
-
-        return {
-            hex: color.hex().toUpperCase(),
-            rgb: {
-                r,
-                g,
-                b,
-            },
-        };
-    });
+    return colors;
 }
 
 async function extractColorsFromAsset(asset) {

@@ -1,7 +1,7 @@
-# Privacy Policy for Aesthetic King 
-Last updated: **December 8th, 2024**
+# Terms of Service for Aesthetic King 
+Last updated: **October 2, 2026**
 
-Welcome to the Privacy Policy for Aesthetic King! We respect your privacy and are committed to being transparent about how the bot operates. This document explains the minimal data the bot interacts with and how it is used.
+Welcome to the Terms of Service for Aesthetic King. These terms explain what you may and may not do with the bot and the Aesthetic King Studio website.
 
 
 ---
@@ -17,10 +17,10 @@ Welcome to the Privacy Policy for Aesthetic King! We respect your privacy and ar
 
 ## 2. Data Collection
 
- - User IDs: Temporarily used to execute commands and respond to interactions.
- - No personal data or server data is stored permanently.
+ - Aesthetic King stores the account, content, and billing records needed to run the service — saved aesthetics and collections, community posts and interactions, per-server settings, and Premium/Crown records.
+ - Anything you publish to the community Discover feed is visible to other users.
 
-Refer to our [Privacy Policy](https://github.com/slimhercules953/Aesthetic-king/blob/main/privacypolicy.md) for detailed information on data handling.
+Refer to our [Privacy Policy](https://github.com/slimhercules953/Aesthetic-king/blob/main/privacypolicy.md) for detailed information on what is stored, why, and how to have it removed.
 
 
 ---

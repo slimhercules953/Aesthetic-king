@@ -1,4 +1,8 @@
 import {
+    ExpectedError,
+} from "./apiError";
+
+import {
     query,
 } from "./database";
 
@@ -120,7 +124,7 @@ export async function shareItemToFeed(
         result.rows[0];
 
     if (!inserted) {
-        throw new Error(
+        throw new ExpectedError(
             "Unable to share item. Make sure you are signed in."
         );
     }
@@ -132,7 +136,7 @@ export async function shareItemToFeed(
         );
 
     if (!post) {
-        throw new Error(
+        throw new ExpectedError(
             "Unable to load the shared post."
         );
     }
@@ -265,8 +269,50 @@ export async function getFeedPostById(
     );
 }
 
-export async function getFeedPostsByAuthorDiscordId(
-    authorDiscordId: string,
+/**
+ * True when the user already has a post for this item.
+ *
+ * `shareItemToFeed` upserts, so re-sharing something already in the
+ * feed edits the existing post rather than publishing a new one. The
+ * publish limit must not charge for that.
+ */
+export async function hasSharedItem(
+    discordId: string,
+    input: {
+        itemType: SharedItemType;
+        itemId: string;
+    }
+): Promise<boolean> {
+    const result =
+        await query<{
+            exists: boolean;
+        }>(
+            `
+            SELECT EXISTS (
+                SELECT 1
+                FROM "SharedPost" sp
+                INNER JOIN "User" u
+                    ON u.id = sp."userId"
+                WHERE
+                    u."discordId" = $1
+                    AND sp."itemType" = $2::"SharedItemType"
+                    AND sp."itemId" = $3
+            ) AS exists
+            `,
+            [
+                discordId,
+                input.itemType,
+                input.itemId,
+            ]
+        );
+
+    return (
+        result.rows[0]?.exists ??
+        false
+    );
+}
+
+export async function getFeedPostsByAuthorDiscordId(    authorDiscordId: string,
     viewerDiscordId: string | null,
     limit = 30
 ): Promise<SharedPostSummary[]> {
@@ -502,13 +548,13 @@ export async function addSharedPostComment(
         body.trim();
 
     if (!trimmed) {
-        throw new Error(
+        throw new ExpectedError(
             "Comment cannot be empty."
         );
     }
 
     if (trimmed.length > 500) {
-        throw new Error(
+        throw new ExpectedError(
             "Comment is too long (max 500 characters)."
         );
     }

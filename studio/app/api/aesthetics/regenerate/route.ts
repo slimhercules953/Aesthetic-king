@@ -1,4 +1,8 @@
 import {
+    handleRouteError,
+} from "../../../../lib/apiError";
+
+import {
     NextRequest,
     NextResponse,
 } from "next/server";
@@ -7,6 +11,19 @@ import {
     regenerateAestheticPart,
     type RegenerationTarget,
 } from "../../../../lib/aestheticRegenerator";
+
+import {
+    requireFeature,
+} from "../../../../lib/gate";
+
+import {
+    recordUsage,
+    refundUsage,
+} from "../../../../lib/usage";
+
+import {
+    FEATURES,
+} from "../../../../lib/features";
 
 import {
     SESSION_COOKIE_NAME,
@@ -123,6 +140,31 @@ export async function POST(
         );
     }
 
+    // A regeneration is another generation as far as the allowance is
+    // concerned.
+    const gate =
+        await requireFeature(
+            session.discordId,
+            "AI_GENERATION_LIMIT"
+        );
+
+    if (!gate.allowed) {
+        return gate.response;
+    }
+
+    const usageOptions = {
+        usageSource:
+            FEATURES.AI_GENERATION_LIMIT.usageSource,
+        resetPeriod:
+            gate.access.resetPeriod,
+    } as const;
+
+    await recordUsage(
+        session.discordId,
+        "AI_GENERATION_LIMIT",
+        usageOptions
+    );
+
     try {
         const update =
             await regenerateAestheticPart({
@@ -164,16 +206,16 @@ export async function POST(
             update,
         });
     } catch (error) {
-        return NextResponse.json(
-            {
-                error:
-                    error instanceof Error
-                        ? error.message
-                        : "Unable to regenerate aesthetic.",
-            },
-            {
-                status: 500,
-            }
+        await refundUsage(
+            session.discordId,
+            "AI_GENERATION_LIMIT",
+            usageOptions
+        );
+
+        return handleRouteError(
+            error,
+            500,
+            "Unable to regenerate aesthetic."
         );
     }
 }

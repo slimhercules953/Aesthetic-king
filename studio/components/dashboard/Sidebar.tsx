@@ -1,8 +1,11 @@
 "use client";
 
 import {
+    Activity,
     Boxes,
+    Coins,
     Compass,
+    CreditCard,
     Crown,
     FolderHeart,
     Home,
@@ -78,6 +81,29 @@ const serverNavigation = [
         href: "/dashboard/server-studio",
         icon: Boxes,
         premium: true,
+    },
+];
+
+const premiumNavigation = [
+    {
+        label: "Premium",
+        href: "/dashboard/premium",
+        icon: Crown,
+    },
+    {
+        label: "Usage",
+        href: "/dashboard/premium/usage",
+        icon: Activity,
+    },
+    {
+        label: "Crowns",
+        href: "/dashboard/premium/crowns",
+        icon: Coins,
+    },
+    {
+        label: "Billing",
+        href: "/dashboard/premium/billing",
+        icon: CreditCard,
     },
 ];
 
@@ -243,6 +269,64 @@ export default function Sidebar({
                                             Pro
                                         </span>
                                     )}
+                                </a>
+                            );
+                        }
+                    )}
+                </nav>
+
+                <div className="my-5 border-t border-white/[0.05]" />
+
+                <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">
+                    Membership
+                </p>
+
+                <nav className="space-y-1">
+                    {premiumNavigation.map(
+                        (item) => {
+                            const Icon =
+                                item.icon;
+
+                            const active =
+                                item.href ===
+                                    "/dashboard/premium"
+                                    ? pathname ===
+                                        item.href
+                                    : pathname.startsWith(
+                                        item.href
+                                    );
+
+                            return (
+                                <a
+                                    key={
+                                        item.href
+                                    }
+                                    href={
+                                        item.href
+                                    }
+                                    className={[
+                                        "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                                        active
+                                            ? "bg-violet-500/12 text-violet-300"
+                                            : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100",
+                                    ].join(
+                                        " "
+                                    )}
+                                >
+                                    <Icon
+                                        size={
+                                            18
+                                        }
+                                        className={
+                                            active
+                                                ? "text-amber-300"
+                                                : "text-zinc-600 transition group-hover:text-zinc-400"
+                                        }
+                                    />
+
+                                    {
+                                        item.label
+                                    }
                                 </a>
                             );
                         }

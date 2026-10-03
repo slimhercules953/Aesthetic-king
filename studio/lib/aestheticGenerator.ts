@@ -1,4 +1,8 @@
 import {
+    ExpectedError,
+} from "./apiError";
+
+import {
     generateOllamaText,
 } from "./ollama";
 
@@ -105,7 +109,7 @@ function extractJson(
         end === -1 ||
         end < start
     ) {
-        throw new Error(
+        throw new ExpectedError(
             "Ollama did not return valid JSON."
         );
     }
@@ -127,7 +131,7 @@ function validateResult(
         typeof raw.status !==
         "string"
     ) {
-        throw new Error(
+        throw new ExpectedError(
             "Ollama returned an incomplete aesthetic."
         );
     }
@@ -209,19 +213,19 @@ function validateResult(
             : [];
 
     if (!usernameIdea) {
-        throw new Error(
+        throw new ExpectedError(
             "Ollama did not generate a username."
         );
     }
 
     if (!bio) {
-        throw new Error(
+        throw new ExpectedError(
             "Ollama did not generate a bio."
         );
     }
 
     if (!status) {
-        throw new Error(
+        throw new ExpectedError(
             "Ollama did not generate a status."
         );
     }
@@ -230,7 +234,7 @@ function validateResult(
         palette.length <
         3
     ) {
-        throw new Error(
+        throw new ExpectedError(
             "Ollama did not generate a valid palette."
         );
     }
@@ -253,7 +257,7 @@ export async function generateAesthetic(
             .toLowerCase();
 
     if (!aestheticId) {
-        throw new Error(
+        throw new ExpectedError(
             "An aesthetic is required."
         );
     }
@@ -358,7 +362,7 @@ RULES:
             ) as
             OllamaAestheticResult;
     } catch {
-        throw new Error(
+        throw new ExpectedError(
             "Ollama returned malformed aesthetic JSON."
         );
     }

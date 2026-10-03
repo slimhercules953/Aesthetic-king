@@ -9,6 +9,10 @@ import {
 } from "../../../lib/session";
 
 import {
+    requireFeature,
+} from "../../../lib/gate";
+
+import {
     createCollection,
 } from "../../../lib/collections";
 
@@ -65,6 +69,16 @@ export async function POST(
                 status: 400,
             }
         );
+    }
+
+    const gate =
+        await requireFeature(
+            session.discordId,
+            "COLLECTION_LIMIT"
+        );
+
+    if (!gate.allowed) {
+        return gate.response;
     }
 
     const collection =

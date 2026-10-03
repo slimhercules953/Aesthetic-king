@@ -13,6 +13,13 @@ import {
     useRouter,
 } from "next/navigation";
 
+import UpgradePrompt from "../ui/UpgradePrompt";
+
+import {
+    readDeniedBody,
+    type FeatureDeniedBody,
+} from "../../lib/denied";
+
 type ShareToFeedButtonProps = {
     itemType: "AESTHETIC" | "PALETTE" | "ASSET";
     itemId: string;
@@ -61,9 +68,17 @@ export default function ShareToFeedButton({
         string | null
     >(null);
 
+    const [
+        denied,
+        setDenied,
+    ] = useState<
+        FeatureDeniedBody | null
+    >(null);
+
     async function share() {
         setBusy(true);
         setError(null);
+        setDenied(null);
 
         try {
             const response =
@@ -98,6 +113,17 @@ export default function ShareToFeedButton({
                 };
 
             if (!response.ok) {
+                const refusal =
+                    readDeniedBody(
+                        response.status,
+                        body
+                    );
+
+                if (refusal) {
+                    setDenied(refusal);
+                    return;
+                }
+
                 throw new Error(
                     body.error ||
                         "Could not share to the feed."
@@ -125,6 +151,7 @@ export default function ShareToFeedButton({
                 type="button"
                 onClick={() => {
                     setError(null);
+                    setDenied(null);
                     setOpen(true);
                 }}
                 className={[
@@ -223,6 +250,13 @@ export default function ShareToFeedButton({
                             <p className="mt-4 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
                                 {error}
                             </p>
+                        )}
+
+                        {denied && (
+                            <UpgradePrompt
+                                denied={denied}
+                                className="mt-4"
+                            />
                         )}
 
                         <div className="mt-6 flex justify-end gap-3">

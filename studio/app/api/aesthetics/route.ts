@@ -1,4 +1,8 @@
 import {
+    handleRouteError,
+} from "../../../lib/apiError";
+
+import {
     NextRequest,
     NextResponse,
 } from "next/server";
@@ -6,6 +10,10 @@ import {
 import {
     createSavedAesthetic,
 } from "../../../lib/savedAesthetics";
+
+import {
+    requireFeature,
+} from "../../../lib/gate";
 
 import {
     SESSION_COOKIE_NAME,
@@ -91,6 +99,16 @@ export async function POST(
         );
     }
 
+    const gate =
+        await requireFeature(
+            session.discordId,
+            "SAVED_PROFILE_LIMIT"
+        );
+
+    if (!gate.allowed) {
+        return gate.response;
+    }
+
     try {
         const aesthetic =
             await createSavedAesthetic(
@@ -141,16 +159,10 @@ export async function POST(
             aesthetic,
         });
     } catch (error) {
-        return NextResponse.json(
-            {
-                error:
-                    error instanceof Error
-                        ? error.message
-                        : "Unable to save aesthetic.",
-            },
-            {
-                status: 500,
-            }
+        return handleRouteError(
+            error,
+            500,
+            "Unable to save aesthetic."
         );
     }
 }

@@ -1,4 +1,8 @@
 import {
+    handleRouteError,
+} from "../../../../../lib/apiError";
+
+import {
     NextRequest,
     NextResponse,
 } from "next/server";
@@ -103,16 +107,10 @@ export async function POST(
             comment,
         });
     } catch (error) {
-        return NextResponse.json(
-            {
-                error:
-                    error instanceof Error
-                        ? error.message
-                        : "Unable to add comment.",
-            },
-            {
-                status: 400,
-            }
+        return handleRouteError(
+            error,
+            400,
+            "Unable to add comment."
         );
     }
 }

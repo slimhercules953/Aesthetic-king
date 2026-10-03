@@ -1,4 +1,8 @@
 import {
+    handleRouteError,
+} from "../../../../../lib/apiError";
+
+import {
     NextRequest,
     NextResponse,
 } from "next/server";
@@ -305,16 +309,10 @@ export async function PATCH(
             settings,
         });
     } catch (error) {
-        return NextResponse.json(
-            {
-                error:
-                    error instanceof Error
-                        ? error.message
-                        : "Could not update server settings.",
-            },
-            {
-                status: 400,
-            }
+        return handleRouteError(
+            error,
+            400,
+            "Could not update server settings."
         );
     }
 }

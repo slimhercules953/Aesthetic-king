@@ -1,4 +1,8 @@
 import {
+    handleRouteError,
+} from "../../../lib/apiError";
+
+import {
     NextRequest,
     NextResponse,
 } from "next/server";
@@ -9,6 +13,11 @@ import {
 } from "../../../lib/session";
 
 import {
+    requireFeature,
+} from "../../../lib/gate";
+
+import {
+    hasSharedItem,
     shareItemToFeed,
     type SharedItemType,
 } from "../../../lib/sharedFeed";
@@ -109,6 +118,30 @@ export async function POST(
         );
     }
 
+    // Re-sharing an item that is already in the feed updates the
+    // existing post instead of publishing a new one, so it must not
+    // consume the weekly publish allowance.
+    const alreadyShared =
+        await hasSharedItem(
+            session.discordId,
+            {
+                itemType,
+                itemId: body.itemId,
+            }
+        );
+
+    if (!alreadyShared) {
+        const gate =
+            await requireFeature(
+                session.discordId,
+                "COMMUNITY_PUBLISH_LIMIT"
+            );
+
+        if (!gate.allowed) {
+            return gate.response;
+        }
+    }
+
     try {
         const post =
             await shareItemToFeed(
@@ -128,16 +161,10 @@ export async function POST(
             post,
         });
     } catch (error) {
-        return NextResponse.json(
-            {
-                error:
-                    error instanceof Error
-                        ? error.message
-                        : "Unable to share item.",
-            },
-            {
-                status: 400,
-            }
+        return handleRouteError(
+            error,
+            400,
+            "Unable to share item."
         );
     }
 }

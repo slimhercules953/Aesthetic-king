@@ -1,4 +1,8 @@
 import {
+    ExpectedError,
+} from "./apiError";
+
+import {
     getAssetSets,
 } from "./assetCatalog";
 
@@ -32,7 +36,7 @@ export function selectMatchingProfileSet({
         candidates.length ===
         0
     ) {
-        throw new Error(
+        throw new ExpectedError(
             "No alternative profile sets are available for this aesthetic."
         );
     }

@@ -4,6 +4,10 @@ import {
 } from "next/server";
 
 import {
+    shouldUseSecureCookies,
+} from "../../../../lib/auth";
+
+import {
     SESSION_COOKIE_NAME,
 } from "../../../../lib/session";
 
@@ -27,8 +31,9 @@ export async function POST(
         {
             httpOnly: true,
             secure:
-                process.env.NODE_ENV ===
-                "production",
+                shouldUseSecureCookies(
+                    request.url
+                ),
             sameSite: "lax",
             expires:
                 new Date(0),

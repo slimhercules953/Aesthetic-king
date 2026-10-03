@@ -1,4 +1,8 @@
 import {
+    handleRouteError,
+} from "../../../../lib/apiError";
+
+import {
     NextRequest,
     NextResponse,
 } from "next/server";
@@ -6,6 +10,19 @@ import {
 import {
     generateAesthetic,
 } from "../../../../lib/aestheticGenerator";
+
+import {
+    requireFeature,
+} from "../../../../lib/gate";
+
+import {
+    recordUsage,
+    refundUsage,
+} from "../../../../lib/usage";
+
+import {
+    FEATURES,
+} from "../../../../lib/features";
 
 import {
     SESSION_COOKIE_NAME,
@@ -71,6 +88,32 @@ export async function POST(
         );
     }
 
+    // Reserve the generation before spending time on it, then refund
+    // if the model fails. Checking after the work would let a user at
+    // their limit keep generating for free on every failed call.
+    const gate =
+        await requireFeature(
+            session.discordId,
+            "AI_GENERATION_LIMIT"
+        );
+
+    if (!gate.allowed) {
+        return gate.response;
+    }
+
+    const usageOptions = {
+        usageSource:
+            FEATURES.AI_GENERATION_LIMIT.usageSource,
+        resetPeriod:
+            gate.access.resetPeriod,
+    } as const;
+
+    await recordUsage(
+        session.discordId,
+        "AI_GENERATION_LIMIT",
+        usageOptions
+    );
+
     try {
         const aesthetic =
             await generateAesthetic({
@@ -91,16 +134,16 @@ export async function POST(
             aesthetic,
         });
     } catch (error) {
-        return NextResponse.json(
-            {
-                error:
-                    error instanceof Error
-                        ? error.message
-                        : "Unable to generate aesthetic.",
-            },
-            {
-                status: 500,
-            }
+        await refundUsage(
+            session.discordId,
+            "AI_GENERATION_LIMIT",
+            usageOptions
+        );
+
+        return handleRouteError(
+            error,
+            500,
+            "Unable to generate aesthetic."
         );
     }
 }

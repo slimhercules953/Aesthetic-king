@@ -1,4 +1,8 @@
 import {
+    ExpectedError,
+} from "./apiError";
+
+import {
     query,
 } from "./database";
 
@@ -67,7 +71,7 @@ export async function createSavedPalette(
         normalizedColors.length >
         6
     ) {
-        throw new Error(
+        throw new ExpectedError(
             "A palette must contain between 3 and 6 colors."
         );
     }
@@ -122,7 +126,7 @@ export async function createSavedPalette(
         result.rows[0];
 
     if (!palette) {
-        throw new Error(
+        throw new ExpectedError(
             "Unable to create palette."
         );
     }
@@ -139,7 +143,7 @@ export async function renameSavedPalette(
         name.trim();
 
     if (!trimmedName) {
-        throw new Error(
+        throw new ExpectedError(
             "Palette name is required."
         );
     }

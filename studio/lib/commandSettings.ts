@@ -1,3 +1,7 @@
+import {
+    ExpectedError,
+} from "./apiError";
+
 import { query } from "./database";
 
 type GuildCommandSettingRow = {
@@ -71,7 +75,7 @@ export async function setGuildCommandEnabled(
     const setting = result.rows[0];
 
     if (!setting) {
-        throw new Error(
+        throw new ExpectedError(
             "Aesthetic King is not installed in this Discord server."
         );
     }

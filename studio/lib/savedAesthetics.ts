@@ -1,4 +1,8 @@
 import {
+    ExpectedError,
+} from "./apiError";
+
+import {
     query,
 } from "./database";
 
@@ -113,7 +117,7 @@ export async function renameSavedAestheticForDiscordUser(
         name.trim();
 
     if (!trimmedName) {
-        throw new Error(
+        throw new ExpectedError(
             "Aesthetic name is required."
         );
     }
@@ -212,7 +216,7 @@ export async function createSavedAesthetic(
         input.name.trim();
 
     if (!name) {
-        throw new Error(
+        throw new ExpectedError(
             "Aesthetic name is required."
         );
     }
@@ -292,7 +296,7 @@ export async function createSavedAesthetic(
         result.rows[0];
 
     if (!aesthetic) {
-        throw new Error(
+        throw new ExpectedError(
             "Unable to save aesthetic."
         );
     }
