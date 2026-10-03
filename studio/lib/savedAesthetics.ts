@@ -184,3 +184,118 @@ export async function deleteSavedAestheticForDiscordUser(
         result.rowCount ?? 0
     ) > 0;
 }
+
+export type CreateSavedAestheticInput = {
+    generationId?: string | null;
+
+    name: string;
+
+    aestheticId: string;
+    moodId?: string | null;
+    colorFilter?: string | null;
+
+    profileSetId?: string | null;
+
+    usernameIdea?: string | null;
+    bio?: string | null;
+    status?: string | null;
+
+    symbols: string[];
+    palette: string[];
+};
+
+export async function createSavedAesthetic(
+    discordId: string,
+    input: CreateSavedAestheticInput
+): Promise<SavedAesthetic> {
+    const name =
+        input.name.trim();
+
+    if (!name) {
+        throw new Error(
+            "Aesthetic name is required."
+        );
+    }
+
+    const result =
+        await query<SavedAesthetic>(
+            `
+            INSERT INTO "SavedAesthetic" (
+                id,
+                "userId",
+                "generationId",
+                name,
+                "aestheticId",
+                "moodId",
+                "colorFilter",
+                "profileSetId",
+                "usernameIdea",
+                bio,
+                status,
+                symbols,
+                palette,
+                "createdAt",
+                "updatedAt"
+            )
+            SELECT
+                gen_random_uuid()::text,
+                u.id,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7,
+                $8,
+                $9,
+                $10,
+                $11,
+                $12,
+                NOW(),
+                NOW()
+            FROM "User" u
+            WHERE
+                u."discordId" = $1
+            RETURNING
+                id,
+                "generationId",
+                name,
+                "aestheticId",
+                "moodId",
+                "colorFilter",
+                "profileSetId",
+                "usernameIdea",
+                bio,
+                status,
+                symbols,
+                palette,
+                "createdAt",
+                "updatedAt"
+            `,
+            [
+                discordId,
+                input.generationId ?? null,
+                name,
+                input.aestheticId,
+                input.moodId ?? null,
+                input.colorFilter ?? null,
+                input.profileSetId ?? null,
+                input.usernameIdea ?? null,
+                input.bio ?? null,
+                input.status ?? null,
+                input.symbols,
+                input.palette,
+            ]
+        );
+
+    const aesthetic =
+        result.rows[0];
+
+    if (!aesthetic) {
+        throw new Error(
+            "Unable to save aesthetic."
+        );
+    }
+
+    return aesthetic;
+}

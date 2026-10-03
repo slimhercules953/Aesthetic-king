@@ -15,6 +15,8 @@ type TopbarProps = {
     username: string;
 };
 
+import LogoutButton from "./LogoutButton";
+
 const mobileNavigation = [
     {
         label: "Home",
@@ -149,7 +151,7 @@ export default function Topbar({
                             href="/api/auth/logout"
                             className="mt-2 block rounded-xl border border-white/[0.06] px-4 py-3 text-sm text-zinc-500"
                         >
-                            Sign Out
+                            <LogoutButton />
                         </a>
                     </div>
                 </div>

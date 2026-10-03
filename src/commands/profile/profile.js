@@ -11,6 +11,7 @@ const {
 } = require("../../components/buttons/profileReroll");
 
 module.exports = {
+    requireGenerationChannel: true,
     data: new SlashCommandBuilder()
         .setName("profile")
         .setDescription(

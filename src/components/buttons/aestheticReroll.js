@@ -48,6 +48,12 @@ const {
     getAesthetic,
 } = require("../../data/aesthetics");
 
+const {
+    buildSystemEmbed,
+} = require(
+    "../embeds/systemResponse"
+);
+
 function formatFilterName(value) {
     if (!value) {
         return null;
@@ -57,6 +63,64 @@ function formatFilterName(value) {
         value.charAt(0).toUpperCase() +
         value.slice(1)
     );
+}
+
+function normalizePackColors(
+    packColors
+) {
+    if (
+        !Array.isArray(
+            packColors
+        )
+    ) {
+        return [];
+    }
+
+    return packColors
+        .filter(
+            (color) =>
+                typeof color ===
+                    "string" &&
+                /^#[0-9a-f]{6}$/i.test(
+                    color.trim()
+                )
+        )
+        .map(
+            (color) => ({
+                hex:
+                    color
+                        .trim()
+                        .toUpperCase(),
+            })
+        );
+}
+
+function normalizePackSymbols(
+    packSymbols
+) {
+    if (
+        !Array.isArray(
+            packSymbols
+        )
+    ) {
+        return [];
+    }
+
+    return packSymbols
+        .filter(
+            (symbol) =>
+                typeof symbol ===
+                    "string" &&
+                symbol.trim()
+        )
+        .map(
+            (symbol) =>
+                symbol.trim()
+        )
+        .slice(
+            0,
+            8
+        );
 }
 
 async function buildAestheticResponse({
@@ -70,6 +134,10 @@ async function buildAestheticResponse({
     stateId = null,
     fixedUsername = null,
     fixedStatus = null,
+    packId = null,
+    packName = null,
+    packColors = [],
+    packSymbols = [],
 }) {
     let profileSet;
 
@@ -154,13 +222,18 @@ async function buildAestheticResponse({
 
             return {
                 payload: {
-                    embeds: [embed],
+                    embeds: [
+                        embed,
+                    ],
                     components: [],
                     files: [],
                 },
 
-                profileSet: null,
-                stateId: null,
+                profileSet:
+                    null,
+
+                stateId:
+                    null,
             };
         }
 
@@ -172,13 +245,24 @@ async function buildAestheticResponse({
             profileSet.banner.key
         );
 
-    const colors =
+    const extractedColors =
         await extractColors(
             bannerBuffer,
             getMimeTypeFromExtension(
                 profileSet.banner.extension
             )
         );
+
+    const normalizedPackColors =
+        normalizePackColors(
+            packColors
+        );
+
+    const colors =
+        normalizedPackColors.length >=
+        2
+            ? normalizedPackColors
+            : extractedColors;
 
     const {
         bio,
@@ -187,6 +271,17 @@ async function buildAestheticResponse({
         aestheticId,
         request,
     });
+
+    const symbols =
+        normalizePackSymbols(
+            packSymbols
+        );
+
+    const resolvedSymbols =
+        symbols.length > 0
+            ? symbols
+            : aesthetic.symbols;
+
     let username =
         fixedUsername;
 
@@ -194,12 +289,14 @@ async function buildAestheticResponse({
         const usernameResult =
             await generateUsernames({
                 aestheticId,
-                moodId: mood,
+                moodId:
+                    mood,
                 request,
             });
 
         username =
-            usernameResult.usernames[0];
+            usernameResult
+                .usernames[0];
     }
 
     let status =
@@ -209,17 +306,21 @@ async function buildAestheticResponse({
         const statusResult =
             await generateStatuses({
                 aestheticId,
-                moodId: mood,
+                moodId:
+                    mood,
                 request,
             });
 
         status =
-            statusResult.statuses[0];
+            statusResult
+                .statuses[0];
     }
+
     const previewBuffer =
         await renderProfilePreview({
             pfpUrl:
                 profileSet.pfp.url,
+
             bannerUrl:
                 profileSet.banner.url,
 
@@ -249,6 +350,27 @@ async function buildAestheticResponse({
     let resolvedStateId =
         stateId;
 
+    const stateData = {
+        profileSetId:
+            profileSet.id,
+
+        username,
+        bio,
+        status,
+
+        packId,
+        packName,
+
+        packColors:
+            normalizedPackColors.map(
+                (entry) =>
+                    entry.hex
+            ),
+
+        packSymbols:
+            resolvedSymbols,
+    };
+
     if (!resolvedStateId) {
         resolvedStateId =
             createState({
@@ -260,26 +382,143 @@ async function buildAestheticResponse({
                 mood,
                 request,
 
-                profileSetId:
-                    profileSet.id,
-
-                username,
-                bio,
-                status,
+                ...stateData,
             });
     } else {
         updateState(
             resolvedStateId,
-            {
-                profileSetId:
-                    profileSet.id,
-
-                username,
-                bio,
-                status,
-            }
+            stateData
         );
     }
+
+    const fields = [
+        {
+            name:
+                "Username",
+
+            value:
+                `\`${username}\``,
+        },
+
+        {
+            name:
+                "Bio",
+
+            value:
+                bio,
+        },
+
+        {
+            name:
+                "Status",
+
+            value:
+                status,
+        },
+
+        {
+            name:
+                "Palette",
+
+            value:
+                colors
+                    .slice(
+                        0,
+                        5
+                    )
+                    .map(
+                        (entry) =>
+                            entry.hex
+                    )
+                    .join(
+                        "  •  "
+                    ),
+
+            inline:
+                true,
+        },
+
+        {
+            name:
+                "Symbols",
+
+            value:
+                resolvedSymbols.join(
+                    "  "
+                ) ||
+                "None",
+
+            inline:
+                true,
+        },
+
+        {
+            name:
+                "Color Filter",
+
+            value:
+                color
+                    ? formatFilterName(
+                          color
+                      )
+                    : "Any",
+
+            inline:
+                true,
+        },
+
+        {
+            name:
+                "Mood",
+
+            value:
+                mood
+                    ? formatFilterName(
+                          mood
+                      )
+                    : "Any",
+
+            inline:
+                true,
+        },
+    ];
+
+    if (packName) {
+        fields.push({
+            name:
+                "Aesthetic Pack",
+
+            value:
+                `✦ ${packName}`,
+
+            inline:
+                true,
+        });
+    }
+
+    fields.push(
+        {
+            name:
+                "Profile Picture",
+
+            value:
+                `[Open image](${profileSet.pfp.url})`,
+
+            inline:
+                true,
+        },
+
+        {
+            name:
+                "Banner",
+
+            value:
+                `[Open image](${profileSet.banner.url})`,
+
+            inline:
+                true,
+        }
+    );
 
     const embed =
         new EmbedBuilder()
@@ -287,77 +526,24 @@ async function buildAestheticResponse({
                 `✦ ${aesthetic.name} Aesthetic`
             )
             .setDescription(
-                "A complete matching Discord aesthetic generated for you."
+                packName
+                    ? `Generated using the **${packName}** Aesthetic Pack.`
+                    : "A complete matching Discord aesthetic generated for you."
             )
             .setColor(
                 embedColor
             )
             .addFields(
-                {
-                    name: "Username",
-                    value: `\`${username}\``,
-                },
-                {
-                    name: "Bio",
-                    value: bio,
-                },
-                {
-                    name: "Status",
-                    value: status,
-                },
-                {
-                    name: "Palette",
-                    value:
-                        `${colors[0].hex}  •  ${colors[1].hex}`,
-                    inline: true,
-                },
-                {
-                    name: "Symbols",
-                    value:
-                        aesthetic.symbols.join(
-                            "  "
-                        ),
-                    inline: true,
-                },
-                {
-                    name: "Color Filter",
-                    value:
-                        color
-                            ? formatFilterName(
-                                color
-                            )
-                            : "Any",
-                    inline: true,
-                },
-                {
-                    name: "Mood",
-                    value:
-                        mood
-                            ? formatFilterName(
-                                mood
-                            )
-                            : "Any",
-                    inline: true,
-                },
-                {
-                    name: "Profile Picture",
-                    value:
-                        `[Open image](${profileSet.pfp.url})`,
-                    inline: true,
-                },
-                {
-                    name: "Banner",
-                    value:
-                        `[Open image](${profileSet.banner.url})`,
-                    inline: true,
-                }
+                ...fields
             )
             .setImage(
                 "attachment://aesthetic-profile.png"
             )
             .setFooter({
                 text:
-                    `Aesthetic King • Set ${profileSet.id} • Controls expire in 5 minutes`,
+                    packName
+                        ? `Aesthetic King • ${packName} • Set ${profileSet.id} • Controls expire in 5 minutes`
+                        : `Aesthetic King • Set ${profileSet.id} • Controls expire in 5 minutes`,
             });
 
     const buttons =
@@ -406,7 +592,8 @@ async function buildAestheticResponse({
                     .setURL(
                         profileSet.banner.url
                     ),
-                    new ButtonBuilder()
+
+                new ButtonBuilder()
                     .setCustomId(
                         `aesthetic:save:${resolvedStateId}`
                     )
@@ -415,15 +602,19 @@ async function buildAestheticResponse({
                     )
                     .setStyle(
                         ButtonStyle.Success
-                    ),
+                    )
             );
 
     return {
         payload: {
-            embeds: [embed],
+            embeds: [
+                embed,
+            ],
+
             files: [
                 attachment,
             ],
+
             components: [
                 buttons,
             ],
@@ -440,8 +631,18 @@ async function sendExpiredResponse(
     interaction
 ) {
     await interaction.reply({
-        content:
-            "✦ This aesthetic session has expired. Run `/aesthetic` again to create a new one.",
+        embeds: [
+            buildSystemEmbed({
+                title:
+                    "Aesthetic Session Expired",
+
+                description:
+                    "This aesthetic session has expired. Run `/aesthetic` again to create a new one.",
+
+                type:
+                    "info",
+            }),
+        ],
 
         flags:
             MessageFlags.Ephemeral,
@@ -464,7 +665,9 @@ module.exports = {
             parts[2];
 
         const state =
-            getState(stateId);
+            getState(
+                stateId
+            );
 
         if (!state) {
             await sendExpiredResponse(
@@ -479,8 +682,18 @@ module.exports = {
             interaction.user.id
         ) {
             await interaction.reply({
-                content:
-                    "Only the person who generated this aesthetic can use these controls.",
+                embeds: [
+                    buildSystemEmbed({
+                        title:
+                            "Controls Unavailable",
+
+                        description:
+                            "Only the person who generated this aesthetic can use these controls.",
+
+                        type:
+                            "warning",
+                    }),
+                ],
 
                 flags:
                     MessageFlags.Ephemeral,
@@ -497,7 +710,12 @@ module.exports = {
             mood,
             request,
             profileSetId,
-        } = state.data;
+            packId,
+            packName,
+            packColors,
+            packSymbols,
+        } =
+            state.data;
 
         const {
             payload,
@@ -513,6 +731,22 @@ module.exports = {
                     profileSetId,
 
                 stateId,
+
+                packId:
+                    packId ??
+                    null,
+
+                packName:
+                    packName ??
+                    null,
+
+                packColors:
+                    packColors ??
+                    [],
+
+                packSymbols:
+                    packSymbols ??
+                    [],
             });
 
         await interaction.editReply(

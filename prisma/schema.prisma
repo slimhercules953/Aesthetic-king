@@ -25,6 +25,28 @@ model User {
   history         GenerationHistory[]
   entitlements    Entitlement[]
   patchNotices    PatchNotification[]
+
+  discordOAuth DiscordOAuthCredential?
+}
+
+model DiscordOAuthCredential {
+  id     String @id @default(cuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  accessToken  String @db.Text
+  refreshToken String @db.Text
+
+  tokenType String
+  scope     String
+
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
 }
 
 model SavedAesthetic {
@@ -128,7 +150,9 @@ model Guild {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  settings GuildSettings?
+  settings        GuildSettings?
+  commandSettings GuildCommandSetting[]
+  aestheticPacks  AestheticPack[]
 }
 
 model GuildSettings {
@@ -141,8 +165,54 @@ model GuildSettings {
 
   generationChannelId String?
 
+  defaultPackId String?
+  defaultPack   AestheticPack? @relation("DefaultAestheticPack", fields: [defaultPackId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([defaultPackId])
+}
+
+model GuildCommandSetting {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  commandName String
+  enabled     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, commandName])
+  @@index([guildId])
+}
+
+model AestheticPack {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  aestheticId String?
+  moodId      String?
+
+  colors  String[]
+  symbols String[]
+
+  enabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  defaultForSettings GuildSettings[] @relation("DefaultAestheticPack")
+
+  @@unique([guildId, name])
+  @@index([guildId])
+  @@index([enabled])
 }
 
 model GenerationHistory {

@@ -10,7 +10,14 @@ const {
     buildBioResponse,
 } = require("../../components/buttons/bioReroll");
 
+const {
+    getDefaultAestheticId,
+} = require(
+    "../../services/database/guildSettingsService"
+);
+
 module.exports = {
+    requireGenerationChannel: true,
     data: new SlashCommandBuilder()
         .setName("bio")
         .setDescription(
@@ -22,7 +29,7 @@ module.exports = {
                 .setDescription(
                     "Choose your aesthetic."
                 )
-                .setRequired(true)
+                .setRequired(false)
                 .addChoices(
                     ...getAestheticChoices()
                 )
@@ -40,11 +47,28 @@ module.exports = {
     async execute(interaction) {
         await interaction.deferReply();
 
-        const aestheticId =
+        let aestheticId =
             interaction.options.getString(
-                "aesthetic",
-                true
+                "aesthetic"
             );
+
+        if (
+            !aestheticId &&
+            interaction.guildId
+        ) {
+            aestheticId =
+                await getDefaultAestheticId(
+                    interaction.guildId
+                );
+        }
+
+        if (!aestheticId) {
+            await interaction.editReply(
+                "Choose an aesthetic, or ask a server manager to configure a default aesthetic in Aesthetic King Studio."
+            );
+
+            return;
+        }
 
         const request =
             interaction.options.getString(

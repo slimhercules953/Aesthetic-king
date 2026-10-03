@@ -11,6 +11,7 @@ const {
 } = require("../../components/buttons/themeReroll");
 
 module.exports = {
+    requireGenerationChannel: true,
     data: new SlashCommandBuilder()
         .setName("theme")
         .setDescription(

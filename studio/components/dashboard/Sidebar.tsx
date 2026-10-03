@@ -11,11 +11,18 @@ import {
     Server,
     Settings,
     Sparkles,
+    X,
 } from "lucide-react";
 
 import {
     usePathname,
 } from "next/navigation";
+
+import {
+    useState,
+} from "react";
+
+import LogoutButton from "./LogoutButton";
 
 type SidebarProps = {
     username: string;
@@ -73,6 +80,11 @@ export default function Sidebar({
 }: SidebarProps) {
     const pathname =
         usePathname();
+
+    const [
+        accountMenuOpen,
+        setAccountMenuOpen,
+    ] = useState(false);
 
     function isActive(
         href: string
@@ -232,7 +244,53 @@ export default function Sidebar({
                 </nav>
             </div>
 
-            <div className="shrink-0 border-t border-white/[0.05] bg-[#0b0b10] p-3">
+            <div className="relative shrink-0 border-t border-white/[0.05] bg-[#0b0b10] p-3">
+                {accountMenuOpen && (
+                    <div className="absolute bottom-[76px] left-3 right-3 z-50 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111118] p-2 shadow-2xl shadow-black/50">
+                        <div className="flex items-center justify-between px-3 py-2">
+                            <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold text-zinc-200">
+                                    {username}
+                                </p>
+
+                                <p className="text-xs text-emerald-400">
+                                    Discord connected
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setAccountMenuOpen(
+                                        false
+                                    )
+                                }
+                                aria-label="Close account menu"
+                                className="rounded-lg p-2 text-zinc-600 transition hover:bg-white/[0.05] hover:text-zinc-300"
+                            >
+                                <X
+                                    size={15}
+                                />
+                            </button>
+                        </div>
+
+                        <div className="my-1 border-t border-white/[0.06]" />
+
+                        <a
+                            href="/dashboard/settings"
+                            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-zinc-400 transition hover:bg-white/[0.04] hover:text-zinc-100"
+                        >
+                            <Settings
+                                size={17}
+                            />
+
+                            Account Settings
+                        </a>
+
+                        <LogoutButton />
+                    </div>
+                )}
+
                 <a
                     href="/dashboard/premium"
                     className="mb-3 block rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/[0.05] to-transparent p-4 transition hover:border-violet-500/35"
@@ -270,17 +328,33 @@ export default function Sidebar({
                             </p>
                         </div>
 
-                        <a
-                            href="/dashboard/settings"
-                            aria-label="Settings"
-                            className="rounded-lg p-2 text-zinc-600 transition hover:bg-white/[0.05] hover:text-zinc-300"
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setAccountMenuOpen(
+                                    (current) =>
+                                        !current
+                                )
+                            }
+                            aria-label="Account menu"
+                            aria-expanded={
+                                accountMenuOpen
+                            }
+                            className={[
+                                "rounded-lg p-2 transition",
+                                accountMenuOpen
+                                    ? "bg-violet-500/10 text-violet-300"
+                                    : "text-zinc-600 hover:bg-white/[0.05] hover:text-zinc-300",
+                            ].join(
+                                " "
+                            )}
                         >
                             <Settings
                                 size={
                                     16
                                 }
                             />
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>

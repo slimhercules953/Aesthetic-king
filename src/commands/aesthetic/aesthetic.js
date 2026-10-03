@@ -14,7 +14,30 @@ const {
     getMoodChoices,
 } = require("../../data/moods");
 
+const {
+    getDefaultAestheticId,
+    getDefaultMoodId,
+} = require(
+    "../../services/database/guildSettingsService"
+);
+
+const {
+    getEnabledGuildPacks,
+    getEnabledGuildPackById,
+    getDefaultGuildPack,
+} = require(
+    "../../services/database/guildAestheticPackService"
+);
+
+const {
+    buildSystemEmbed,
+} = require(
+    "../../components/embeds/systemResponse"
+);
+
 module.exports = {
+    requireGenerationChannel: true,
+
     data: new SlashCommandBuilder()
         .setName("aesthetic")
         .setDescription(
@@ -22,11 +45,20 @@ module.exports = {
         )
         .addStringOption((option) =>
             option
+                .setName("pack")
+                .setDescription(
+                    "Use an Aesthetic Pack from this server."
+                )
+                .setRequired(false)
+                .setAutocomplete(true)
+        )
+        .addStringOption((option) =>
+            option
                 .setName("style")
                 .setDescription(
                     "Choose your aesthetic style."
                 )
-                .setRequired(true)
+                .setRequired(false)
                 .addChoices(
                     ...getAestheticChoices()
                 )
@@ -77,19 +109,185 @@ module.exports = {
                 .setMaxLength(300)
         ),
 
+    async autocomplete(
+        interaction
+    ) {
+        if (!interaction.guildId) {
+            await interaction.respond(
+                []
+            );
+
+            return;
+        }
+
+        const focused =
+            interaction.options
+                .getFocused()
+                .toLowerCase()
+                .trim();
+
+        const packs =
+            await getEnabledGuildPacks(
+                interaction.guildId
+            );
+
+        const choices =
+            packs
+                .filter(
+                    (pack) =>
+                        !focused ||
+                        pack.name
+                            .toLowerCase()
+                            .includes(
+                                focused
+                            )
+                )
+                .slice(
+                    0,
+                    25
+                )
+                .map(
+                    (pack) => ({
+                        name:
+                            pack.name,
+                        value:
+                            pack.id,
+                    })
+                );
+
+        await interaction.respond(
+            choices
+        );
+    },
+
     async execute(interaction) {
         await interaction.deferReply();
 
-        const mood =
+        const explicitPackId =
+            interaction.options.getString(
+                "pack"
+            );
+
+        let selectedPack =
+            null;
+
+        if (
+            explicitPackId &&
+            interaction.guildId
+        ) {
+            selectedPack =
+                await getEnabledGuildPackById(
+                    interaction.guildId,
+                    explicitPackId
+                );
+
+            if (!selectedPack) {
+                await interaction.editReply({
+                    embeds: [
+                        buildSystemEmbed({
+                            title:
+                                "Aesthetic Pack Unavailable",
+
+                            description:
+                                "That Aesthetic Pack is unavailable, disabled, or no longer exists.",
+
+                            type:
+                                "warning",
+                        }),
+                    ],
+
+                    components: [],
+                    files: [],
+                });
+
+                return;
+            }
+        }
+
+        let defaultPack =
+            null;
+
+        if (
+            !selectedPack &&
+            interaction.guildId
+        ) {
+            defaultPack =
+                await getDefaultGuildPack(
+                    interaction.guildId
+                );
+        }
+
+        const pack =
+            selectedPack ??
+            defaultPack;
+
+        let aestheticId =
+            interaction.options.getString(
+                "style"
+            );
+
+        if (
+            !aestheticId &&
+            pack?.aestheticId
+        ) {
+            aestheticId =
+                pack.aestheticId;
+        }
+
+        if (
+            !aestheticId &&
+            interaction.guildId
+        ) {
+            aestheticId =
+                await getDefaultAestheticId(
+                    interaction.guildId
+                );
+        }
+
+        if (!aestheticId) {
+            await interaction.editReply({
+                embeds: [
+                    buildSystemEmbed({
+                        title:
+                            "Aesthetic Required",
+
+                        description:
+                            "Choose an aesthetic style, select an Aesthetic Pack, or ask a server manager to configure a default aesthetic.",
+
+                        type:
+                            "info",
+                    }),
+                ],
+
+                components: [],
+                files: [],
+            });
+
+            return;
+        }
+
+        let mood =
             interaction.options.getString(
                 "mood"
-            ) || null;
-
-        const aestheticId =
-            interaction.options.getString(
-                "style",
-                true
             );
+
+        if (
+            !mood &&
+            pack?.moodId
+        ) {
+            mood =
+                pack.moodId;
+        }
+
+        if (
+            !mood &&
+            interaction.guildId
+        ) {
+            mood =
+                await getDefaultMoodId(
+                    interaction.guildId
+                );
+        }
 
         const color =
             interaction.options.getString(
@@ -110,6 +308,22 @@ module.exports = {
                 color,
                 mood,
                 request,
+
+                packId:
+                    pack?.id ??
+                    null,
+
+                packName:
+                    pack?.name ??
+                    null,
+
+                packColors:
+                    pack?.colors ??
+                    [],
+
+                packSymbols:
+                    pack?.symbols ??
+                    [],
             });
 
         await interaction.editReply(

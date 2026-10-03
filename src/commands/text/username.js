@@ -16,7 +16,14 @@ const {
     "../../components/buttons/usernameReroll"
 );
 
+const {
+    getDefaultAestheticId,
+} = require(
+    "../../services/database/guildSettingsService"
+);
+
 module.exports = {
+    requireGenerationChannel: true,
     data: new SlashCommandBuilder()
         .setName("username")
         .setDescription(
@@ -32,7 +39,7 @@ module.exports = {
                         "Choose the aesthetic style."
                     )
                     .setRequired(
-                        true
+                        false
                     )
                     .addChoices(
                         ...getAestheticChoices()
@@ -74,12 +81,29 @@ module.exports = {
     async execute(interaction) {
         await interaction.deferReply();
 
-        const aestheticId =
+        let aestheticId =
             interaction.options
                 .getString(
-                    "style",
-                    true
+                    "style"
                 );
+
+        if (
+            !aestheticId &&
+            interaction.guildId
+        ) {
+            aestheticId =
+                await getDefaultAestheticId(
+                    interaction.guildId
+                );
+        }
+
+        if (!aestheticId) {
+            await interaction.editReply(
+                "Choose an aesthetic style, or ask a server manager to configure a default aesthetic in Aesthetic King Studio."
+            );
+
+            return;
+        }
 
         const moodId =
             interaction.options

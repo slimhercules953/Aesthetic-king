@@ -21,6 +21,7 @@ const {
 );
 
 module.exports = {
+    requireGenerationChannel: true,
     data:
         new SlashCommandBuilder()
             .setName(

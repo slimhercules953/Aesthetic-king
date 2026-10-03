@@ -13,6 +13,7 @@ const {
 } = require("../../data/symbols");
 
 module.exports = {
+    requireGenerationChannel: true,
     data: new SlashCommandBuilder()
         .setName("symbols")
         .setDescription(

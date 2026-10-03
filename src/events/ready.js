@@ -3,7 +3,14 @@ const {
     ActivityType,
 } = require("discord.js");
 
-const logger = require("../utils/logger");
+const logger =
+    require("../utils/logger");
+
+const {
+    syncGuildsFromDiscord,
+} = require(
+    "../services/database/guildService"
+);
 
 module.exports = {
     name: Events.ClientReady,
@@ -17,9 +24,25 @@ module.exports = {
         client.user.setActivity(
             "your aesthetic identity",
             {
-                type: ActivityType.Watching,
+                type:
+                    ActivityType.Watching,
             }
         );
+
+        try {
+            await syncGuildsFromDiscord(
+                client.guilds.cache
+            );
+
+            logger.success(
+                `Synchronized ${client.guilds.cache.size} guild(s) with PostgreSQL.`
+            );
+        } catch (error) {
+            logger.error(
+                "Failed to synchronize guilds with PostgreSQL.",
+                error
+            );
+        }
 
         logger.info(
             `Serving ${client.guilds.cache.size} server(s)`

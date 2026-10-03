@@ -18,6 +18,10 @@ import {
     SESSION_DURATION_SECONDS,
 } from "../../../../../lib/session";
 
+import {
+    saveDiscordOAuthCredentials,
+} from "../../../../../lib/discordOAuth";
+
 export async function GET(
     request: NextRequest
 ) {
@@ -81,7 +85,27 @@ export async function GET(
         avatarHash:
             discordUser.avatar,
     });
-    
+
+    await saveDiscordOAuthCredentials(
+        discordUser.id,
+        {
+            accessToken:
+                token.access_token,
+
+            refreshToken:
+                token.refresh_token,
+
+            tokenType:
+                token.token_type,
+
+            scope:
+                token.scope,
+
+            expiresIn:
+                token.expires_in,
+        }
+    );
+
     const sessionToken =
         await createSessionToken({
             discordId:
