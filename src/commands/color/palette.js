@@ -20,6 +20,16 @@ const {
     "../../components/buttons/paletteReroll"
 );
 
+const {
+    withPackOption,
+    resolveGenerationContext,
+    respondToPackAutocomplete,
+    buildPackUnavailableReply,
+    buildAestheticRequiredReply,
+} = require(
+    "../../services/aesthetics/packContextService"
+);
+
 module.exports = {
     requireGenerationChannel: true,
     data:
@@ -31,16 +41,19 @@ module.exports = {
                 "Generates a color palette for an aesthetic."
             )
             .addStringOption(
+                withPackOption
+            )
+            .addStringOption(
                 (option) =>
                     option
                         .setName(
                             "style"
                         )
                         .setDescription(
-                            "Choose the aesthetic style."
+                            "Optionally choose the aesthetic style."
                         )
                         .setRequired(
-                            true
+                            false
                         )
                         .addChoices(
                             ...getAestheticChoices()
@@ -63,29 +76,66 @@ module.exports = {
                         )
             ),
 
+    async autocomplete(
+        interaction
+    ) {
+        await respondToPackAutocomplete(
+            interaction
+        );
+    },
+
     async execute(
         interaction
     ) {
+        /*
+         * `style` used to be required, which meant a server default Pack
+         * could never drive the palette. It is now the first link in the
+         * option -> Pack -> server-default ladder.
+         */
+        const context =
+            await resolveGenerationContext({
+                interaction,
+                aestheticId:
+                    interaction.options.getString(
+                        "style"
+                    ),
+                moodId:
+                    interaction.options.getString(
+                        "mood"
+                    ),
+            });
+
+        if (context.packUnavailable) {
+            await interaction.reply(
+                buildPackUnavailableReply()
+            );
+
+            return;
+        }
+
+        if (context.missingAesthetic) {
+            await interaction.reply(
+                buildAestheticRequiredReply(
+                    "Choose an aesthetic style, select an Aesthetic Pack, or ask a server manager to configure a default aesthetic."
+                )
+            );
+
+            return;
+        }
+
         await interaction.deferReply();
-
-        const aestheticId =
-            interaction.options
-                .getString(
-                    "style",
-                    true
-                );
-
-        const moodId =
-            interaction.options
-                .getString(
-                    "mood"
-                ) || null;
 
         const response =
             await buildPaletteResponse({
                 interaction,
-                aestheticId,
-                moodId,
+                aestheticId:
+                    context.aestheticId,
+                moodId: context.moodId,
+                packName:
+                    context.pack?.name ??
+                    null,
+                packColors:
+                    context.packColors,
             });
 
         await interaction.editReply(

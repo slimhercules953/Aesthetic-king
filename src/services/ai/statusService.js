@@ -17,11 +17,40 @@ function buildStatusPrompt({
     aesthetic,
     mood = null,
     request = "",
+    pack = null,
 }) {
     const moodDescription =
         mood
             ? `${mood.name}: ${mood.description}`
             : "No specific mood requested.";
+
+    /*
+     * A Pack's curated symbols join the inspiration list rather than
+     * replacing it, so the model still has the full aesthetic set to fall
+     * back on. The rules below only allow symbols from this list, so
+     * appending here is what actually lets pack symbols through.
+     */
+    const packSymbols = Array.isArray(
+        pack?.symbols
+    )
+        ? pack.symbols
+        : [];
+
+    const symbolInspiration = [
+        ...new Set([
+            ...packSymbols,
+            ...aesthetic.symbols,
+        ]),
+    ].join(" ");
+
+    const packSection = pack
+        ? `
+
+CURATED SERVER PACK: ${pack.name}
+${pack.description ? pack.description : "No additional direction provided."}
+
+Follow the pack's direction while staying inside the ${aesthetic.name} aesthetic.`
+        : "";
 
     return `
 You generate aesthetic Discord custom status ideas for Aesthetic King.
@@ -38,13 +67,13 @@ STYLE GUIDANCE:
 ${aesthetic.aiGuidance}
 
 SYMBOL INSPIRATION:
-${aesthetic.symbols.join(" ")}
+${symbolInspiration}
 
 MOOD:
 ${moodDescription}
 
 USER REQUEST:
-${request || "No additional request provided."}
+${request || "No additional request provided."}${packSection}
 
 RULES:
 - Return exactly ${STATUS_COUNT} statuses.
@@ -57,6 +86,7 @@ RULES:
 - Strongly follow the selected aesthetic.
 - If a mood is provided, strongly follow that mood.
 - If a user request is provided, incorporate it naturally.
+- If a curated server pack is provided, follow its direction.
 - Only use decorative symbols from the SYMBOL INSPIRATION list.
 - Do not invent obscure Unicode symbols.
 - Do not wrap statuses in quotation marks.
@@ -156,6 +186,7 @@ async function generateStatuses({
     aestheticId,
     moodId = null,
     request = "",
+    pack = null,
 }) {
     const aesthetic =
         getAesthetic(aestheticId);
@@ -182,6 +213,7 @@ async function generateStatuses({
             aesthetic,
             mood,
             request,
+            pack,
         });
 
     const generatedText =

@@ -370,6 +370,7 @@ function generatePaletteColors(
 async function generatePalette({
     aestheticId,
     moodId = null,
+    baseColors = null,
 }) {
     const aesthetic =
         getAesthetic(
@@ -398,9 +399,17 @@ async function generatePalette({
         );
     }
 
+    /*
+     * An Aesthetic Pack carries its own curated palette. When it has enough
+     * colours to mix from, those replace the aesthetic's defaults so the
+     * server's chosen palette actually shows up in the result.
+     */
     const colors =
         generatePaletteColors(
-            aesthetic.colors,
+            Array.isArray(baseColors) &&
+                baseColors.length > 0
+                ? baseColors
+                : aesthetic.colors,
             moodId
         );
 

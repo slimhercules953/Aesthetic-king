@@ -3,25 +3,24 @@ const {
 } = require("discord.js");
 
 const {
-    getRandomProfileSet,
-} = require("../../services/assets/assetService");
+    getAestheticChoices,
+} = require("../../data/aesthetics");
 
 const {
-    isPremiumOnlyError,
-} = require("../../services/assets/premiumSets");
+    getMoodChoices,
+} = require("../../data/moods");
 
 const {
-    resolvePremiumAssets,
-} = require("../../services/entitlements/featureAccessService");
-
-const {
-    buildPremiumAssetsLockedEmbed,
-    buildPremiumLockedReply,
-} = require("../../components/embeds/premiumLocked");
-
-const {
+    prepareTheme,
     buildThemeResponse,
 } = require("../../components/buttons/themeReroll");
+
+const {
+    withPackOption,
+    resolveGenerationContext,
+    respondToPackAutocomplete,
+    buildPackUnavailableReply,
+} = require("../../services/aesthetics/packContextService");
 
 module.exports = {
     requireGenerationChannel: true,
@@ -29,35 +28,75 @@ module.exports = {
         .setName("theme")
         .setDescription(
             "Generates a complete aesthetic Discord profile preview."
+        )
+        .addStringOption(withPackOption)
+        .addStringOption((option) =>
+            option
+                .setName("style")
+                .setDescription(
+                    "Optionally choose the aesthetic style."
+                )
+                .setRequired(false)
+                .addChoices(
+                    ...getAestheticChoices()
+                )
+        )
+        .addStringOption((option) =>
+            option
+                .setName("mood")
+                .setDescription(
+                    "Optionally choose the mood."
+                )
+                .setRequired(false)
+                .addChoices(
+                    ...getMoodChoices()
+                )
         ),
+
+    async autocomplete(interaction) {
+        await respondToPackAutocomplete(
+            interaction
+        );
+    },
 
     async execute(interaction) {
         /*
          * Resolved before deferring so the upsell can be ephemeral — see
-         * the note in `profile.js`.
+         * `generateTheme`.
          */
-        const premiumUnlocked =
-            await resolvePremiumAssets(
-                interaction.user.id
+        const context =
+            await resolveGenerationContext({
+                interaction,
+                aestheticId:
+                    interaction.options.getString(
+                        "style"
+                    ),
+                moodId:
+                    interaction.options.getString(
+                        "mood"
+                    ),
+            });
+
+        if (context.packUnavailable) {
+            await interaction.reply(
+                buildPackUnavailableReply()
             );
 
-        let profileSet;
+            return;
+        }
 
-        try {
-            profileSet =
-                await getRandomProfileSet(
-                    null,
-                    premiumUnlocked
-                );
-        } catch (error) {
-            if (!isPremiumOnlyError(error)) {
-                throw error;
-            }
+        const prepared = await prepareTheme({
+            interaction,
+            filters: {
+                aestheticId: context.aestheticId,
+                moodId: context.moodId,
+            },
+            pack: context.pack,
+        });
 
+        if (prepared.locked) {
             await interaction.reply(
-                buildPremiumLockedReply(
-                    buildPremiumAssetsLockedEmbed()
-                )
+                prepared.payload
             );
 
             return;
@@ -65,14 +104,20 @@ module.exports = {
 
         await interaction.deferReply();
 
-        const response =
+        /*
+         * The preview render happens after the defer so the slow banner
+         * download and canvas work cannot blow the three-second window.
+         */
+        await interaction.editReply(
             await buildThemeResponse(
                 interaction,
-                profileSet
-            );
-
-        await interaction.editReply(
-            response
+                prepared.profileSet,
+                {
+                    packName: prepared.packName,
+                    packColors: prepared.packColors,
+                    stateId: prepared.stateId,
+                }
+            )
         );
     },
 };

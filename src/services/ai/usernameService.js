@@ -17,11 +17,26 @@ function buildUsernamePrompt({
     aesthetic,
     mood = null,
     request = "",
+    pack = null,
 }) {
     const moodDescription =
         mood
             ? `${mood.name}: ${mood.description}`
             : "No specific mood requested.";
+
+    /*
+     * Only the Pack's name and description are used. Usernames are forced to
+     * plain ASCII, so a Pack's curated symbols are deliberately left out
+     * rather than offered as inspiration the rules then forbid.
+     */
+    const packSection = pack
+        ? `
+
+CURATED SERVER PACK: ${pack.name}
+${pack.description ? pack.description : "No additional direction provided."}
+
+Follow the pack's direction while staying inside the ${aesthetic.name} aesthetic.`
+        : "";
 
     return `
 You generate Discord username ideas for Aesthetic King.
@@ -41,7 +56,7 @@ MOOD:
 ${moodDescription}
 
 USER REQUEST:
-${request || "No additional request provided."}
+${request || "No additional request provided."}${packSection}
 
 RULES:
 - Return exactly ${USERNAME_COUNT} usernames.
@@ -60,6 +75,7 @@ RULES:
 - Make the usernames noticeably different from one another.
 - Strongly follow the selected aesthetic.
 - If a mood is provided, reflect that mood.
+- If a curated server pack is provided, follow its direction.
 - If a user request is provided, incorporate it naturally when possible.
 - Prefer memorable usernames over random strings.
 `.trim();
@@ -155,6 +171,7 @@ async function generateUsernames({
     aestheticId,
     moodId = null,
     request = "",
+    pack = null,
 }) {
     const aesthetic =
         getAesthetic(aestheticId);
@@ -181,6 +198,7 @@ async function generateUsernames({
             aesthetic,
             mood,
             request,
+            pack,
         });
 
     const generatedText =

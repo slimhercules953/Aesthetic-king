@@ -3,25 +3,23 @@ const {
 } = require("discord.js");
 
 const {
-    getRandomProfileSet,
-} = require("../../services/assets/assetService");
+    getAestheticChoices,
+} = require("../../data/aesthetics");
 
 const {
-    isPremiumOnlyError,
-} = require("../../services/assets/premiumSets");
+    getMoodChoices,
+} = require("../../data/moods");
 
 const {
-    resolvePremiumAssets,
-} = require("../../services/entitlements/featureAccessService");
-
-const {
-    buildPremiumAssetsLockedEmbed,
-    buildPremiumLockedReply,
-} = require("../../components/embeds/premiumLocked");
-
-const {
-    buildProfileResponse,
+    generateProfile,
 } = require("../../components/buttons/profileReroll");
+
+const {
+    withPackOption,
+    resolveGenerationContext,
+    respondToPackAutocomplete,
+    buildPackUnavailableReply,
+} = require("../../services/aesthetics/packContextService");
 
 module.exports = {
     requireGenerationChannel: true,
@@ -29,51 +27,83 @@ module.exports = {
         .setName("profile")
         .setDescription(
             "Generates a matching aesthetic profile picture and banner."
+        )
+        .addStringOption(withPackOption)
+        .addStringOption((option) =>
+            option
+                .setName("style")
+                .setDescription(
+                    "Optionally choose the aesthetic style."
+                )
+                .setRequired(false)
+                .addChoices(
+                    ...getAestheticChoices()
+                )
+        )
+        .addStringOption((option) =>
+            option
+                .setName("mood")
+                .setDescription(
+                    "Optionally choose the mood."
+                )
+                .setRequired(false)
+                .addChoices(
+                    ...getMoodChoices()
+                )
         ),
+
+    async autocomplete(interaction) {
+        await respondToPackAutocomplete(
+            interaction
+        );
+    },
 
     async execute(interaction) {
         /*
-         * The entitlement check and the pick both run before the reply is
-         * deferred. Discord decides ephemerality when the response is sent,
-         * so a public defer would lock the upsell into the channel. Both
-         * lookups are in-memory / pooled and measured at ~1ms, so the
-         * three-second interaction window is not at risk.
+         * The pack/style/mood ladder resolves before the reply is deferred
+         * so a premium-only match can still be answered ephemerally — see
+         * `generateProfile`.
          */
-        const premiumUnlocked =
-            await resolvePremiumAssets(
-                interaction.user.id
-            );
+        const context =
+            await resolveGenerationContext({
+                interaction,
+                aestheticId:
+                    interaction.options.getString(
+                        "style"
+                    ),
+                moodId:
+                    interaction.options.getString(
+                        "mood"
+                    ),
+            });
 
-        /*
-         * The free pool is only empty when every set is premium, which
-         * is the one case that deserves an upsell rather than an error.
-         */
-        let profileSet;
-
-        try {
-            profileSet =
-                await getRandomProfileSet(
-                    null,
-                    premiumUnlocked
-                );
-        } catch (error) {
-            if (!isPremiumOnlyError(error)) {
-                throw error;
-            }
-
+        if (context.packUnavailable) {
             await interaction.reply(
-                buildPremiumLockedReply(
-                    buildPremiumAssetsLockedEmbed()
-                )
+                buildPackUnavailableReply()
             );
 
             return;
         }
 
+        const {
+            locked,
+            payload,
+        } = await generateProfile({
+            interaction,
+            filters: {
+                aestheticId: context.aestheticId,
+                moodId: context.moodId,
+            },
+            packName: context.pack?.name ?? null,
+        });
+
+        if (locked) {
+            await interaction.reply(payload);
+            return;
+        }
+
         await interaction.deferReply();
 
-        await interaction.editReply(
-            buildProfileResponse(profileSet)
-        );
+        await interaction.editReply(payload);
     },
 };

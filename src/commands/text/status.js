@@ -17,9 +17,13 @@ const {
 );
 
 const {
-    getDefaultAestheticId,
+    withPackOption,
+    resolveGenerationContext,
+    respondToPackAutocomplete,
+    buildPackUnavailableReply,
+    buildAestheticRequiredReply,
 } = require(
-    "../../services/database/guildSettingsService"
+    "../../services/aesthetics/packContextService"
 );
 
 module.exports = {
@@ -29,6 +33,7 @@ module.exports = {
         .setDescription(
             "Generates aesthetic Discord status ideas."
         )
+        .addStringOption(withPackOption)
         .addStringOption(
             (option) =>
                 option
@@ -78,51 +83,71 @@ module.exports = {
                     )
         ),
 
+    async autocomplete(interaction) {
+        await respondToPackAutocomplete(
+            interaction
+        );
+    },
+
     async execute(interaction) {
-        await interaction.deferReply();
+        const context =
+            await resolveGenerationContext({
+                interaction,
+                aestheticId:
+                    interaction.options.getString(
+                        "style"
+                    ),
+                moodId:
+                    interaction.options.getString(
+                        "mood"
+                    ),
+            });
 
-        let aestheticId =
-            interaction.options
-                .getString(
-                    "style"
-                );
-
-        if (
-            !aestheticId &&
-            interaction.guildId
-        ) {
-            aestheticId =
-                await getDefaultAestheticId(
-                    interaction.guildId
-                );
-        }
-
-        if (!aestheticId) {
-            await interaction.editReply(
-                "Choose an aesthetic style, or ask a server manager to configure a default aesthetic in Aesthetic King Studio."
+        if (context.packUnavailable) {
+            await interaction.reply(
+                buildPackUnavailableReply()
             );
 
             return;
         }
 
-        const moodId =
-            interaction.options
-                .getString(
-                    "mood"
-                ) || null;
+        if (context.missingAesthetic) {
+            await interaction.reply(
+                buildAestheticRequiredReply(
+                    "Choose an aesthetic style, select an Aesthetic Pack, or ask a server manager to configure a default aesthetic in Aesthetic King Studio."
+                )
+            );
 
-        const request =
-            interaction.options
-                .getString(
-                    "prompt"
-                ) || "";
+            return;
+        }
+
+        await interaction.deferReply();
+
+        /*
+         * Only the fields the prompt actually uses are kept — and later
+         * stored in reroll state — so nothing extra about the Pack drifts
+         * into the AI prompt.
+         */
+        const pack = context.pack
+            ? {
+                  name: context.pack.name,
+                  description:
+                      context.pack.description ?? null,
+                  symbols: context.packSymbols,
+              }
+            : null;
 
         const response =
             await buildStatusResponse({
                 interaction,
-                aestheticId,
-                moodId,
-                request,
+                aestheticId:
+                    context.aestheticId,
+                moodId: context.moodId,
+                request:
+                    interaction.options.getString(
+                        "prompt"
+                    ) || "",
+                pack,
             });
 
         await interaction.editReply(

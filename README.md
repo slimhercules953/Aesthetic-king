@@ -63,6 +63,8 @@ Node.js + discord.js v14. Runs from `src/index.js`.
 | `/premium` | Read-only Premium plan, Crown balance and active unlocks, with a link to Studio |
 | `/ping` | Diagnostic (always available, never Pack- or config-affected) |
 
+Every generation command except `/bio` accepts a `pack` option (autocomplete over the server's enabled Packs) and honours the server's default Pack, so a configured Pack reaches all of them rather than `/aesthetic` alone.
+
 All responses are **embed-first**: polished Discord embeds rather than plain text, including errors, permission denials, and configuration confirmations. Generated creative content is public; anything directed at one person — permission denials, errors, and every "you need Premium" upsell — is ephemeral, so nobody is called out in channel for hitting a lock. Because Discord fixes ephemerality when a response is sent, a command must evaluate the entitlement check *before* it defers; `buildPremiumLockedReply()` in `src/components/embeds/premiumLocked.js` is the only sanctioned way to answer a lock. `/premium` is the deliberate exception — a plan and Crown balance are nothing to hide, and its link to the unlock page is worth showing to the whole channel.
 
 ### Server Configuration
@@ -77,6 +79,13 @@ Packs are presets, not overrides. Explicit user choices always win:
 Explicit command option → selected Pack → server default Pack
 → server default aesthetic/mood → normal command behavior
 ```
+
+A Pack influences generation in two different ways, and the distinction matters:
+
+- **Filters** (`aestheticId`, `moodId`) are *defaults* that sit below whatever the person typed on the command line.
+- **Content** (`colors`, `symbols`) *replaces* the aesthetic's own output — curated colors drive `/palette` mixes and `/theme` swatches (when at least two are set), and curated symbols lead `/symbols` and the AI symbol prompts. `/username` deliberately ignores pack symbols because usernames forbid decorative characters.
+
+`src/services/aesthetics/packContextService.js` implements this ladder once (`resolveGenerationContext`) and every generation command calls it. A Pack the person named explicitly but which no longer resolves produces an ephemeral "that Pack is unavailable" reply rather than silently generating unrelated content. Reroll buttons carry the resolved Pack in short-lived interaction state, so "Generate Another" keeps the Pack.
 
 ---
 

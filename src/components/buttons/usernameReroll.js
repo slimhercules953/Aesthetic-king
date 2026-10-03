@@ -33,6 +33,7 @@ async function buildUsernameResponse({
     aestheticId,
     moodId = null,
     request = "",
+    pack = null,
     stateId = null,
 }) {
     const {
@@ -43,6 +44,7 @@ async function buildUsernameResponse({
         aestheticId,
         moodId,
         request,
+        pack,
     });
 
     let resolvedStateId =
@@ -59,8 +61,11 @@ async function buildUsernameResponse({
                 aestheticId,
                 moodId,
                 request,
+                pack,
             });
     }
+
+    const packName = pack?.name ?? null;
 
     const embedColor =
         parseInt(
@@ -96,11 +101,25 @@ async function buildUsernameResponse({
                             ? mood.name
                             : "Any",
                     inline: true,
-                }
+                },
+                ...(
+                    packName
+                        ? [
+                              {
+                                  name:
+                                      "Aesthetic Pack",
+                                  value:
+                                      `✦ ${packName}`,
+                                  inline: true,
+                              },
+                          ]
+                        : []
+                )
             )
             .setFooter({
-                text:
-                    "Aesthetic King • Controls expire in 5 minutes",
+                text: packName
+                    ? `Aesthetic King • ${packName} • Controls expire in 5 minutes`
+                    : "Aesthetic King • Controls expire in 5 minutes",
             });
 
     const buttons =
@@ -177,6 +196,7 @@ module.exports = {
             aestheticId,
             moodId,
             request,
+            pack,
         } = state.data;
 
         const response =
@@ -185,6 +205,7 @@ module.exports = {
                 aestheticId,
                 moodId,
                 request,
+                pack,
                 stateId,
             });
 

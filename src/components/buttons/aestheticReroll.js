@@ -78,62 +78,40 @@ function formatFilterName(value) {
     );
 }
 
+/*
+ * Pack colour/symbol normalisation moved into the shared pack service so
+ * every generation command applies the same rules. This command needs the
+ * colours as {hex} objects, so it adapts the shared string list.
+ */
+const {
+    getPackColors,
+    getPackSymbols,
+} = require(
+    "../../services/aesthetics/packContextService"
+);
+
 function normalizePackColors(
     packColors
 ) {
-    if (
-        !Array.isArray(
-            packColors
-        )
-    ) {
-        return [];
-    }
-
-    return packColors
-        .filter(
-            (color) =>
-                typeof color ===
-                    "string" &&
-                /^#[0-9a-f]{6}$/i.test(
-                    color.trim()
-                )
-        )
-        .map(
-            (color) => ({
-                hex:
-                    color
-                        .trim()
-                        .toUpperCase(),
-            })
-        );
+    return getPackColors(
+        {
+            colors: packColors,
+        }
+    ).map(
+        (hex) => ({
+            hex,
+        })
+    );
 }
 
 function normalizePackSymbols(
     packSymbols
 ) {
-    if (
-        !Array.isArray(
-            packSymbols
-        )
-    ) {
-        return [];
-    }
-
-    return packSymbols
-        .filter(
-            (symbol) =>
-                typeof symbol ===
-                    "string" &&
-                symbol.trim()
-        )
-        .map(
-            (symbol) =>
-                symbol.trim()
-        )
-        .slice(
-            0,
-            8
-        );
+    return getPackSymbols(
+        {
+            symbols: packSymbols,
+        }
+    );
 }
 
 async function buildAestheticResponse({

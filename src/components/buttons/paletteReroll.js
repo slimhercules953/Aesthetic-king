@@ -41,6 +41,8 @@ async function buildPaletteResponse({
     interaction,
     aestheticId,
     moodId = null,
+    packName = null,
+    packColors = [],
     stateId = null,
 }) {
     const {
@@ -50,6 +52,7 @@ async function buildPaletteResponse({
     } = await generatePalette({
         aestheticId,
         moodId,
+        baseColors: packColors,
     });
 
     const image =
@@ -80,6 +83,8 @@ async function buildPaletteResponse({
 
                 aestheticId,
                 moodId,
+                packName,
+                packColors,
             });
     }
 
@@ -98,9 +103,11 @@ async function buildPaletteResponse({
                 `✦ ${aesthetic.name} Palette`
             )
             .setDescription(
-                buildColorList(
-                    colors
-                )
+                packName
+                    ? `Mixed from the **${packName}** Aesthetic Pack.\n\n${buildColorList(colors)}`
+                    : buildColorList(
+                          colors
+                      )
             )
             .setColor(
                 embedColor
@@ -121,14 +128,29 @@ async function buildPaletteResponse({
                             ? mood.name
                             : "Any",
                     inline: true,
-                }
+                },
+                ...(
+                    packName
+                        ? [
+                              {
+                                  name:
+                                      "Aesthetic Pack",
+                                  value:
+                                      `✦ ${packName}`,
+                                  inline: true,
+                              },
+                          ]
+                        : []
+                )
             )
             .setImage(
                 "attachment://aesthetic-palette.png"
             )
             .setFooter({
                 text:
-                    "Aesthetic King • Controls expire in 5 minutes",
+                    packName
+                        ? `Aesthetic King • ${packName} • Controls expire in 5 minutes`
+                        : "Aesthetic King • Controls expire in 5 minutes",
             });
 
     const buttons =
@@ -218,6 +240,8 @@ module.exports = {
         const {
             aestheticId,
             moodId,
+            packName,
+            packColors,
         } = state.data;
 
         const response =
@@ -225,6 +249,8 @@ module.exports = {
                 interaction,
                 aestheticId,
                 moodId,
+                packName,
+                packColors,
                 stateId,
             });
 
