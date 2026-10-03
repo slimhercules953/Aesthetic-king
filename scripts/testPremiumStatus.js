@@ -440,9 +440,14 @@ async function main() {
         await premium.execute({
             user: {
                 id: fixtureDiscordId,
+                displayName: "Fixture User",
+                displayAvatarURL: () =>
+                    "https://cdn.discordapp.com/embed/avatars/0.png",
             },
 
-            deferReply: async () => {},
+            deferReply: async (options) => {
+                captured.deferred = options;
+            },
 
             editReply: async (payload) => {
                 captured.payload = payload;
@@ -465,6 +470,25 @@ async function main() {
                 )
             ),
             unlockField?.value ?? "missing"
+        );
+
+        // The reply is deliberately public so that one person checking
+        // their status advertises Premium to the rest of the channel.
+        check(
+            "reply is public, not ephemeral",
+            captured.deferred?.ephemeral === false,
+            JSON.stringify(captured.deferred)
+        );
+
+        // A public reply has to name the user it belongs to.
+        const author =
+            captured.payload?.embeds?.[0]?.toJSON()
+                ?.author;
+
+        check(
+            "embed attributes the status to the user",
+            author?.name === "Fixture User",
+            JSON.stringify(author) ?? "missing"
         );
     } finally {
         await prisma.user.delete({

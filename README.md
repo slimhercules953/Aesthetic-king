@@ -63,7 +63,7 @@ Node.js + discord.js v14. Runs from `src/index.js`.
 | `/premium` | Read-only Premium plan, Crown balance and active unlocks, with a link to Studio |
 | `/ping` | Diagnostic (always available, never Pack- or config-affected) |
 
-All responses are **embed-first**: polished Discord embeds rather than plain text, including errors, permission denials, and configuration confirmations. Generated creative content is public; administrative messages are ephemeral.
+All responses are **embed-first**: polished Discord embeds rather than plain text, including errors, permission denials, and configuration confirmations. Generated creative content is public; administrative messages are ephemeral. `/premium` is the deliberate exception — a plan and Crown balance are nothing to hide, and its link to the unlock page is worth showing to the whole channel.
 
 ### Server Configuration
 

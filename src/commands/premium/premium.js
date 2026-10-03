@@ -19,6 +19,14 @@ const {
  * the most common question aimed at the bot is "why is this locked for
  * me?", and answering it needs the plan, the Crown balance, and which
  * unlocks are still live. It reports; it never spends.
+ *
+ * The reply is public on purpose. Nothing in it is secret — plan, Crown
+ * balance and unlocked features are all things a user would happily show
+ * off — and the embed carries a link to the page that unlocks things.
+ * Keeping that visible means one person checking their status advertises
+ * Premium to everyone else in the channel, which is the discovery path
+ * the command exists to support. An ephemeral reply would only ever
+ * reach someone who already knew to ask.
  */
 
 function formatExpiry(date) {
@@ -38,7 +46,7 @@ function formatExpiry(date) {
         : `<t:${timestamp}:R>`;
 }
 
-function buildPremiumStatusEmbed(status) {
+function buildPremiumStatusEmbed(status, user) {
     const isPremium =
         status.plan === "PREMIUM";
 
@@ -74,6 +82,22 @@ function buildPremiumStatusEmbed(status) {
                 inline: true,
             }
         );
+
+    // A public reply has to say whose status it is, otherwise two people
+    // checking in the same channel produce indistinguishable messages.
+    if (user) {
+        embed.setAuthor({
+            name:
+                user.displayName ??
+                user.globalName ??
+                user.username ??
+                "Unknown user",
+            iconURL:
+                typeof user.displayAvatarURL === "function"
+                    ? user.displayAvatarURL()
+                    : undefined,
+        });
+    }
 
     if (status.unlocks.length > 0) {
         embed.addFields({
@@ -122,7 +146,7 @@ module.exports = {
 
     async execute(interaction) {
         await interaction.deferReply({
-            ephemeral: true,
+            ephemeral: false,
         });
 
         const status =
@@ -133,7 +157,8 @@ module.exports = {
         await interaction.editReply({
             embeds: [
                 buildPremiumStatusEmbed(
-                    status
+                    status,
+                    interaction.user
                 ),
             ],
         });
