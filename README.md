@@ -1,1201 +1,19 @@
 # 👑 Aesthetic King
 
-**Aesthetic King** is a Discord-focused creative identity platform built around profile customization, aesthetics, coordinated visual identities, and creative inspiration.
+A creative identity platform for Discord. Aesthetic King helps users build complete, coordinated Discord identities — aesthetic, mood, palette, PFP, banner, username, bio, status, symbols — through a Discord bot and a web workspace called **Aesthetic King Studio**, backed by a shared PostgreSQL database.
 
-What began as an aesthetic Discord bot is evolving into a larger ecosystem consisting of:
-
-- 🤖 **Aesthetic King Bot** — fast, Discord-native creation and generation
-- 🎨 **Aesthetic King Studio** — the full web-based creative workspace
-- 🏰 **Server Studio** — server-specific aesthetic configuration and management
-- 📦 **Aesthetic Packs** — reusable coordinated visual identities
-- 🖼️ **Asset Library** — searchable PFPs, banners, palettes, and visual assets
-- 👤 **Profile Builder** — visual Discord profile creation
-- ✨ **Complete My Profile** — automatically coordinate an entire profile from one starting element
-- 🌎 **Aesthetic King Community** — discover, publish, remix, save, and reuse aesthetic identities
-- 👑 **Premium & Crowns** — optional advanced tools while keeping the core product useful for free users
-
-> **Aesthetic King should never become another generic Discord utility bot.**
-
-Every feature should contribute to aesthetics, creativity, profiles, visual identity, inspiration, or community customization.
-
----
-
-# 🌌 Product Vision
-
-Aesthetic King is becoming a **creative identity platform for Discord**.
-
-The long-term experience should allow someone to start with something as simple as:
-
-- a color
-- an aesthetic
-- a mood
-- a PFP
-- a banner
-- a palette
-- an existing profile
-- an Aesthetic Pack
-
-…and turn it into a complete coordinated Discord identity.
-
-The ecosystem should eventually support the complete creative loop:
-
-```text
-Discover
-   ↓
-Create
-   ↓
-Customize
-   ↓
-Save
-   ↓
-Publish
-   ↓
-Share
-   ↓
-Remix
-   ↓
-Use on Discord
-```
-
-The Discord bot and Studio are not separate products.
-
-They are two interfaces into the same Aesthetic King ecosystem.
-
----
-
-# 🤖 Aesthetic King Bot
-
-The Discord bot provides quick access to Aesthetic King's creative tools directly inside Discord.
-
-## Current Commands
-
-### `/aesthetic`
-
-The flagship Aesthetic King experience.
-
-Generates a coordinated aesthetic profile concept using:
-
-- aesthetic
-- mood
-- color direction
-- PFP
-- banner
-- palette
-- symbols
-- username
-- bio
-- status
-- Aesthetic Packs
-
-The command supports interactive rerolling and coordinated profile generation.
-
-### `/profile`
-
-Creates coordinated Discord profile concepts.
-
-Long-term, `/profile` should become tightly connected with:
-
-- Aesthetic Packs
-- Profile Builder
-- saved profiles
-- PFP/banner assets
-- Complete My Profile
-
-### `/theme`
-
-Creates coordinated aesthetic themes.
-
-Aesthetic Packs should provide reusable theme direction.
-
-### `/palette`
-
-Creates aesthetic color palettes.
-
-Pack palettes will allow server identities and user creations to remain visually consistent.
-
-### `/symbols`
-
-Provides aesthetic symbols appropriate for different visual styles.
-
-Aesthetic Packs can provide preferred symbol sets.
-
-### `/status`
-
-Generates Discord status ideas based on aesthetic and mood.
-
-Pack integration should provide aesthetic/mood direction without forcing unrelated Pack properties into the command.
-
-### `/username`
-
-Generates aesthetic username ideas.
-
-Pack integration should provide relevant aesthetic/mood context.
-
-### `/bio`
-
-Generates aesthetic Discord bios.
-
-`/bio` is intentionally not part of the current Aesthetic Pack rollout.
-
-### `/ping`
-
-Diagnostic command.
-
-`/ping` remains independent from aesthetic configuration and Packs.
-
----
-
-# 🎯 Bot Design Philosophy
-
-Aesthetic King should remain focused.
-
-The bot should **not** expand into unrelated Discord utility categories such as:
-
-- generic moderation
-- music
-- economy
-- leveling
-- tickets
-- generic server administration
-- unrelated AI chat
-
-Other Discord bots may be studied for dashboard quality, onboarding, usability, or infrastructure ideas, but Aesthetic King's actual features should remain centered around creative identity.
-
----
-
-# 🖼️ Embed-First Responses
-
-Aesthetic King uses an **embed-first response system**.
-
-Bot-facing responses should use polished Discord embeds whenever practical instead of plain text.
-
-Examples include:
-
-- command disabled
-- wrong generation channel
-- permission denied
-- configuration confirmation
-- errors
-- warnings
-- generation results
-
-Generated creative content is generally public.
-
-Administrative messages, restrictions, errors, and configuration responses are generally ephemeral.
-
----
-
-# 📦 Aesthetic Packs
-
-Aesthetic Packs are becoming one of Aesthetic King's core systems.
-
-An Aesthetic Pack is a reusable preset representing a coordinated visual identity.
-
-Example:
-
-```text
-Crimson Cathedral
-
-Aesthetic: Gothic
-Mood: Mysterious
-
-Palette:
-#09090B
-#51182F
-#8E405D
-#C6A4B2
-
-Symbols:
-✦ ☾ ♱ †
-```
-
-## Pack Contents
-
-A Pack can currently contain:
-
-- Name
-- Description
-- Base Aesthetic
-- Mood
-- Color Palette
-- Symbols
-- Enabled/Disabled state
-- Server ownership
-- Created timestamp
-- Updated timestamp
-
-Future Packs may additionally contain:
-
-- PFPs
-- banners
-- AI generation guidance
-- asset associations
-- creator information
-- tags
-- usage statistics
-- Community publishing information
-
----
-
-# ⚙️ Pack Resolution
-
-Aesthetic Packs are presets rather than hard overrides.
-
-Command options should always respect explicit user choices.
-
-The resolution order is:
-
-```text
-Explicit Command Option
-        ↓
-Explicitly Selected Pack
-        ↓
-Server Default Pack
-        ↓
-Server Default Aesthetic / Mood
-        ↓
-Normal Command Behavior
-```
-
-A Pack should only fill information the user did not explicitly provide.
-
----
-
-# 🧠 Meaningful Pack Integration
-
-Aesthetic Pack support should **not** be added to commands simply because Packs exist.
-
-A command should consume Pack properties only when those properties meaningfully improve the command.
-
-Current direction:
-
-```text
-/aesthetic   ✅ Full Pack integration
-/profile     🔜 Aesthetic + Mood + Colors + Symbols
-/theme       🔜 Aesthetic + Mood + Colors + Symbols
-/palette     🔜 Aesthetic + Mood + Colors
-/symbols     🔜 Aesthetic + Mood + Symbols
-/status      🔜 Aesthetic + Mood
-/username    🔜 Aesthetic + Mood
-
-/bio         ❌ No current Pack integration
-/ping        ❌ No Pack integration
-```
-
-This prevents Packs from becoming unnecessary complexity.
-
----
-
-# 🎨 Aesthetic King Studio
-
-Aesthetic King Studio is the web-based creative workspace for the entire ecosystem.
-
-The Studio is intended to handle workflows that would be awkward or impossible through Discord commands alone.
-
-Its long-term role can be summarized through three major pillars:
-
-```text
-CREATE
-DISCOVER
-MANAGE
-```
-
----
-
-# ✨ CREATE
-
-Studio should provide advanced creation tools.
-
-Current and planned systems include:
-
-- Create Studio
-- Palette Studio
-- Aesthetic Packs
-- Profile Builder
-- Complete My Profile
-- AI-assisted generation
-- asset selection
-- profile customization
-
-The goal is to allow users to visually construct complete identities rather than repeatedly generating isolated pieces.
-
----
-
-# 🔎 DISCOVER
-
-Users should be able to discover:
-
-- PFPs
-- banners
-- palettes
-- aesthetic combinations
-- Aesthetic Packs
-- profile designs
-- creators
-- seasonal content
-- official Aesthetic King content
-- Community creations
-
-Discovery should eventually become one of the primary reasons to use Studio.
-
----
-
-# ⚙️ MANAGE
-
-Studio should also provide management for:
-
-- Favorites
-- Collections
-- saved creations
-- Aesthetic Packs
-- servers
-- server configuration
-- published content
-- Crowns
-- Premium
-- creator content
-
----
-
-# 🏰 My Servers
-
-Users authenticate through Discord and can see servers they have permission to manage.
-
-The system checks whether the user:
-
-- owns the server
-- has Administrator
-- has Manage Server
-
-It also verifies whether Aesthetic King is actually installed.
-
-Installed servers can be opened in **Server Studio**.
-
----
-
-# 🛠️ Server Studio
-
-Server Studio is the management center for Aesthetic King's server-specific functionality.
-
-The planned information architecture is:
-
-```text
-Server Studio
-│
-├── Overview
-├── Generation
-├── Commands
-├── Aesthetic Packs
-├── Appearance
-├── Access
-└── Analytics
-```
-
----
-
-# 🏠 Server Overview
-
-The future Overview should provide a quick picture of the server's Aesthetic King configuration.
-
-Potential information includes:
-
-- bot status
-- generation channel
-- default aesthetic
-- default mood
-- default Pack
-- enabled commands
-- Pack count
-- recent generation activity
-- configuration warnings
-- quick actions
-
-The Overview should answer:
-
-> "How is Aesthetic King configured in this server?"
-
----
-
-# 🎨 Generation Settings
-
-Generation settings currently allow servers to configure:
-
-- generation channel
-- default aesthetic
-- default mood
-
-The bot reads these settings from the shared PostgreSQL database.
-
-If a generation channel is configured, aesthetic-generation commands can be restricted to that channel.
-
----
-
-# 🎛️ Command Management
-
-Server administrators can independently enable or disable Aesthetic King commands.
-
-Managed commands include:
-
-- `/aesthetic`
-- `/bio`
-- `/palette`
-- `/profile`
-- `/status`
-- `/symbols`
-- `/theme`
-- `/username`
-
-`/ping` remains available as a diagnostic command.
-
-Commands remain globally registered with Discord.
-
-Disabled commands are blocked by Aesthetic King when executed rather than repeatedly registering/unregistering Discord commands.
-
----
-
-# 📦 Server Aesthetic Packs
-
-Server administrators can create reusable visual identities for their server.
-
-Current functionality includes:
-
-- create
-- edit
-- delete
-- enable
-- disable
-- set Default Pack
-- select aesthetic
-- select mood
-- configure colors
-- configure symbols
-
-Future improvements include:
-
-- Pack assets
-- Pack previews
-- seasonal Packs
-- AI-assisted Pack creation
-- advanced Pack fields
-- Pack analytics
-- Community publishing
-- Personal Packs
-- Official Packs
-
----
-
-# 🎭 Pack Types
-
-The long-term Pack ecosystem should support multiple contexts.
-
-## Server Packs
-
-Created specifically for one Discord server.
-
-## Personal Packs
-
-Created by an individual and available across their Aesthetic King experience.
-
-## Official Packs
-
-Curated and maintained by Aesthetic King.
-
-## Community Packs
-
-Published creations that other users can discover, save, remix, or use.
-
-The exact ownership and publishing model should remain explicit so private server content never becomes public automatically.
-
----
-
-# 🖼️ Asset Explorer / Library
-
-Aesthetic King's existing Cloudflare R2 PFP/banner collection should evolve into a proper **Asset Explorer**.
-
-Assets should eventually have structured metadata including:
-
-- aesthetic
-- mood
-- dominant colors
-- tags
-- keywords
-- PFP/banner relationship
-- profile set
-- associated Pack
-- creator/source
-- usage information
-
-Instead of browsing raw files, users should browse meaningful visual content.
-
-Example:
-
-```text
-Gothic Profile Set
-
-Aesthetic:
-Gothic
-
-Mood:
-Mysterious
-
-Palette:
-Black • Crimson • Silver
-
-Includes:
-PFP
-Banner
-```
-
----
-
-# 👤 Profile Builder
-
-Profile Builder should become one of Studio's flagship features.
-
-Users should be able to visually construct a Discord-style profile using:
-
-- PFP
-- banner
-- username
-- display name
-- bio
-- status
-- palette
-- accent colors
-- aesthetic
-- mood
-- symbols
-- Aesthetic Pack
-
-The interface should provide a visual Discord-style preview while editing.
-
-Instead of generating isolated pieces, users can see how everything works together.
-
----
-
-# ✨ Complete My Profile
-
-**Complete My Profile** should allow someone to start with one piece of their identity and have Aesthetic King coordinate the rest.
-
-Examples:
-
-```text
-Start with a PFP
-        ↓
-Find matching banner
-        ↓
-Generate palette
-        ↓
-Determine aesthetic
-        ↓
-Determine mood
-        ↓
-Suggest username
-        ↓
-Suggest status
-        ↓
-Suggest symbols
-        ↓
-Complete Profile
-```
-
-Other starting points could include:
-
-- banner
-- palette
-- aesthetic
-- mood
-- Pack
-- existing profile
-
-This should combine Aesthetic King's asset library, AI, palettes, Packs, and Profile Builder into one workflow.
-
----
-
-# ❤️ Favorites
-
-Users can save content they want to return to later.
-
-Favorites should eventually work across the ecosystem rather than existing as an isolated feature.
-
-Potential favorite types include:
-
-- assets
-- Packs
-- Community Profiles
-- palettes
-- creators
-
----
-
-# 📚 Collections
-
-Collections allow users to organize inspiration.
-
-Example:
-
-```text
-Dark Gothic Inspiration
-
-├── Crimson Cathedral Pack
-├── Gothic Profile
-├── Black/Red Palette
-├── PFP
-└── Banner
-```
-
-Community, Asset Explorer, Profile Builder, and Packs should reuse the existing Collections system rather than creating separate organizational systems.
-
----
-
-# 🤖 AI
-
-Aesthetic King uses AI as a creative assistant rather than making AI the entire product.
-
-AI can assist with:
-
-- aesthetic recommendations
-- usernames
-- statuses
-- bios
-- Pack generation
-- profile coordination
-- matching assets
-- Complete My Profile
-- creative recommendations
-
-The project is moving toward local/self-hosted AI through **Ollama** where practical.
-
-Image-to-Aesthetic analysis is planned as a Premium capability.
-
----
-
-# 🌎 Aesthetic King Community
-
-Aesthetic King Community is the long-term discovery and sharing layer for the platform.
-
-It should answer:
-
-> **"I want inspiration for my Discord identity. What can I discover, save, remix, or use?"**
-
-It should NOT become:
-
-> **"What random social posts are people making today?"**
-
-Community should remain focused on creativity and identity.
-
----
-
-# 🌐 Community Loop
-
-The central Community loop should be:
-
-```text
-Create
-   ↓
-Publish
-   ↓
-Discover
-   ↓
-Save
-   ↓
-Use
-   ↓
-Remix
-```
-
-Existing Studio systems should feed directly into this loop.
-
----
-
-# 👤 Community Profiles
-
-Users should eventually be able to publish complete Discord-style identities.
-
-Community Profiles can include:
-
-- PFP
-- banner
-- username
-- bio style
-- status
-- palette
-- aesthetic
-- mood
-- symbols
-- Aesthetic Pack
-- creator
-- tags
-
-The profile should be displayed using a visual Discord-style profile preview.
-
-Community Profiles should support useful actions such as:
-
-- Use Palette
-- Use Bio Style
-- Save PFP
-- Save Banner
-- Use Pack
-- Add to Collection
-- Remix
-
----
-
-# 🎨 Community Discover
-
-The Community Discover experience may include:
-
-```text
-Community
-│
-├── Featured
-├── New
-├── Profiles
-├── Aesthetic Packs
-├── Creators
-├── Official
-└── Seasonal
-```
-
-Users should eventually be able to filter by:
-
-- aesthetic
-- mood
-- color
-- tags
-- content type
-- creator
-- newest
-- popularity
-
-Search should support Packs, Profiles, creators, aesthetics, moods, and tags.
-
----
-
-# 👑 Creator Profiles
-
-Creators should eventually have public Aesthetic King profiles.
-
-A creator page may show:
-
-- display name
-- avatar
-- creator bio
-- published profiles
-- published Packs
-- featured creations
-- public Collections
-- favorite aesthetic
-- creator statistics
-
-The primary purpose is to answer:
-
-> **"What has this person created?"**
-
-It should not become a generic social-media profile.
-
----
-
-# 🔄 Remixing
-
-Community should encourage creative reuse.
-
-A user may discover another profile or Pack and use it as inspiration for their own creation.
-
-Remixes should preserve attribution to the original creator where appropriate.
-
-Long term, remix usage may contribute to creator rewards.
-
----
-
-# ❤️ Community Reactions
-
-Community can support positive feedback such as **likes**.
-
-The current direction does not require downvotes.
-
-The goal is to recognize good creations without turning Community into a competitive voting system.
-
----
-
-# 👑 Crowns
-
-**Crowns** are a planned Aesthetic King reward currency.
-
-Users may eventually earn Crowns through meaningful participation such as:
-
-- creating useful Community content
-- having creations used by others
-- remix attribution
-- Community participation
-- voting for Aesthetic King on services such as Top.gg
-
-Crowns should reward participation without encouraging spam.
-
-Potential uses include:
-
-- individual Premium actions
-- advanced generation
-- premium creative tools
-- temporary unlocks
-- eventually earning costly Premium time
-
-The exact economy must be carefully balanced before implementation.
-
----
-
-# 💎 Premium
-
-Aesthetic King should maintain a useful free experience.
-
-Premium should enhance creativity rather than lock away the basic product.
-
-## Free Direction
-
-Free users should retain meaningful access to:
-
-- core bot commands
-- Studio
-- basic profile creation
-- basic Packs
-- palettes
-- Favorites
-- Collections
-- Community browsing
-- Community participation
-
-## Premium Direction
-
-Potential Premium capabilities include:
-
-- Image-to-Aesthetic
-- advanced Profile Builder features
-- more Packs
-- advanced Pack fields
-- premium assets
-- advanced editing
-- enhanced AI generation
-- additional saved content
-- advanced exports
-- creator customization
-- deeper analytics
-- advanced server customization
-
-Crowns may eventually provide limited access to individual Premium actions without requiring a recurring subscription.
-
----
-
-# 📊 Analytics
-
-Analytics should remain focused on useful aesthetic/product information.
-
-Potential Server Studio analytics:
-
-- command usage
-- most-used aesthetics
-- most-used moods
-- most-used Packs
-- generation counts
-- popular palettes
-
-Potential creator analytics:
-
-- profile views
-- saves
-- Pack uses
-- remixes
-- Community engagement
-
-Avoid adding analytics simply for the sake of having charts.
-
----
-
-# 🔐 Security
-
-Aesthetic King Studio uses Discord OAuth.
-
-Security principles include:
-
-- OAuth tokens are never stored in browser sessions
-- OAuth credentials are encrypted at rest
-- sessions are signed
-- sensitive routes verify authorization independently
-- server management routes verify Discord ownership/permissions
-- guild IDs supplied by clients are never blindly trusted
-- server content remains isolated from unrelated servers
-- private content should never become Community content automatically
-
-Server authorization recognizes:
-
-- server owner
-- Administrator
-- Manage Server
-
----
-
-# 🗄️ Data & Infrastructure
-
-Current infrastructure includes:
-
-### Bot
-
-- Node.js
-- Discord.js
-- JavaScript
-- Prisma
-- PostgreSQL
-- Cloudflare R2
-- Canvas
-- Ollama
-- PM2
-- Raspberry Pi hosting
-
-### Studio
-
-- Vinext
-- Vite
-- TypeScript
-- Tailwind
-- Cloudflare Workers
-- Wrangler
-- PostgreSQL
-- Hyperdrive
-- Discord OAuth
-- R2
-- Ollama
-- Lucide React
-
----
-
-# 🧭 Product Roadmap
-
-The roadmap should remain incremental.
-
-## Current Foundation
-
-- Bot V2 architecture
-- aesthetic system
-- mood system
-- R2 assets
-- color extraction
-- profile rendering
-- Ollama integration
-- Discord OAuth
-- PostgreSQL
-- secure Studio sessions
-- My Servers
-- Server Studio
-- generation channel
-- default aesthetic
-- default mood
-- Command Management
-- system embeds
-- Favorites
-- Collections
-- Palette Studio
-- Create Studio
-- Aesthetic Packs
-- `/aesthetic` Pack integration
-
----
-
-## Phase 1 — Finish Aesthetic Packs
-
-Continue meaningful Pack integration with:
-
-```text
-/profile
-/theme
-/palette
-/symbols
-/status
-/username
-```
-
-Do not add Pack support to `/bio` at this stage.
-
-Then improve Pack management and defaults.
-
----
-
-## Phase 2 — Expand Server Studio
-
-Build:
-
-```text
-Overview
-Generation
-Commands
-Aesthetic Packs
-Appearance
-Access
-Analytics
-```
-
-Keep each section focused on Aesthetic King rather than generic Discord administration.
-
----
-
-## Phase 3 — Asset Explorer
-
-Transform the existing R2 collection into a searchable, categorized visual library.
-
-Add:
-
-- metadata
-- aesthetic classification
-- mood classification
-- colors
-- tags
-- search
-- filters
-- Favorites
-- Collections
-- Pack associations
-
----
-
-## Phase 4 — Profile Builder
-
-Create the visual Discord profile construction experience.
-
-Connect:
-
-- assets
-- palettes
-- Packs
-- aesthetics
-- moods
-- generated content
-- Favorites
-- Collections
-
----
-
-## Phase 5 — Complete My Profile
-
-Allow Aesthetic King to coordinate an entire identity from a single starting point.
-
----
-
-## Phase 6 — Free / Premium / Crowns
-
-Define clear boundaries before large Premium systems are implemented.
-
-Introduce Premium only where it provides meaningful additional value.
-
-Develop the Crown economy carefully before making rewards permanent.
-
----
-
-## Phase 7 — Aesthetic King Community
-
-Begin with structured, reusable creative content.
-
-A sensible starting point is:
-
-```text
-Published Aesthetic Packs
-        ↓
-Discover
-        ↓
-Pack Details
-        ↓
-Save / Favorite
-        ↓
-Use / Remix
-```
-
-Then expand into:
-
-- Community Profiles
-- creator profiles
-- published Profile Builder creations
-- Complete My Profile publishing
-- search
-- filters
-- official content
-- seasonal content
-- creator analytics
-
----
-
-# 🚫 Features to Avoid
-
-Aesthetic King should not drift into generic Discord-bot territory.
-
-Avoid unrelated features such as:
-
-- moderation suites
-- music players
-- ticket systems
-- economy commands unrelated to Aesthetic King
-- generic leveling
-- generic AI chat
-- unrelated server utilities
-
-Before adding a feature, ask:
-
-> **Does this help someone create, discover, manage, share, or use a better Discord identity?**
-
-If the answer is no, it probably does not belong in Aesthetic King.
-
----
-
-# ⭐ North Star
-
-The long-term goal is not simply to have more Discord commands.
-
-The goal is for a user to be able to say:
-
-> **"I want my Discord profile to look better, but I don't know where to start."**
-
-Aesthetic King should be able to take them from that point all the way to:
-
-```text
-Aesthetic
-+
-Mood
-+
-PFP
-+
-Banner
-+
-Palette
-+
-Username
-+
-Bio
-+
-Status
-+
-Symbols
-+
-Aesthetic Pack
-+
-Complete Profile
-```
-
-They should then be able to save it, use it, share it, discover other creations, and continue building their identity across both Discord and Aesthetic King Studio.
-
----
-
-# 👑 The Future of Aesthetic King
-
-Aesthetic King is evolving through three connected layers:
+The bot provides speed. Studio provides depth. **Aesthetic Packs** — reusable coordinated visual identities — connect the two.
 
 ```text
                  AESTHETIC KING
 
         ┌──────────────┬──────────────┐
-        │              │              │
         ▼              ▼              ▼
        BOT           STUDIO        COMMUNITY
         │              │              │
     Generate        Create         Discover
     Use Packs       Customize      Publish
     Quick Tools     Manage         Remix
-    Discord         Servers        Creators
         │              │              │
         └──────────────┼──────────────┘
                        ▼
@@ -1203,12 +21,190 @@ Aesthetic King is evolving through three connected layers:
                     PLATFORM
 ```
 
-The bot provides speed.
+---
 
-Studio provides depth.
+## Repository Layout
 
-Community provides discovery.
+```text
+.
+├── src/                  # Discord bot (V2 architecture)
+│   ├── commands/         # Slash commands (aesthetic, profile, theme, palette, ...)
+│   ├── events/           # Gateway events (ready, interactionCreate, guildCreate/Delete)
+│   ├── components/       # Embeds, buttons (embed-first response system)
+│   └── services/         # Database, AI, colors, R2, rendering services
+├── slash/                # Legacy V1 commands (kept for the v1 entry point only)
+├── scripts/              # Command deployment, asset catalog, and test scripts
+├── prisma/               # Shared schema + migrations (bot and Studio use one DB)
+├── studio/               # Aesthetic King Studio (Vinext/React on Cloudflare Workers)
+│   └── README.md         # Studio-specific docs (dev flags, migrations, billing notes)
+└── index.js              # Legacy V1 bot entry point
+```
 
-Aesthetic Packs connect the ecosystem.
+---
 
-And the user's Discord identity remains at the center of everything.
+## The Bot
+
+Node.js + discord.js v14. Runs from `src/index.js`.
+
+### Commands
+
+| Command | Description |
+|---|---|
+| `/aesthetic` | Flagship: generates a coordinated profile concept (aesthetic, mood, colors, PFP, banner, palette, symbols, username, bio, status) with interactive rerolls and full Aesthetic Pack integration |
+| `/profile` | Coordinated Discord profile concepts |
+| `/theme` | Coordinated aesthetic themes |
+| `/palette` | Aesthetic color palettes |
+| `/symbols` | Aesthetic symbol sets by visual style |
+| `/status` | Discord status ideas from aesthetic + mood |
+| `/username` | Aesthetic username ideas |
+| `/bio` | Aesthetic Discord bios |
+| `/ping` | Diagnostic (always available, never Pack- or config-affected) |
+
+All responses are **embed-first**: polished Discord embeds rather than plain text, including errors, permission denials, and configuration confirmations. Generated creative content is public; administrative messages are ephemeral.
+
+### Server Configuration
+
+Servers can be configured from the Studio (see below): a **generation channel** that restricts generation commands, a **default aesthetic/mood**, per-**command enable/disable**, and a **default Aesthetic Pack**. The bot reads all of this live from PostgreSQL.
+
+### Pack Resolution
+
+Packs are presets, not overrides. Explicit user choices always win:
+
+```text
+Explicit command option → selected Pack → server default Pack
+→ server default aesthetic/mood → normal command behavior
+```
+
+---
+
+## The Studio
+
+A web workspace at [`studio/`](studio/) — Vinext (React Server Components) deployed to Cloudflare Workers, authenticated with Discord OAuth. Users see only servers they own or can manage (Administrator / Manage Server), and only where the bot is installed.
+
+### Current pages
+
+- **Create Studio** — prompt-driven aesthetic generation with reroll/regenerate
+- **Palette Studio** — build and save color palettes
+- **Aesthetics / Assets / Collections** — saved library with search and detail views
+- **Discover** — community feed of shared aesthetics (likes + comments)
+- **My Servers → Server Studio** — per-server Overview, Generation settings, Command management, and Aesthetic Packs management
+- **Premium** — plan comparison, usage meters, Crowns balance, billing status
+
+### Premium, Crowns and feature gating
+
+Entitlements, per-feature usage limits, and Crown prices live in a single registry: [`studio/lib/features.ts`](studio/lib/features.ts). **All numbers there are product placeholders** — change them there, never at call sites. Checkout is intentionally not connected; Premium is granted via provider webhook, Discord SKU, grandfathering, or dev-only grant routes (fail-closed behind `CROWN_DEV` / `BILLING_DEV` + `NODE_ENV=development` + Discord ID allowlists). See [`studio/README.md`](studio/README.md) for details.
+
+---
+
+## Tech Stack
+
+| | |
+|---|---|
+| **Bot** | Node.js, discord.js v14, Prisma, PostgreSQL, Cloudflare R2, node-canvas, Ollama (self-hosted AI), PM2 |
+| **Studio** | Vinext + Vite, React 19, TypeScript, Tailwind, Cloudflare Workers + Hyperdrive, Wrangler, Discord OAuth, Lucide |
+| **Shared** | PostgreSQL (one schema, both apps), Cloudflare R2 asset bucket, Ollama |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20+
+- A PostgreSQL database (shared by bot and Studio)
+- A Discord application (bot + OAuth2)
+- A Cloudflare R2 bucket (PFP/banner assets)
+- An Ollama instance reachable over HTTP (AI generation)
+
+### 1. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Used by | Purpose |
+|---|---|---|
+| `TOKEN` | Bot | Discord bot token |
+| `CLIENT_ID` | Bot | Discord application ID |
+| `DEV_GUILD_ID` | Bot | Guild for instant slash-command registration in dev |
+| `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` | Bot, Studio | Asset storage |
+| `R2_PUBLIC_URL` | Bot, Studio | Public bucket URL (`https://pub-<hash>.r2.dev` or custom domain) — required by `/profile` and `/theme` |
+| `R2_ENDPOINT` | Bot | Optional endpoint override (defaults to the account's `r2.cloudflarestorage.com` host) |
+| `OLLAMA_URL` / `OLLAMA_MODEL` | Bot, Studio | Self-hosted AI endpoint and model |
+| `DATABASE_URL` | Prisma | PostgreSQL connection string (migrations + bot) |
+| `NODE_ENV` | Both | `development` enables dev-only tooling; anything else is treated as production |
+
+Studio runs on Cloudflare Workers and reads its config from Wrangler bindings / `.dev.vars` (or `process.env`): `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `SESSION_SECRET`, `OAUTH_TOKEN_ENCRYPTION_KEY`, `HYPERDRIVE` connection string, `R2_PUBLIC_URL`, `OLLAMA_URL`, `OLLAMA_MODEL`, plus optional `GRANDFATHER_IDS`, `CROWN_DEV`, `BILLING_DEV`, `DEV_CROWNS_DISCORD_IDS`, `DEV_BILLING_DISCORD_IDS`. Never commit these.
+
+### 2. Database
+
+```bash
+npx prisma migrate deploy   # or: npx prisma migrate dev
+```
+
+### 3. Run the bot
+
+```bash
+npm install
+npm run dev                          # start the bot
+npm run deploy                       # register slash commands (guild-scoped)
+node scripts/deployGlobalCommands.js # publish commands globally
+```
+
+### 4. Run the Studio
+
+```bash
+cd studio
+npm install
+npm run dev      # local dev server
+npm run build
+npm run deploy   # deploy to Cloudflare Workers
+```
+
+### Tests & utilities
+
+Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `testOllama.js`, `testColors.js`, `testRenderer.js`, `testAestheticService.js`, `testUserService.js`, `testSavedAestheticService.js`, plus asset catalog tooling (`generateAssetCatalog.js`, `seedAssetClassifications.js`, `tagAssetSet.js`) and command management (`clearGlobalCommands.js`, `clearGuildCommands.js`, `deleteGuildCommand.js`). Run individually, e.g. `node scripts/testDatabase.js`.
+
+---
+
+## Security Model
+
+- OAuth tokens are never stored in browser sessions; Discord OAuth credentials are encrypted at rest (`OAUTH_TOKEN_ENCRYPTION_KEY`)
+- Studio sessions are signed (`SESSION_SECRET`); sensitive routes verify authorization independently
+- Server management routes re-verify Discord ownership/permissions — client-supplied guild IDs are never trusted
+- Server content is isolated per guild; private content never becomes community content automatically
+- Dev routes that mint Premium/Crowns fail closed (production by default, empty allowlist denies all)
+
+---
+
+## Roadmap
+
+The product direction is incremental. Current foundation: bot V2, aesthetic/mood system, R2 assets with color extraction, profile rendering, Ollama AI, Discord OAuth, PostgreSQL persistence, My Servers, Server Studio (generation settings, command management, Aesthetic Packs), Create/Palette Studio, Favorites, Collections, Discover feed, and the Premium/entitlement framework.
+
+| Phase | Focus |
+|---|---|
+| **1** | Finish meaningful Pack integration across `/profile`, `/theme`, `/palette`, `/symbols`, `/status`, `/username` (not `/bio`); improve Pack defaults |
+| **2** | Complete Server Studio: Overview, Appearance, Access, Analytics |
+| **3** | Asset Explorer — searchable R2 library with aesthetic/mood/color metadata, tags, filters, profile sets |
+| **4** | Profile Builder — visual Discord-style profile construction with live preview |
+| **5** | Complete My Profile — coordinate a full identity from one starting element (PFP, banner, palette, aesthetic…) |
+| **6** | Finalize Free/Premium boundaries and the Crowns economy (earn via community participation, Top.gg votes; spend on individual premium actions) |
+| **7** | Community — publish Packs/profiles to Discover, creator profiles, search/filters, remixing with attribution, creator analytics |
+
+### Design constraints
+
+- **Stay focused.** No moderation suites, music, tickets, generic leveling, or generic AI chat. Before adding a feature, ask: *does this help someone create, discover, manage, share, or use a better Discord identity?*
+- **Free stays useful.** Premium enhances creativity (Image-to-Aesthetic, advanced Profile Builder, premium assets, advanced exports, deeper analytics) rather than locking away the core product.
+- **AI is an assistant, not the product.** Self-hosted via Ollama where practical.
+
+### North star
+
+> *"I want my Discord profile to look better, but I don't know where to start."*
+
+Aesthetic King takes a user from that sentence to a complete, saved, shareable identity — across Discord and Studio.
+
+---
+
+## License
+
+ISC
