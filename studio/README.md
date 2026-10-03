@@ -186,3 +186,55 @@ Premium needs all pending migrations applied:
 npx prisma migrate deploy
 ```
 
+## Asset Explorer
+
+`/dashboard/assets` is a searchable library over the R2 asset sets. The
+whole query layer lives in `lib/assetQuery.ts` — parsing and building the
+URL, filtering, sorting and facet counts — because the component is a thin
+renderer over it and the semantics are worth testing without a browser.
+
+**Filter semantics.** Values *within* one facet are OR'd; facets are
+AND'd. `?aesthetics=cyber,dark&colors=purple` means "a cyber or dark set
+that is also purple". Facets are `tags`, `aesthetics`, `colors`, `moods`,
+plus free text in `q` and `favorites=1`.
+
+**The URL is the state.** `AssetLibrary.tsx` holds no filter `useState`;
+`useSearchParams()` is the single source of truth and every change is a
+`router.replace()`. That makes a filtered view reloadable and shareable,
+which is the point of the page. Search text is the one exception — a local
+draft commits on form submit so typing does not push a history entry per
+keystroke.
+
+Facet values are comma-separated in a single param rather than repeated
+params, so hand-written links stay short. The default sort is omitted from
+the URL so the common case produces an empty query string.
+
+**Facet counts.** A chip's count is how many sets match `[that value]`
+under the *other* facets, with its own facet narrowed to just it. Selected
+and unselected chips are therefore counted identically and the numbers are
+comparable — an unselected chip previews what choosing it would do. Chips
+showing `0` are dimmed, never hidden, because hiding them makes a filter
+impossible to explore.
+
+### Catalog tags
+
+`src/data/assetCatalog.json` carries a `tags` array per set alongside
+`aesthetics`, `moods` and `colors`. Tags are the loose, useful vocabulary
+(`neon`, `cozy`, `premium-pick`, `dark-palette`) that does not fit the
+narrower three facets.
+
+They are generated, not hand-written: `node scripts/tagAssetCatalog.js`
+derives them from the metadata already in the file and is safe to re-run
+after `generateAssetCatalog.js`. Every rule is a claim about existing
+metadata, never about image pixels — nothing opens the R2 objects, so the
+script cannot honestly know what a set looks like. Curator-pinned tags go
+in `MANUAL_TAGS` in that script so they survive regeneration. Pass
+`--dry-run` to preview.
+
+### Testing it
+
+The Studio has no test runner, so `node scripts/testAssetExplorer.js`
+(from the repo root) transpiles `lib/assetQuery.ts` with the Studio's own
+esbuild and asserts against the real shipped module rather than a
+JavaScript copy that could drift.
+

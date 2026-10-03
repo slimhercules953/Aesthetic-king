@@ -141,7 +141,7 @@ export default async function AssetsPage() {
                         </h2>
 
                         <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
-                            Every set contains a profile picture and banner designed to work together. Use the filters below to find sets that match a specific aesthetic, mood, or color.
+                            Every set contains a profile picture and banner designed to work together. Stack the filters to narrow the library - values within a row are alternatives, and rows combine - and the URL keeps whatever you land on so a view can be reloaded or shared.
                         </p>
                     </div>
                 </div>

@@ -334,6 +334,39 @@ export default async function AssetDetailPage({
                             set.colors
                         }
                     />
+
+                    <div className="mt-6">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-700">
+                            Tags
+                        </p>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {(set.tags || []).map(
+                                (value) => (
+                                    <a
+                                        key={
+                                            value
+                                        }
+                                        href={`/dashboard/assets?tags=${encodeURIComponent(value)}`}
+                                        title={`Find other sets tagged ${value}`}
+                                        className="rounded-full border border-violet-500/15 bg-violet-500/[0.06] px-3 py-1.5 text-xs text-violet-300 transition hover:border-violet-500/35 hover:text-violet-200"
+                                    >
+                                        {titleCase(
+                                            value
+                                        )}
+                                    </a>
+                                )
+                            )}
+
+                            {(set.tags || []).length ===
+                                0 && (
+                                <span className="text-xs text-zinc-700">
+                                    Run `node scripts/tagAssetCatalog.js`
+                                    to tag this set.
+                                </span>
+                            )}
+                        </div>
+                    </div>
                 </section>
             </div>
 

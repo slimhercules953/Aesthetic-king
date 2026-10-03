@@ -6,6 +6,7 @@ import {
     Heart,
     Search,
     SlidersHorizontal,
+    X,
 } from "lucide-react";
 
 import {
@@ -13,9 +14,35 @@ import {
 } from "../../lib/r2Assets";
 
 import {
+    useEffect,
     useMemo,
     useState,
 } from "react";
+
+import {
+    usePathname,
+    useRouter,
+    useSearchParams,
+} from "next/navigation";
+
+import {
+    ASSET_SORT_LABELS,
+    ASSET_SORTS,
+    EMPTY_ASSET_QUERY,
+    buildAssetQuery,
+    facetCounts,
+    filterAssetSets,
+    isAssetQueryEmpty,
+    parseAssetQuery,
+    sortAssetSets,
+    toggleFacetValue,
+} from "../../lib/assetQuery";
+
+import type {
+    AssetFacet,
+    AssetQuery,
+    AssetSort,
+} from "../../lib/assetQuery";
 
 import type {
     AssetCatalogSet,
@@ -25,6 +52,7 @@ type Filters = {
     aesthetics: string[];
     moods: string[];
     colors: string[];
+    tags: string[];
 };
 
 type AssetLibraryProps = {
@@ -63,30 +91,83 @@ export default function AssetLibrary({
     favoriteSetIds,
     premiumUnlocked,
 }: AssetLibraryProps) {
-    const [
-        search,
-        setSearch,
-    ] = useState("");
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
 
-    const [
-        aesthetic,
-        setAesthetic,
-    ] = useState("");
+    /*
+     * The URL is the only copy of the filters. Reloading keeps them, a
+     * back press undoes the last change, and a filtered view can be
+     * pasted to someone else.
+     */
+    const query = useMemo(
+        () =>
+            parseAssetQuery(
+                searchParams as unknown as {
+                    get: (name: string) => string | null;
+                }
+            ),
+        [
+            searchParams,
+        ]
+    );
 
+    /*
+     * The search box keeps its own draft so that typing does not push a
+     * new URL per keystroke; it commits on submit or blur.
+     */
     const [
-        mood,
-        setMood,
-    ] = useState("");
+        searchDraft,
+        setSearchDraft,
+    ] = useState(query.q);
 
-    const [
-        color,
-        setColor,
-    ] = useState("");
+    useEffect(
+        () => {
+            setSearchDraft(
+                query.q
+            );
+        },
+        [
+            query.q,
+        ]
+    );
 
-    const [
-        favoritesOnly,
-        setFavoritesOnly,
-    ] = useState(false);
+    function applyQuery(
+        next: AssetQuery
+    ) {
+        const search =
+            buildAssetQuery(
+                next
+            );
+
+        router.replace(
+            search
+                ? `${pathname}?${search}`
+                : pathname,
+            {
+                scroll: false,
+            }
+        );
+    }
+
+    function toggleFacet(
+        facet: AssetFacet,
+        value: string
+    ) {
+        applyQuery({
+            ...query,
+            [facet]: toggleFacetValue(
+                query[facet],
+                value
+            ),
+        });
+    }
+
+    function clearFilters() {
+        applyQuery({
+            ...EMPTY_ASSET_QUERY,
+        });
+    }
 
     const favoriteSetIdSet =
         useMemo(
@@ -99,130 +180,81 @@ export default function AssetLibrary({
             ]
         );
 
-    const filtered =
+    const visible =
         useMemo(
-            () => {
-                const query =
-                    search
-                        .trim()
-                        .toLowerCase();
-
-                return sets.filter(
-                    (set) => {
-                        if (
-                            favoritesOnly &&
-                            !favoriteSetIdSet.has(
-                                set.id
-                            )
-                        ) {
-                            return false;
-                        }
-
-                        if (
-                            query &&
-                            !set.id.includes(
-                                query
-                            ) &&
-                            !set.aesthetics.some(
-                                (
-                                    value
-                                ) =>
-                                    value
-                                        .toLowerCase()
-                                        .includes(
-                                            query
-                                        )
-                            ) &&
-                            !set.moods.some(
-                                (
-                                    value
-                                ) =>
-                                    value
-                                        .toLowerCase()
-                                        .includes(
-                                            query
-                                        )
-                            ) &&
-                            !set.colors.some(
-                                (
-                                    value
-                                ) =>
-                                    value
-                                        .toLowerCase()
-                                        .includes(
-                                            query
-                                        )
-                            )
-                        ) {
-                            return false;
-                        }
-
-                        if (
-                            aesthetic &&
-                            !set.aesthetics.includes(
-                                aesthetic
-                            )
-                        ) {
-                            return false;
-                        }
-
-                        if (
-                            mood &&
-                            !set.moods.includes(
-                                mood
-                            )
-                        ) {
-                            return false;
-                        }
-
-                        if (
-                            color &&
-                            !set.colors.includes(
-                                color
-                            )
-                        ) {
-                            return false;
-                        }
-
-                        return true;
-                    }
-                );
-            },
+            () =>
+                sortAssetSets(
+                    filterAssetSets(
+                        sets,
+                        query,
+                        favoriteSetIdSet
+                    ),
+                    query.sort
+                ),
             [
                 sets,
-                search,
-                aesthetic,
-                mood,
-                color,
-                favoritesOnly,
+                query,
                 favoriteSetIdSet,
             ]
         );
 
-    function clearFilters() {
-        setSearch("");
-        setAesthetic("");
-        setMood("");
-        setColor("");
-        setFavoritesOnly(
-            false
-        );
-    }
-
     const filtersActive =
-        Boolean(
-            search ||
-                aesthetic ||
-                mood ||
-                color ||
-                favoritesOnly
+        !isAssetQueryEmpty(
+            query
+        );
+
+    const activeChips =
+        useMemo(
+            () => [
+                ...query.aesthetics.map(
+                    (value) => ({
+                        facet: "aesthetics" as const,
+                        value,
+                    })
+                ),
+                ...query.moods.map(
+                    (value) => ({
+                        facet: "moods" as const,
+                        value,
+                    })
+                ),
+                ...query.colors.map(
+                    (value) => ({
+                        facet: "colors" as const,
+                        value,
+                    })
+                ),
+                ...query.tags.map(
+                    (value) => ({
+                        facet: "tags" as const,
+                        value,
+                    })
+                ),
+            ],
+            [
+                query,
+            ]
         );
 
     return (
         <>
             <div className="mt-8 rounded-2xl border border-white/[0.06] bg-[#101015] p-4">
-                <div className="grid gap-3 xl:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
-                    <div className="relative">
+                <div className="flex flex-col gap-3 lg:flex-row">
+                    <form
+                        onSubmit={(
+                            event
+                        ) => {
+                            event.preventDefault();
+
+                            applyQuery({
+                                ...query,
+                                q:
+                                    searchDraft
+                                        .trim(),
+                            });
+                        }}
+                        className="relative flex-1"
+                    >
                         <Search
                             size={16}
                             className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600"
@@ -230,60 +262,58 @@ export default function AssetLibrary({
 
                         <input
                             value={
-                                search
+                                searchDraft
                             }
                             onChange={(
                                 event
                             ) =>
-                                setSearch(
+                                setSearchDraft(
                                     event
                                         .target
                                         .value
                                 )
                             }
-                            placeholder="Search sets, aesthetics, moods, or colors..."
+                            placeholder="Search sets, aesthetics, moods, colors, or tags..."
                             className="h-11 w-full rounded-xl border border-white/[0.06] bg-black/20 pl-10 pr-4 text-sm text-zinc-300 outline-none transition placeholder:text-zinc-600 focus:border-violet-500/35"
                         />
-                    </div>
+                    </form>
 
-                    <FilterSelect
+                    <select
                         value={
-                            aesthetic
+                            query.sort
                         }
-                        onChange={
-                            setAesthetic
+                        onChange={(
+                            event
+                        ) =>
+                            applyQuery({
+                                ...query,
+                                sort:
+                                    event
+                                        .target
+                                        .value as AssetSort,
+                            })
                         }
-                        label="Aesthetic"
-                        values={
-                            filters.aesthetics
-                        }
-                    />
-
-                    <FilterSelect
-                        value={
-                            mood
-                        }
-                        onChange={
-                            setMood
-                        }
-                        label="Mood"
-                        values={
-                            filters.moods
-                        }
-                    />
-
-                    <FilterSelect
-                        value={
-                            color
-                        }
-                        onChange={
-                            setColor
-                        }
-                        label="Color"
-                        values={
-                            filters.colors
-                        }
-                    />
+                        className="h-11 rounded-xl border border-white/[0.06] bg-[#0c0c11] px-3 text-sm text-zinc-400 outline-none transition focus:border-violet-500/35"
+                    >
+                        {ASSET_SORTS.map(
+                            (value) => (
+                                <option
+                                    key={
+                                        value
+                                    }
+                                    value={
+                                        value
+                                    }
+                                >
+                                    {
+                                        ASSET_SORT_LABELS[
+                                            value
+                                        ]
+                                    }
+                                </option>
+                            )
+                        )}
+                    </select>
 
                     <button
                         type="button"
@@ -298,6 +328,115 @@ export default function AssetLibrary({
                         Clear
                     </button>
                 </div>
+
+                <div className="mt-4 space-y-3">
+                    <FacetChips
+                        label="Tags"
+                        values={
+                            filters.tags
+                        }
+                        selected={
+                            query.tags
+                        }
+                        counts={
+                            (value) =>
+                                facetCounts(
+                                    sets,
+                                    query,
+                                    "tags",
+                                    value
+                                )
+                        }
+                        onToggle={
+                            (value) =>
+                                toggleFacet(
+                                    "tags",
+                                    value
+                                )
+                        }
+                    />
+
+                    <FacetChips
+                        label="Aesthetics"
+                        values={
+                            filters.aesthetics
+                        }
+                        selected={
+                            query.aesthetics
+                        }
+                        counts={
+                            (value) =>
+                                facetCounts(
+                                    sets,
+                                    query,
+                                    "aesthetics",
+                                    value
+                                )
+                        }
+                        onToggle={
+                            (value) =>
+                                toggleFacet(
+                                    "aesthetics",
+                                    value
+                                )
+                        }
+                    />
+
+                    <FacetChips
+                        label="Colors"
+                        values={
+                            filters.colors
+                        }
+                        selected={
+                            query.colors
+                        }
+                        counts={
+                            (value) =>
+                                facetCounts(
+                                    sets,
+                                    query,
+                                    "colors",
+                                    value
+                                )
+                        }
+                        onToggle={
+                            (value) =>
+                                toggleFacet(
+                                    "colors",
+                                    value
+                                )
+                        }
+                    />
+
+                    <FacetChips
+                        label="Moods"
+                        values={
+                            filters.moods
+                        }
+                        selected={
+                            query.moods
+                        }
+                        counts={
+                            (value) =>
+                                facetCounts(
+                                    sets,
+                                    query,
+                                    "moods",
+                                    value
+                                )
+                        }
+                        onToggle={
+                            (value) =>
+                                toggleFacet(
+                                    "moods",
+                                    value
+                                )
+                        }
+                        collapsed={
+                            !filtersActive
+                        }
+                    />
+                </div>
             </div>
 
             <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -305,13 +444,15 @@ export default function AssetLibrary({
                     <button
                         type="button"
                         onClick={() =>
-                            setFavoritesOnly(
-                                false
-                            )
+                            applyQuery({
+                                ...query,
+                                favoritesOnly:
+                                    false,
+                            })
                         }
                         className={[
                             "rounded-xl px-4 py-2 text-sm font-medium transition",
-                            !favoritesOnly
+                            !query.favoritesOnly
                                 ? "bg-violet-500/10 text-violet-300"
                                 : "text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300",
                         ].join(
@@ -324,13 +465,15 @@ export default function AssetLibrary({
                     <button
                         type="button"
                         onClick={() =>
-                            setFavoritesOnly(
-                                true
-                            )
+                            applyQuery({
+                                ...query,
+                                favoritesOnly:
+                                    true,
+                            })
                         }
                         className={[
                             "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition",
-                            favoritesOnly
+                            query.favoritesOnly
                                 ? "bg-pink-500/10 text-pink-300"
                                 : "text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300",
                         ].join(
@@ -340,7 +483,7 @@ export default function AssetLibrary({
                         <Heart
                             size={15}
                             fill={
-                                favoritesOnly
+                                query.favoritesOnly
                                     ? "currentColor"
                                     : "none"
                             }
@@ -367,7 +510,7 @@ export default function AssetLibrary({
 
                         <span>
                             {
-                                filtered.length
+                                visible.length
                             }{" "}
                             profile sets
                         </span>
@@ -378,16 +521,49 @@ export default function AssetLibrary({
                             size={14}
                         />
 
-                        Filter by aesthetic, mood, and color
+                        Filter by tag, aesthetic, color, and mood
                     </div>
                 </div>
             </div>
 
-            {filtered.length ===
+            {activeChips.length > 0 && (
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-700">
+                        Active
+                    </span>
+
+                    {activeChips.map(
+                        (chip) => (
+                            <button
+                                key={`${chip.facet}:${chip.value}`}
+                                type="button"
+                                onClick={() =>
+                                    toggleFacet(
+                                        chip.facet,
+                                        chip.value
+                                    )
+                                }
+                                title="Remove this filter"
+                                className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/25 bg-violet-500/[0.08] px-2.5 py-1 text-[11px] text-violet-200 transition hover:border-violet-500/45 hover:text-white"
+                            >
+                                {titleCase(
+                                    chip.value
+                                )}
+
+                                <X
+                                    size={11}
+                                />
+                            </button>
+                        )
+                    )}
+                </div>
+            )}
+
+            {visible.length ===
             0 ? (
                 <div className="mt-8 flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-white/[0.08] bg-[#101015] p-10 text-center">
                     <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-400">
-                        {favoritesOnly ? (
+                        {query.favoritesOnly ? (
                             <Heart
                                 size={23}
                             />
@@ -399,15 +575,15 @@ export default function AssetLibrary({
                     </div>
 
                     <h2 className="mt-5 text-xl font-semibold">
-                        {favoritesOnly
+                        {query.favoritesOnly
                             ? "No favorite asset sets"
                             : "No matching asset sets"}
                     </h2>
 
                     <p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">
-                        {favoritesOnly
+                        {query.favoritesOnly
                             ? "Open an asset set and add it to your favorites. It will appear here."
-                            : "Try removing a filter or searching for a different aesthetic."}
+                            : "Facets are combined, so every filter must match at least once. Try removing one."}
                     </p>
 
                     <button
@@ -417,14 +593,14 @@ export default function AssetLibrary({
                         }
                         className="mt-5 rounded-xl border border-violet-500/20 bg-violet-500/[0.07] px-4 py-2.5 text-sm text-violet-300"
                     >
-                        {favoritesOnly
+                        {query.favoritesOnly
                             ? "View all assets"
                             : "Clear filters"}
                     </button>
                 </div>
             ) : (
                 <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                    {filtered.map(
+                    {visible.map(
                         (set) => {
                             const isFavorite =
                                 favoriteSetIdSet.has(
@@ -571,6 +747,53 @@ export default function AssetLibrary({
                                             </div>
                                         </div>
 
+                                        <div className="mt-5">
+                                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-700">
+                                                Tags
+                                            </p>
+
+                                            <div className="mt-2 flex flex-wrap gap-1.5">
+                                                {(
+                                                    set.tags || []
+                                                )
+                                                    .slice(
+                                                        0,
+                                                        4
+                                                    )
+                                                    .map(
+                                                        (
+                                                            value
+                                                        ) => (
+                                                            <span
+                                                                key={
+                                                                    value
+                                                                }
+                                                                className="rounded-full border border-white/[0.06] bg-white/[0.02] px-2 py-0.5 text-[10px] text-zinc-500"
+                                                            >
+                                                                {titleCase(
+                                                                    value
+                                                                )}
+                                                            </span>
+                                                        )
+                                                    )}
+
+                                                {(
+                                                    set.tags || []
+                                                ).length >
+                                                    4 && (
+                                                    <span className="px-1 py-0.5 text-[10px] text-zinc-700">
+                                                        +
+                                                        {
+                                                            set
+                                                                .tags!
+                                                                .length -
+                                                            4
+                                                        }
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
                                         <div className="mt-5 flex items-center justify-between border-t border-white/[0.05] pt-4">
                                             <div className="flex flex-wrap gap-1.5">
                                                 {set.colors.map(
@@ -606,56 +829,110 @@ export default function AssetLibrary({
     );
 }
 
-function FilterSelect({
-    value,
-    onChange,
+function FacetChips({
     label,
     values,
+    selected,
+    counts,
+    onToggle,
+    collapsed = false,
 }: {
-    value: string;
-    onChange: (
-        value: string
-    ) => void;
     label: string;
     values: string[];
+    selected: string[];
+    counts: (
+        value: string
+    ) => number;
+    onToggle: (
+        value: string
+    ) => void;
+    collapsed?: boolean;
 }) {
-    return (
-        <select
-            value={
-                value
-            }
-            onChange={(
-                event
-            ) =>
-                onChange(
-                    event
-                        .target
-                        .value
-                )
-            }
-            className="h-11 rounded-xl border border-white/[0.06] bg-[#0c0c11] px-3 text-sm text-zinc-400 outline-none transition focus:border-violet-500/35"
-        >
-            <option value="">
-                All {label}s
-            </option>
+    if (values.length === 0) {
+        return null;
+    }
 
-            {values.map(
-                (value) => (
-                    <option
-                        key={
+    /*
+     * A long facet is clipped until something is selected, at which
+     * point the chosen values have to stay visible. `selected` values
+     * are pulled to the front so clipping never hides one.
+     */
+    const ordered = [
+        ...selected.filter(
+            (value) =>
+                values.includes(value)
+        ),
+        ...values.filter(
+            (value) =>
+                !selected.includes(value)
+        ),
+    ];
+
+    return (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+            <span className="mt-1.5 w-20 shrink-0 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-700">
+                {label}
+            </span>
+
+            <div
+                className={[
+                    "flex flex-wrap gap-1.5",
+                    collapsed
+                        ? "max-h-[2.1rem] overflow-hidden"
+                        : "",
+                ].join(
+                    " "
+                )}
+            >
+                {ordered.map(
+                    (value) => {
+                        const active =
+                            selected.includes(
+                                value
+                            );
+
+                        const count = counts(
                             value
-                        }
-                        value={
-                            value
-                        }
-                    >
-                        {titleCase(
-                            value
-                        )}
-                    </option>
-                )
-            )}
-        </select>
+                        );
+
+                        return (
+                            <button
+                                key={
+                                    value
+                                }
+                                type="button"
+                                onClick={() =>
+                                    onToggle(
+                                        value
+                                    )
+                                }
+                                aria-pressed={
+                                    active
+                                }
+                                className={[
+                                    "rounded-full border px-2.5 py-1 text-[11px] transition",
+                                    active
+                                        ? "border-violet-500/40 bg-violet-500/[0.12] text-violet-200"
+                                        : count === 0
+                                          ? "border-white/[0.05] text-zinc-700 hover:text-zinc-500"
+                                          : "border-white/[0.07] text-zinc-500 hover:border-white/15 hover:text-zinc-300",
+                                ].join(
+                                    " "
+                                )}
+                            >
+                                {titleCase(
+                                    value
+                                )}
+
+                                <span className="ml-1.5 text-[10px] text-zinc-600">
+                                    {count}
+                                </span>
+                            </button>
+                        );
+                    }
+                )}
+            </div>
+        </div>
     );
 }
 

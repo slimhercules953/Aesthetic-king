@@ -13,6 +13,16 @@ export type AssetCatalogSet = {
     colors: string[];
 
     /**
+     * Cross-facet labels such as "cozy" or "dark-palette" - the
+     * "when would I reach for this" facet. Derived by
+     * `scripts/tagAssetCatalog.js` from the three facets above, so a
+     * tag is always a claim about existing metadata rather than about
+     * the image itself. Absent means untagged, which keeps the catalog
+     * valid before the script has been run.
+     */
+    tags?: string[];
+
+    /**
      * True when the set belongs to the Premium Assets library.
      * Absent means free, so the flag can be added to the catalog one
      * set at a time.
@@ -120,6 +130,14 @@ export function getAssetCatalogFilters() {
                 sets.flatMap(
                     (set) =>
                         set.colors
+                )
+            ),
+
+        tags:
+            uniqueSorted(
+                sets.flatMap(
+                    (set) =>
+                        set.tags ?? []
                 )
             ),
     };

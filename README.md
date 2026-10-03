@@ -207,13 +207,17 @@ npm run deploy   # deploy to Cloudflare Workers
 
 ### Tests & utilities
 
-Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `testOllama.js`, `testColors.js`, `testRenderer.js`, `testAestheticService.js`, `testPremiumGate.js`, `testPremiumStatus.js`, `testUserService.js`, `testSavedAestheticService.js`, `testStudioPhase2.js`, plus asset catalog tooling (`generateAssetCatalog.js`, `seedAssetClassifications.js`, `tagAssetSet.js`) and command management (`clearGlobalCommands.js`, `clearGuildCommands.js`, `deleteGuildCommand.js`). Run individually, e.g. `node scripts/testDatabase.js`.
+Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `testOllama.js`, `testColors.js`, `testRenderer.js`, `testAestheticService.js`, `testPremiumGate.js`, `testPremiumStatus.js`, `testUserService.js`, `testSavedAestheticService.js`, `testStudioPhase2.js`, `testAssetExplorer.js`, plus asset catalog tooling (`generateAssetCatalog.js`, `seedAssetClassifications.js`, `tagAssetSet.js`, `tagAssetCatalog.js`) and command management (`clearGlobalCommands.js`, `clearGuildCommands.js`, `deleteGuildCommand.js`). Run individually, e.g. `node scripts/testDatabase.js`.
 
 `node scripts/testPremiumGate.js` verifies the bot-side Premium Assets gate: that a free user is never handed a premium set (catalog path and R2 path), that an unlocked user still is, that premium-only filters produce the upsell rather than an empty-library reply, that plans resolve from live entitlements, and that every upsell is answered ephemerally.
 
 `node scripts/testPremiumStatus.js` verifies `/premium`: Crown balance arithmetic, that expired unlocks and BOOST unlocks are excluded, that stacked purchases collapse to the latest expiry, and that the command renders for both plans. It seeds a fixture user and deletes it again.
 
 `node scripts/testStudioPhase2.js` covers the Server Studio features against the real database without needing Discord: access-rule evaluation (open by default, deny precedence, allow-list behaviour, role and channel targets), the appearance patch (colour, footer, pack badge, image stripping, reroll-button removal, and that default settings return the identical payload), usage-event logging, and a "Studio SQL" section that runs the Studio's hand-written queries — the appearance upsert, rule upsert/delete, analytics aggregates — against the real schema, since the Studio has no Prisma client and nothing else checks that SQL. It creates a throwaway guild and deletes it again.
+
+`node scripts/testAssetExplorer.js` covers the Asset Explorer query layer (`studio/lib/assetQuery.ts`) without a browser or a database: that every catalog set is tagged, that filter and sort state round-trips through the URL, that values within a facet are OR'd while facets are AND'd, that every sort is a permutation of its input, and that facet counts preview the narrowing a chip would cause. It transpiles the TypeScript module with the Studio's own esbuild, so it tests shipped code rather than a copy.
+
+`node scripts/tagAssetCatalog.js` regenerates the `tags` array on every catalog set from the aesthetics, moods and colors already in `src/data/assetCatalog.json`. It is deterministic and safe to re-run after `generateAssetCatalog.js`; pass `--dry-run` to preview. See *Catalog tags* in [`studio/README.md`](studio/README.md).
 
 ---
 
@@ -229,13 +233,13 @@ Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `t
 
 ## Roadmap
 
-The product direction is incremental. Current foundation: bot V2, aesthetic/mood system, R2 assets with color extraction, profile rendering, Ollama AI, Discord OAuth, PostgreSQL persistence, My Servers, Server Studio (generation settings, command management, Aesthetic Packs, Appearance, Access, Analytics), Create/Palette Studio, Favorites, Collections, Discover feed, and the Premium/entitlement framework.
+The product direction is incremental. Current foundation: bot V2, aesthetic/mood system, R2 assets with color extraction, profile rendering, Ollama AI, Discord OAuth, PostgreSQL persistence, My Servers, Server Studio (generation settings, command management, Aesthetic Packs, Appearance, Access, Analytics), Asset Explorer (URL-persisted filters, tags, sorting), Create/Palette Studio, Favorites, Collections, Discover feed, and the Premium/entitlement framework.
 
 | Phase | Focus |
 |---|---|
 | **1** ✅ | Finish meaningful Pack integration across `/profile`, `/theme`, `/palette`, `/symbols`, `/status`, `/username` (not `/bio`); improve Pack defaults |
 | **2** ✅ | Complete Server Studio: Overview, Appearance, Access, Analytics |
-| **3** | Asset Explorer — searchable R2 library with aesthetic/mood/color metadata, tags, filters, profile sets |
+| **3** ✅ | Asset Explorer — searchable R2 library with aesthetic/mood/color metadata, tags, filters, profile sets |
 | **4** | Profile Builder — visual Discord-style profile construction with live preview |
 | **5** | Complete My Profile — coordinate a full identity from one starting element (PFP, banner, palette, aesthetic…) |
 | **6** | Finalize Free/Premium boundaries and the Crowns economy (earn via community participation, Top.gg votes; spend on individual premium actions) |
