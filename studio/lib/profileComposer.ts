@@ -214,6 +214,31 @@ function slug(value: string): string {
 }
 
 /**
+ * The catalog's one-line description of an aesthetic, e.g. "Cute, playful,
+ * colorful, and cheerful."
+ *
+ * The AI prompt needs this. `AESTHETICS` in `lib/aesthetics.ts` carries only
+ * an id and a display name, so without it the model is asked to write "in
+ * the Kawaii aesthetic" and must guess what that means — and it guesses from
+ * whatever else happens to be in the prompt.
+ */
+export function getAestheticDescription(
+    aestheticId: string | null | undefined
+): string | null {
+    if (!aestheticId) {
+        return null;
+    }
+
+    const description = String(
+        AESTHETIC_PALETTES[
+            aestheticId.trim().toLowerCase()
+        ]?.description ?? ""
+    ).trim();
+
+    return description.length > 0 ? description : null;
+}
+
+/**
  * Catalog colour names to hex. Unknown names return null so the caller can
  * ignore them rather than invent a colour.
  */

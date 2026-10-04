@@ -9,6 +9,7 @@ import { generateOllamaText } from "./ollama";
 import {
     catalogColorToHex,
     composeProfileDraft,
+    getAestheticDescription,
     type CompletionSeed,
     type ComposedProfile,
 } from "./profileComposer";
@@ -117,22 +118,40 @@ function buildPrompt(
                     ? `the colour "${seed.name}"`
                     : `the colours ${seed.colors.join(", ")}`;
 
+    /*
+     * The palette the composer actually picked for this profile. Passing the
+     * colour names gives the model something concrete to write towards, and
+     * unlike the set's aesthetic and mood tags it can never contradict the
+     * seed — the colours were chosen *because* they suit it.
+     */
+    const colours = (seed.kind === "color"
+        ? [seed.name]
+        : seed.kind === "palette"
+            ? seed.colors
+            : set?.colors ?? []
+    )
+        .filter(Boolean)
+        .slice(0, 6)
+        .join(", ");
+
+    const description = getAestheticDescription(
+        composed.aestheticId
+    );
+
     return `You are the creative engine for Aesthetic King, a Discord profile application.
 
 Write the text for ONE Discord profile.
 
-SEEDED FROM: ${seedDescription}
-AESTHETIC: ${aesthetic?.name ?? composed.aestheticId}
+AESTHETIC: ${aesthetic?.name ?? composed.aestheticId}${description ? ` — ${description}` : ""}
 MOOD: ${getMoodOption(composed.moodId)?.name ?? "unspecified"}
+PALETTE: ${colours || "unspecified"}
+SEEDED FROM: ${seedDescription}
 
-ASSET SET METADATA:
-Aesthetics: ${set?.aesthetics.join(", ") ?? "none"}
-Moods: ${set?.moods.join(", ") ?? "none"}
-Colours: ${set?.colors.join(", ") ?? "none"}
+Everything above describes the same profile. Write copy that a fan of the ${aesthetic?.name ?? composed.aestheticId} aesthetic would recognise as their own — the aesthetic is the identity, the mood is only the tone.
 
 Return ONLY valid JSON with exactly these keys:
-- "username": 2-20 characters, lowercase letters and digits only, no spaces, no punctuation, no hashtag.
-- "bio": at most 150 characters. First person or fragmentary, matching the mood. No emoji, no hashtags, no quotation marks.
+- "username": 2-20 characters, lowercase letters, digits and underscores only. No spaces, no periods, no hashtag, no display name.
+- "bio": at most 150 characters. First person or fragmentary, in the aesthetic. No emoji, no hashtags, no quotation marks.
 - "status": at most 60 characters. A short custom-status fragment. No emoji.
 
 Do not use Markdown. Do not use code fences. Do not explain. Do not invent URLs.`;
@@ -154,7 +173,8 @@ async function generateAiCopy(
     try {
         raw = await Promise.race([
             generateOllamaText(
-                buildPrompt(composed, seed)
+                buildPrompt(composed, seed),
+                { json: true }
             ),
 
             new Promise<never>((_, reject) =>
@@ -216,10 +236,17 @@ async function generateAiCopy(
      * "Gothic Rose." or "@roses" is worse than no answer. The catalog's
      * slug is kept in that case rather than sanitised into something the
      * user did not ask for.
+     *
+     * Underscores are allowed because Discord allows them and the model
+     * reaches for them constantly ("cupcake_puff"); rejecting them threw
+     * away usable answers. They still may not lead, trail, or repeat, which
+     * keeps out the handles and tags the model also likes to invent.
      */
     if (
         username &&
-        /^[a-z0-9]{2,32}$/.test(username)
+        /^[a-z0-9_]{2,32}$/.test(username) &&
+        !/^_|_$/.test(username) &&
+        !/__/.test(username)
     ) {
         copy.username = username;
     }

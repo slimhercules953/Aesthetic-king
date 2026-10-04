@@ -921,9 +921,223 @@ check(
 );
 
 /* ------------------------------------------------------------------ */
+/* 10. The AI pass: what it is asked for, and what it may keep          */
+/* ------------------------------------------------------------------ */
+
+section("10. The AI prompt and the username guard");
+
+/*
+ * The prompt is the only place the seed's aesthetic reaches the model, and
+ * the username guard is the only thing between the model and Discord's
+ * username box. Both were wrong in ways that only showed up against a live
+ * model: the prompt described a different aesthetic than the user picked,
+ * and the guard threw away legal names such as "cupcake_puff".
+ *
+ * Ollama is stubbed here, so these run offline and deterministically while
+ * still going through the real `completeProfile`.
+ */
+let lastPrompt = "";
+let lastOptions = null;
+let cannedReply = "";
+
+const aiCompletion = loadModule(
+    path.join(ROOT, "studio", "lib", "profileCompletion.ts"),
+    {
+        ...stubs,
+        "cloudflare:workers": { env: {} },
+        "./ollama": {
+            async generateOllamaText(prompt, options) {
+                lastPrompt = prompt;
+                lastOptions = options ?? null;
+                return cannedReply;
+            },
+        },
+    }
+);
+
+function runAi(seed, reply, existing) {
+    lastPrompt = "";
+    lastOptions = null;
+    cannedReply = reply;
+
+    return aiCompletion.completeProfile({
+        seed,
+        sets: freeSets,
+        existing: existing ?? null,
+        useAi: true,
+    });
+}
+
+/* The module is evaluated as CommonJS, so this section needs its own async scope. */
+(async () => {
+
+const kawaiiReply = JSON.stringify({
+    username: "cupcake_puff",
+    bio: "sprinkles on everything I touch.",
+    status: "in a soft mood",
+});
+
+const kawaii = await runAi({ kind: "aesthetic", id: "kawaii" }, kawaiiReply);
+
+check(
+    "the AI copy is reported as used",
+    kawaii.ai === true,
+    JSON.stringify(kawaii.draft)
+);
+
+check(
+    "an underscore username is kept, not thrown away",
+    kawaii.draft.username === "cupcake_puff",
+    kawaii.draft.username
+);
+
+check(
+    "the bio and status come from the model",
+    kawaii.draft.bio === "sprinkles on everything I touch." &&
+        kawaii.draft.status === "in a soft mood"
+);
+
+check(
+    "the prompt asks for JSON-constrained output",
+    lastOptions?.json === true,
+    JSON.stringify(lastOptions)
+);
+
+check(
+    "the prompt names the aesthetic with the catalog description",
+    lastPrompt.includes("Kawaii") &&
+        /AESTHETIC: Kawaii — .+/.test(lastPrompt),
+    lastPrompt.slice(0, 200)
+);
+
+check(
+    "the prompt does not quote the chosen set's own aesthetic tags",
+    !/^Aesthetics:/m.test(lastPrompt) && !/^Moods:/m.test(lastPrompt),
+    lastPrompt
+);
+
+check(
+    "the prompt offers a palette line",
+    /^PALETTE: .+/m.test(lastPrompt),
+    (lastPrompt.match(/^PALETTE: .+/m) || [""])[0]
+);
+
+check(
+    "the prompt tells the model underscores are legal",
+    /underscores/i.test(lastPrompt)
+);
+
+/*
+ * Every aesthetic must be described, otherwise the model is back to
+ * guessing, and the guard must still reject the shapes that are not
+ * usernames at all.
+ */
+let undescribed = [];
+
+for (const aesthetic of AESTHETICS) {
+    const composed = await runAi(
+        { kind: "aesthetic", id: aesthetic.id },
+        kawaiiReply
+    );
+
+    if (!new RegExp(`AESTHETIC: .+ — .+`).test(lastPrompt)) {
+        undescribed.push(aesthetic.id);
+    }
+
+    if (!composed.ai) {
+        undescribed.push(`${aesthetic.id} (no copy)`);
+    }
+}
+
+check(
+    "every aesthetic reaches the prompt with a description",
+    undescribed.length === 0,
+    undescribed.join(", ")
+);
+
+const usernameCases = [
+    ["cupcake_puff", true],
+    ["neonflux_99", true],
+    ["starrypaw_umi", true],
+    ["gothicrose", true],
+    ["_leading", false],
+    ["trailing_", false],
+    ["double__underscore", false],
+    ["Dots.Not.Allowed", false],
+    ["@handle", false],
+    ["has spaces", false],
+    ["a", false],
+    ["x".repeat(33), false],
+];
+
+for (const [username, expected] of usernameCases) {
+    const result = await runAi(
+        { kind: "aesthetic", id: "gothic" },
+        JSON.stringify({ username, bio: "kept either way." })
+    );
+
+    const kept = result.draft.username === username;
+
+    check(
+        `"${username}" is ${expected ? "kept" : "rejected"}`,
+        kept === expected,
+        result.draft.username
+    );
+}
+
+/* A reply that is not JSON must degrade, not fail. */
+const degraded = await runAi(
+    { kind: "aesthetic", id: "gothic" },
+    "Sure! Here you go: a bio about darkness."
+);
+
+check(
+    "a non-JSON reply falls back to catalog copy",
+    degraded.ai === false &&
+        typeof degraded.draft.bio === "string" &&
+        degraded.draft.bio.length > 0,
+    JSON.stringify(degraded.draft)
+);
+
+const emptyish = await runAi(
+    { kind: "aesthetic", id: "gothic" },
+    JSON.stringify({ username: "@@@", bio: "", status: "" })
+);
+
+check(
+    "a JSON reply with nothing usable falls back too",
+    emptyish.ai === false,
+    JSON.stringify(emptyish.draft)
+);
+
+const partial = await runAi(
+    { kind: "aesthetic", id: "gothic" },
+    JSON.stringify({ bio: "only a bio this time." })
+);
+
+check(
+    "a partial reply keeps the catalog's other fields",
+    partial.ai === true &&
+        partial.draft.bio === "only a bio this time." &&
+        typeof partial.draft.username === "string" &&
+        partial.draft.username.length > 0
+);
+
+const untouched = await runAi(
+    { kind: "aesthetic", id: "gothic" },
+    kawaiiReply,
+    { bio: "typed by a human" }
+);
+
+check(
+    "the model may not overwrite what the user wrote",
+    untouched.draft.bio === "typed by a human"
+);
 
 console.log(
     `\n\x1b[1m${passed} passed, ${failed} failed\x1b[0m\n`
 );
 
 process.exit(failed > 0 ? 1 : 0);
+
+})();

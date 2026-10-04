@@ -342,6 +342,19 @@ and the deterministic text ships. The response reports `ai: false` and
 the panel says so. A user who ticks "Rewrite the text with AI" is asking
 for better copy, not for an error page when the model is offline.
 
+**The prompt describes the seed, never the chosen set.** The first version
+also pasted in the chosen set's own aesthetic and mood tags, and the model
+followed those instead: a Kawaii seed that happened to land on a set tagged
+"dreamcore, soft" produced "hiding in the static. secrets bloom in the
+dark." The prompt now names the aesthetic with the catalog's own one-line
+description (`getAestheticDescription`), gives the palette, and says nothing
+about the set's tags. It also asks for `format: "json"` on the Ollama
+request, which removed the intermittent "reply was not JSON" fallback, and
+the username guard accepts underscores — Discord allows them and the model
+reaches for `cupcake_puff` constantly, so the stricter rule was quietly
+throwing away good answers. `scripts/testCompleteProfile.js` section 10
+pins all three with a stubbed Ollama.
+
 **The quota is spent before the work and refunded on failure.**
 `POST /api/profiles/complete` parses the body *before* `requireFeature`,
 so a malformed request cannot burn a generation. It then records usage

@@ -10,8 +10,18 @@ type OllamaGenerateResponse = {
     response: string;
 };
 
+export type OllamaOptions = {
+    /**
+     * Constrain the reply to JSON. Callers that parse the answer should set
+     * this: without it a model will occasionally wrap the object in prose or
+     * a stray sentence, and `extractJson` has nothing to salvage.
+     */
+    json?: boolean;
+};
+
 export async function generateOllamaText(
-    prompt: string
+    prompt: string,
+    options: OllamaOptions = {}
 ) {
     if (
         !prompt ||
@@ -43,6 +53,9 @@ export async function generateOllamaText(
                         prompt,
                         stream: false,
                         think: false,
+                        ...(options.json
+                            ? { format: "json" }
+                            : {}),
                     }),
             }
         );
