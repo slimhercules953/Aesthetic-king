@@ -282,7 +282,7 @@ export default function PaletteStudio({
                             </h2>
 
                             <p className="mt-2 text-sm text-zinc-500">
-                                Build a reusable 3â€“6 color palette.
+                                Build a reusable 3–6 color palette.
                             </p>
                         </div>
 
@@ -567,7 +567,7 @@ export default function PaletteStudio({
                         <p className="mt-2 text-sm text-zinc-500">
                             {aestheticId ||
                                 "No aesthetic"}{" "}
-                            â€¢{" "}
+                            •{" "}
                             {moodId ||
                                 "No mood"}
                         </p>
@@ -804,7 +804,7 @@ function SavedPaletteCard({
                     <p className="mt-2 text-sm text-zinc-600">
                         {palette.aestheticId ||
                             "No aesthetic"}{" "}
-                        â€¢{" "}
+                        •{" "}
                         {palette.moodId ||
                             "No mood"}
                     </p>

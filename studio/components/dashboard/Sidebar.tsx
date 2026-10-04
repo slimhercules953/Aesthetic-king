@@ -2,7 +2,6 @@
 
 import {
     Activity,
-    Boxes,
     CircleUserRound,
     Coins,
     Compass,
@@ -82,17 +81,17 @@ const primaryNavigation = [
     },
 ];
 
+/*
+ * Server Studio itself lives at /dashboard/servers/[id] (Overview, Generation,
+ * Commands, Packs, Appearance, Access, Analytics), so there is no top-level
+ * route to link to here. Linking to a per-server page would need a guild id
+ * this component does not have.
+ */
 const serverNavigation = [
     {
         label: "My Servers",
         href: "/dashboard/servers",
         icon: Server,
-    },
-    {
-        label: "Server Studio",
-        href: "/dashboard/server-studio",
-        icon: Boxes,
-        premium: true,
     },
 ];
 
@@ -275,12 +274,6 @@ export default function Sidebar({
                                     {
                                         item.label
                                     }
-
-                                    {item.premium && (
-                                        <span className="ml-auto rounded-full bg-gradient-to-r from-amber-400/15 to-violet-400/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-300">
-                                            Pro
-                                        </span>
-                                    )}
                                 </a>
                             );
                         }

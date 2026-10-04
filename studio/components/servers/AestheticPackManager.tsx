@@ -422,7 +422,7 @@ export default function AestheticPackManager({
                                 ? ""
                                 : "s"
                         }
-                        {" â€¢ "}
+                        {" • "}
                         {
                             enabledCount
                         } enabled
@@ -901,7 +901,7 @@ export default function AestheticPackManager({
                                                     ),
                                         })
                                     }
-                                    placeholder="âœ¦ â˜¾ â™±"
+                                    placeholder="✦ ☾ ✱"
                                     className="mt-2 h-12 w-full rounded-xl border border-white/[0.07] bg-black/20 px-4 text-sm text-zinc-300"
                                 />
                             </div>
