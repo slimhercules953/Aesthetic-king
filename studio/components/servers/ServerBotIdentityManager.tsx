@@ -101,6 +101,15 @@ export default function ServerBotIdentityManager({
 
     const [saved, setSaved] = useState(false);
 
+    /**
+     * The preview URL that failed to load, so a stale avatar hash shows the
+     * placeholder instead of a broken-image icon. Comparing against the URL
+     * rather than using a boolean means a newly uploaded avatar is retried
+     * without having to reset anything.
+     */
+    const [brokenPreview, setBrokenPreview] =
+        useState<string | null>(null);
+
     const fileInput =
         useRef<HTMLInputElement | null>(null);
 
@@ -350,12 +359,19 @@ export default function ServerBotIdentityManager({
             <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-start">
                 <div className="flex flex-col items-center gap-3">
                     <div className="relative h-24 w-24 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0b0b0f]">
-                        {previewUrl && !clearAvatar ? (
+                        {previewUrl &&
+                        !clearAvatar &&
+                        previewUrl !== brokenPreview ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img
                                 src={previewUrl}
                                 alt=""
                                 className="h-full w-full object-cover"
+                                onError={() => {
+                                    setBrokenPreview(
+                                        previewUrl
+                                    );
+                                }}
                             />
                         ) : (
                             <div className="flex h-full w-full items-center justify-center text-zinc-700">

@@ -349,7 +349,7 @@ function buildAvatarUrl(
             ? "gif"
             : "png";
 
-        return `${CDN_BASE}/users/${userId}/avatars/${globalHash}.${extension}`;
+        return `${CDN_BASE}/avatars/${userId}/${globalHash}.${extension}`;
     }
 
     /*
