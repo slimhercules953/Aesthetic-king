@@ -10,6 +10,7 @@ import {
     ArrowLeft,
     Check,
     Crown,
+    ExternalLink,
     Minus,
     ShieldCheck,
     SlidersHorizontal,
@@ -165,6 +166,7 @@ export default async function PremiumBillingPage({
     searchParams?: Promise<{
         checkout?: string;
         plan?: string;
+        portal?: string;
     }>;
 }) {
     const query = (await searchParams) ?? {};
@@ -216,7 +218,22 @@ export default async function PremiumBillingPage({
      * only those buttons.
      */
     const plans = getSellablePlans();
-    const checkoutAvailable = getPaymentProvider() !== null;
+    const provider = getPaymentProvider();
+    const checkoutAvailable = provider !== null;
+
+    /*
+     * The portal button is offered only to an account the provider
+     * actually holds a customer record for. Offering it to anybody else
+     * would send them to a page with nothing on it, and the check is a
+     * local database read rather than a call to Stripe.
+     */
+    let portalAvailable = false;
+
+    if (provider?.createCustomerPortalSession && provider.hasBillingRecord) {
+        portalAvailable = await provider.hasBillingRecord({
+            discordId: identity.discordId,
+        });
+    }
 
     return (
         <>
@@ -257,7 +274,55 @@ export default async function PremiumBillingPage({
                             : "Access is determined by the entitlement records below, not by anything stored in your session."
                     }
                 </p>
+
+                {
+                    portalAvailable && (
+                        <form
+                            action="/api/billing/portal"
+                            method="post"
+                            className="mt-5"
+                        >
+                            <button
+                                type="submit"
+                                className="inline-flex items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/[0.08]"
+                            >
+                                <ExternalLink
+                                    size={14}
+                                />
+
+                                Manage subscription
+                            </button>
+
+                            <p className="mt-2 max-w-2xl text-xs leading-6 text-zinc-600">
+                                Opens your payment provider&apos;s own
+                                page, where you can cancel, change the
+                                card on file or download invoices.
+                                Cancelling stops future charges; Premium
+                                keeps running until the period you already
+                                paid for ends.
+                            </p>
+                        </form>
+                    )
+                }
             </section>
+
+            {
+                query.portal === "returned" && (
+                    <section className="mt-6 rounded-3xl border border-white/[0.08] bg-white/[0.02] p-6">
+                        <h2 className="text-sm font-semibold text-zinc-200">
+                            Back from the billing portal
+                        </h2>
+
+                        <p className="mt-2 max-w-3xl text-xs leading-6 text-zinc-500">
+                            Any change you made applies at the provider
+                            first, and this page updates a moment later
+                            once the provider has told us about it. If you
+                            cancelled, Premium stays active until the end
+                            of the period you already paid for.
+                        </p>
+                    </section>
+                )
+            }
 
             {
                 query.checkout === "complete" && (

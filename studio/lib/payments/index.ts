@@ -73,6 +73,7 @@ export function getPaymentProvider(): PaymentProvider | null {
 
 export type {
     CheckoutSession,
+    CustomerPortalSession,
     PaymentEvent,
     PaymentEventKind,
     PaymentProvider,

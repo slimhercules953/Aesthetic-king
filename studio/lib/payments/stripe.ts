@@ -6,6 +6,7 @@ import { query } from "../database";
 
 import type {
     CheckoutSession,
+    CustomerPortalSession,
     PaymentEvent,
     PaymentProvider,
     SellablePlan,
@@ -19,7 +20,7 @@ import type {
  * 1. The REST API is called with fetch rather than the `stripe` npm SDK.
  *    The Studio runs as a Cloudflare Worker, where the SDK's Node http
  *    transport is a poor fit and the dependency buys nothing: this file
- *    needs exactly two endpoints.
+ *    needs a handful of endpoints, all of them form-encoded POSTs.
  *
  * 2. The signature is verified here with Web Crypto instead of
  *    `stripe.webhooks.constructEvent`. Stripe's scheme is documented and
@@ -424,6 +425,32 @@ async function readStoredCustomerId(
 }
 
 /**
+ * The Stripe customer already on record for an account, if any.
+ *
+ * Exported for the customer portal, which — unlike checkout — cannot
+ * proceed without one. Checkout can let Stripe invent a customer; a
+ * portal has to point at an existing billing record, so "no stored id"
+ * genuinely means "nothing to show".
+ */
+export async function getStoredStripeCustomerId(
+    discordId: string
+): Promise<string | null> {
+    const id = (discordId ?? "").trim();
+
+    if (!/^\d{17,20}$/.test(id)) {
+        return null;
+    }
+
+    try {
+        return await readStoredCustomerId(id);
+    } catch (error) {
+        console.error("[billing] stored customer lookup failed", error);
+
+        return null;
+    }
+}
+
+/**
  * Stores a customer id against an account.
  *
  * The `IS NULL` guard is what makes this safe to call twice: two
@@ -778,6 +805,84 @@ export const stripeProvider: PaymentProvider = {
         }
 
         return toPaymentEvents(parsed);
+    },
+
+    /*
+     * Whether to offer the portal at all.
+     *
+     * A local database read, not a Stripe call: the portal is only ever
+     * reachable for a customer this app already knows about, so asking
+     * Stripe would add latency and a failure mode to a question the
+     * database can already answer.
+     */
+    async hasBillingRecord({ discordId }) {
+        return (await getStoredStripeCustomerId(discordId)) !== null;
+    },
+
+    /*
+     * Opens Stripe's hosted customer portal.
+     *
+     * The stored customer id is the only thing this needs, and its
+     * absence is the whole answer: Stripe's portal is a view onto one
+     * customer's invoices, cards and subscriptions, so an account that
+     * has never paid has nothing for the page to show. Returning null
+     * lets the route say that plainly instead of sending the customer to
+     * an error page at Stripe.
+     */
+    async createCustomerPortalSession({
+        discordId,
+        returnUrl,
+    }): Promise<CustomerPortalSession | null> {
+        const secretKey = required("STRIPE_SECRET_KEY");
+
+        const customerId = await getStoredStripeCustomerId(discordId);
+
+        if (!customerId) {
+            return null;
+        }
+
+        const form = new URLSearchParams();
+
+        form.set("customer", customerId);
+        form.set("return_url", returnUrl);
+
+        const response = await fetch(
+            `${STRIPE_API}/v1/billing_portal/sessions`,
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${secretKey}`,
+                    "Content-Type":
+                        "application/x-www-form-urlencoded",
+                },
+                body: form.toString(),
+            }
+        );
+
+        const payload = asRecord(
+            await response.json().catch(() => ({}))
+        );
+
+        if (!response.ok) {
+            const message = asRecord(payload.error).message;
+
+            throw new Error(
+                typeof message === "string"
+                    ? message
+                    : `Stripe rejected the portal session (${response.status}).`
+            );
+        }
+
+        const url = readString(payload, "url");
+        const sessionId = readString(payload, "id");
+
+        if (!url || !sessionId) {
+            throw new Error(
+                "Stripe returned a portal session without a redirect URL."
+            );
+        }
+
+        return { id: sessionId, url };
     },
 };
 

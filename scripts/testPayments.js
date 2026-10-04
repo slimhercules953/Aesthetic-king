@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Verification for the payment layer: `studio/lib/payments/*`, the
- * checkout route and the Stripe webhook route.
+ * checkout route, the customer-portal route and the Stripe webhook
+ * route.
  *
  * This is the code that turns a network request into paid access, so the
  * failure modes are the expensive ones:
@@ -35,6 +36,7 @@ const CATALOG_PATH = path.join(PAYMENTS_DIR, "catalog.ts");
 const INDEX_PATH = path.join(PAYMENTS_DIR, "index.ts");
 const APPLY_PATH = path.join(PAYMENTS_DIR, "applyPaymentEvent.ts");
 const CHECKOUT_ROUTE = path.join(ROOT, "studio", "app", "api", "billing", "checkout", "route.ts");
+const PORTAL_ROUTE = path.join(ROOT, "studio", "app", "api", "billing", "portal", "route.ts");
 const WEBHOOK_ROUTE = path.join(ROOT, "studio", "app", "api", "webhooks", "stripe", "route.ts");
 const BILLING_PAGE = path.join(ROOT, "studio", "app", "dashboard", "premium", "billing", "page.tsx");
 const SCHEMA_PATH = path.join(ROOT, "prisma", "schema.prisma");
@@ -781,35 +783,35 @@ async function main() {
         `mode was ${sessionCall?.form.get("mode")}`
     );
 
+    resetProbe(CUSTOMER_ID);
+    stripeFetch.queue(
+        { json: { id: CUSTOMER_ID } },
+        { json: { id: "cs_test_10", url: "https://checkout.stripe.com/c/cs_test_10" } }
+    );
+
+    await provider.createCheckoutSession({
+        plan: {
+            id: "premium-quarter",
+            entitlementType: "PREMIUM",
+            name: "Premium 3 months",
+            durationMonths: 3,
+            checkoutKey: null,
+            displayPrice: "$12.99 once",
+            blurb: "",
+            providerPriceId: "price_quarter",
+        },
+        discordId: SNOWFLAKE,
+        successUrl: "https://example.test/ok",
+        cancelUrl: "https://example.test/no",
+    });
+
+    const oneTimeCall = stripeFetch.calls.find((c) => c.url.includes("/v1/checkout/sessions"));
+
     check(
         "a one-time plan is still sold in payment mode",
-        (async () => {
-            resetProbe(CUSTOMER_ID);
-            stripeFetch.queue(
-                { json: { id: CUSTOMER_ID } },
-                { json: { id: "cs_test_10", url: "https://checkout.stripe.com/c/cs_test_10" } }
-            );
-
-            await provider.createCheckoutSession({
-                plan: {
-                    id: "premium-quarter",
-                    entitlementType: "PREMIUM",
-                    name: "Premium 3 months",
-                    durationMonths: 3,
-                    checkoutKey: null,
-                    displayPrice: "$12.99 once",
-                    blurb: "",
-                    providerPriceId: "price_quarter",
-                },
-                discordId: SNOWFLAKE,
-                successUrl: "https://example.test/ok",
-                cancelUrl: "https://example.test/no",
-            });
-
-            const call = stripeFetch.calls.find((c) => c.url.includes("/v1/checkout/sessions"));
-
-            return call?.form.get("mode") === "payment" && call.form.get("line_items[0][price]") === "price_quarter";
-        })()
+        oneTimeCall?.form.get("mode") === "payment" &&
+            oneTimeCall.form.get("line_items[0][price]") === "price_quarter",
+        `mode was ${oneTimeCall?.form.get("mode")}`
     );
 
     check(
@@ -836,37 +838,176 @@ async function main() {
             !sessionCall.form.toString().includes("yearly")
     );
 
+    resetProbe(null);
+    stripeDb.set('UPDATE "User"', () => ({ rowCount: 1 }));
+    stripeFetch.queue(
+        { ok: false, status: 502, json: {} },
+        { json: { id: "cs_test_11", url: "https://checkout.stripe.com/c/cs_test_11" } }
+    );
+
+    const checkoutWithoutCustomer = await provider.createCheckoutSession({
+        plan: {
+            id: "premium-monthly",
+            entitlementType: "PREMIUM",
+            name: "Premium monthly",
+            durationMonths: null,
+            checkoutKey: "monthly",
+            displayPrice: "$5 / month",
+            blurb: "",
+            providerPriceId: "price_monthly",
+        },
+        discordId: SNOWFLAKE,
+        successUrl: "https://example.test/ok",
+        cancelUrl: "https://example.test/no",
+    });
+
+    const noCustomerCall = stripeFetch.calls.find((c) => c.url.includes("/v1/checkout/sessions"));
+
     check(
         "checkout still starts when the customer cannot be resolved",
-        (async () => {
-            resetProbe(null);
-            stripeDb.set('UPDATE "User"', () => ({ rowCount: 1 }));
-            stripeFetch.queue(
-                { ok: false, status: 502, json: {} },
-                { json: { id: "cs_test_11", url: "https://checkout.stripe.com/c/cs_test_11" } }
-            );
-
-            const result = await provider.createCheckoutSession({
-                plan: {
-                    id: "premium-monthly",
-                    entitlementType: "PREMIUM",
-                    name: "Premium monthly",
-                    durationMonths: null,
-                    checkoutKey: "monthly",
-                    displayPrice: "$5 / month",
-                    blurb: "",
-                    providerPriceId: "price_monthly",
-                },
-                discordId: SNOWFLAKE,
-                successUrl: "https://example.test/ok",
-                cancelUrl: "https://example.test/no",
-            });
-
-            const call = stripeFetch.calls.find((c) => c.url.includes("/v1/checkout/sessions"));
-
-            return result.url !== "" && !call.form.get("customer");
-        })(),
+        checkoutWithoutCustomer.url !== "" && !noCustomerCall.form.get("customer"),
         "a billing-history nicety must never block somebody from paying"
+    );
+
+    /* ---------------------------------------------------------------- */
+    section("stripe — customer portal");
+
+    const PORTAL_URL = "https://billing.stripe.com/p/session/abc";
+
+    /* --- an account with billing history gets a portal --- */
+
+    resetProbe(CUSTOMER_ID);
+    stripeFetch.queue({ json: { id: "bps_1", url: PORTAL_URL } });
+
+    const portal = await provider.createCustomerPortalSession({
+        discordId: SNOWFLAKE,
+        returnUrl: "https://example.test/dashboard/premium/billing?portal=returned",
+    });
+
+    const portalCall = stripeFetch.calls.find((call) => call.url.includes("/v1/billing_portal/sessions"));
+
+    check(
+        "a subscriber is sent to the portal Stripe returned",
+        portal?.url === PORTAL_URL && portal.id === "bps_1"
+    );
+
+    check(
+        "the portal is created with a form POST to Stripe's own endpoint",
+        stripeFetch.calls.length === 1 &&
+            portalCall?.init.method === "POST" &&
+            portalCall.init.headers.Authorization === "Bearer sk_test_checkout_probe",
+        stripeFetch.calls.map((call) => `${call.init.method ?? "GET"} ${call.url}`).join(" ")
+    );
+
+    check(
+        "the portal points at the stored customer, not anything from the browser",
+        portalCall?.form.get("customer") === CUSTOMER_ID
+    );
+
+    check(
+        "the return url is passed through so Stripe sends them home",
+        portalCall?.form.get("return_url") ===
+            "https://example.test/dashboard/premium/billing?portal=returned"
+    );
+
+    /* --- an account with no billing history has nothing to manage --- */
+
+    resetProbe(null);
+
+    check(
+        "an account with no stored customer gets no portal",
+        (await provider.createCustomerPortalSession({
+            discordId: SNOWFLAKE,
+            returnUrl: "https://example.test/dashboard/premium/billing",
+        })) === null
+    );
+
+    check(
+        "that answer costs Stripe nothing — no call is made at all",
+        stripeFetch.calls.length === 0,
+        stripeFetch.calls.map((call) => call.url).join(" ")
+    );
+
+    resetProbe(CUSTOMER_ID);
+
+    check(
+        "a malformed account id never reaches Stripe",
+        (await provider.createCustomerPortalSession({
+            discordId: "not-a-snowflake",
+            returnUrl: "https://example.test/dashboard/premium/billing",
+        })) === null && stripeFetch.calls.length === 0
+    );
+
+    /* --- a real failure must be distinguishable from 'nothing here' --- */
+
+    resetProbe(CUSTOMER_ID);
+    stripeFetch.queue({
+        ok: false,
+        status: 400,
+        json: { error: { message: "No configuration found for this customer's portal." } },
+    });
+
+    let portalFailure = null;
+
+    try {
+        await provider.createCustomerPortalSession({
+            discordId: SNOWFLAKE,
+            returnUrl: "https://example.test/dashboard/premium/billing",
+        });
+    } catch (error) {
+        portalFailure = error;
+    }
+
+    check(
+        "a Stripe rejection throws rather than reporting 'no portal'",
+        portalFailure instanceof Error &&
+            /No configuration found/.test(portalFailure.message),
+        String(portalFailure)
+    );
+
+    resetProbe(CUSTOMER_ID);
+    stripeFetch.queue({ json: { id: "bps_2" } });
+
+    let urlFailure = null;
+
+    try {
+        await provider.createCustomerPortalSession({
+            discordId: SNOWFLAKE,
+            returnUrl: "https://example.test/dashboard/premium/billing",
+        });
+    } catch (error) {
+        urlFailure = error;
+    }
+
+    check(
+        "a portal session without a redirect URL is an error, not a broken link",
+        urlFailure instanceof Error && /redirect URL/.test(urlFailure.message),
+        String(urlFailure)
+    );
+
+    /* --- the page asks before offering the button --- */
+
+    resetProbe(CUSTOMER_ID);
+
+    check(
+        "an account with a stored customer is offered the portal",
+        (await provider.hasBillingRecord({ discordId: SNOWFLAKE })) === true &&
+            stripeFetch.calls.length === 0,
+        "this must be a database read, not a call to Stripe"
+    );
+
+    resetProbe(null);
+
+    check(
+        "an account with no billing history is not offered it",
+        (await provider.hasBillingRecord({ discordId: SNOWFLAKE })) === false
+    );
+
+    resetProbe(CUSTOMER_ID);
+
+    check(
+        "a malformed account id is never offered the portal",
+        (await provider.hasBillingRecord({ discordId: "not-a-snowflake" })) === false
     );
 
     globalThis.fetch = realFetch;
@@ -1408,6 +1549,66 @@ async function main() {
     );
 
     /* ---------------------------------------------------------------- */
+    section("portal route — source contracts");
+
+    const portalSource = readSource(PORTAL_ROUTE);
+
+    check(
+        "the portal requires a verified session",
+        /verifySessionToken\(/.test(portalSource) &&
+            /SESSION_COOKIE_NAME/.test(portalSource)
+    );
+
+    check(
+        "the portal targets the session's account and nothing else",
+        /discordId:\s*session\.discordId/.test(portalSource) &&
+            !/formData/.test(portalSource),
+        "a route that cancels subscriptions must accept no identifiers from the browser"
+    );
+
+    check(
+        "the portal refuses a provider without portal support",
+        /provider\?\.createCustomerPortalSession/.test(portalSource) &&
+            /status:\s*404/.test(portalSource)
+    );
+
+    check(
+        "an account with no billing record is told so, not redirected",
+        /if \(!portal\)/.test(portalSource) &&
+            /no subscription to manage/.test(portalSource)
+    );
+
+    check(
+        "the portal is a redirect to the provider's hosted page",
+        /NextResponse\.redirect\(portal\.url/.test(portalSource)
+    );
+
+    check(
+        "the portal grants and revokes nothing itself",
+        !/grantEntitlement|revokeEntitlement/.test(portalSource),
+        "only the signed webhook changes access"
+    );
+
+    check(
+        "a provider failure is logged, not shown to the customer",
+        /console\.error\(/.test(portalSource) &&
+            /status:\s*502/.test(portalSource) &&
+            !/error:\s*\{\s*message/.test(portalSource)
+    );
+
+    check(
+        "the billing page offers the portal only when one exists",
+        /portalAvailable/.test(pageSource) &&
+            /action="\/api\/billing\/portal"/.test(pageSource) &&
+            /hasBillingRecord/.test(pageSource)
+    );
+
+    check(
+        "the portal button sends no data of its own",
+        !/name="(customer|subscription|discordId|price)"/.test(pageSource)
+    );
+
+    /* ---------------------------------------------------------------- */
     section("schema and migration");
 
     const schema = readSource(SCHEMA_PATH);
@@ -1471,6 +1672,7 @@ async function main() {
         INDEX_PATH,
         APPLY_PATH,
         CHECKOUT_ROUTE,
+        PORTAL_ROUTE,
         WEBHOOK_ROUTE,
     ]
         .map(readSource)

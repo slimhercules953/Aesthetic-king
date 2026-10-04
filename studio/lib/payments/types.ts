@@ -77,6 +77,22 @@ export type CheckoutSession = {
 };
 
 /**
+ * A hosted customer-portal page we have asked the provider to create.
+ *
+ * This is where a subscriber cancels, swaps a card or downloads an
+ * invoice. The app redirects there rather than building those screens,
+ * for the same reason it does not build checkout: the provider already
+ * holds the card data, and anything it renders cannot be forged or
+ * talked into a different action by our own form.
+ */
+export type CustomerPortalSession = {
+    /** The provider's id for the portal session, kept for logging. */
+    id: string;
+
+    url: string;
+};
+
+/**
  * The subset of provider events the app acts on.
  *
  * Providers send far more than this. Anything not listed here is
@@ -137,10 +153,13 @@ export type PaymentEvent = {
 /**
  * What a provider implementation must do.
  *
- * Deliberately two methods. A customer portal, refunds and payouts are
- * all things a provider may offer, but the app has no need for them
- * yet, and an interface with speculative methods guarantees the second
- * provider implements things nobody calls.
+ * Kept small on purpose. Refunds, payouts and reporting are all things
+ * a provider may offer, but an interface with speculative methods
+ * guarantees the next provider implements things nobody calls — so a
+ * method only appears here once something in the app actually invokes
+ * it. `createCustomerPortalSession` is optional because a provider may
+ * genuinely have no portal; callers must handle its absence rather than
+ * assume one exists.
  */
 export type PaymentProvider = {
     /** Stable short name, stored in `source` on granted entitlements. */
@@ -170,4 +189,31 @@ export type PaymentProvider = {
         body: string;
         signatureHeader: string | null;
     }): Promise<PaymentEvent[] | null>;
+
+    /**
+     * Opens the provider's hosted portal for one account, or returns
+     * null when that account has nothing to manage.
+     *
+     * Null is a normal answer, not a failure: an account that has never
+     * paid has no billing record at the provider, and inventing a portal
+     * for it would be worse than saying so. A provider that fails for
+     * another reason must throw, so the caller can tell "there is
+     * nothing here" from "the provider is unreachable".
+     */
+    createCustomerPortalSession?(input: {
+        discordId: string;
+
+        /** Where the provider sends the customer back to. */
+        returnUrl: string;
+    }): Promise<CustomerPortalSession | null>;
+
+    /**
+     * True when this account has a billing record a portal could show.
+     *
+     * Exists so a page can decide whether to offer the portal button at
+     * all. Sending someone to a portal with nothing in it is a worse
+     * experience than not offering the link, and checking here is cheaper
+     * than creating a session to discover the same thing.
+     */
+    hasBillingRecord?(input: { discordId: string }): Promise<boolean>;
 };
