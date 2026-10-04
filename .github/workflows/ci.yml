@@ -45,6 +45,20 @@ jobs:
           node-version: 22
           cache: npm
 
+      # canvas has no prebuilt binary for every Node ABI, so give node-gyp the
+      # system libraries its binding.gyp checks for with pkg-config.
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config \
+            build-essential \
+            libpixman-1-0 libpixman-1-dev \
+            libcairo2-dev \
+            libjpeg-dev \
+            libpango1.0-dev \
+            librsvg2-dev
+
       - name: Install dependencies
         run: npm ci
 
