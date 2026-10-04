@@ -128,7 +128,14 @@ export async function POST(
     await createNotificationForDiscordUser(voter, {
         type: "VOTE",
         title: "Thanks for voting for Aesthetic King!",
-        body: "Your vote helps more servers find the bot. Daily vote rewards are on the way.",
+        /*
+         * Deliberately says nothing about Crowns. The award above is
+         * gated on this deployment having a webhook secret, so on any
+         * deploy that predates it the only thing a voter could read is
+         * this notice — and a thank-you that hints at a reward they did
+         * not receive reads worse than one that does not.
+         */
+        body: "Your vote helps more servers find the bot.",
         href: "/dashboard",
         icon: "Sparkles",
         dedupeKey: `topgg-vote:${voter}:${voteDay}`,

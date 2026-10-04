@@ -470,7 +470,7 @@ export async function awardCrowns(
  * Every other source is wired into the product, but a Top.gg vote only
  * arrives if the webhook is configured, and the Studio is not deployed
  * yet. Advertising a source nobody can trigger is worse than saying
- * nothing: the user reads "25 Crowns for voting", votes, and gets
+ * nothing: the user reads "10 Crowns for voting", votes, and gets
  * nothing. So the Earn page hides it until `TOPGG_WEBHOOK_SECRET`
  * exists, which is exactly the condition the webhook route uses to
  * decide between answering 404 and paying.
