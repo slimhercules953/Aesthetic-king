@@ -753,3 +753,67 @@ is refused, that reach counts people while views count lookings, and that a
 30-day trend returns thirty buckets with quiet days present as zeroes. It
 skips rather than fails when no database is reachable.
 
+---
+
+## Publishing Profiles and Packs to Discover
+
+Phase 7's last slice widened the feed itself. `SharedPost` is polymorphic —
+`(itemType, itemId)` points at whatever was published — and it used to know
+about three things. It now knows five: `PROFILE` (a Profile Builder
+composition) and `PACK` (a server Aesthetic Pack).
+
+**Two item types, two entitlements, so two routes.** A profile is owned by a
+user, so it publishes through the ordinary `POST /api/feed` like everything
+else. A pack is owned by a *server*, and the right to publish it is a Discord
+permission, not an ownership row — so `PACK` is explicitly rejected on the
+generic path ("Aesthetic Packs are published from Server Studio.") and has its
+own guild-scoped `POST`/`DELETE /api/servers/[id]/packs/[packId]/publish`.
+That route resolves the pack with `getPackInGuild(guildId, packId)` before
+publishing, which is what makes `publishVerifiedItemToFeed()` (the variant
+that skips the ownership check) safe: a pack fetched through a guild-scoped
+query cannot be a pack from a server the publisher does not manage.
+
+**`assertPublishableItem()` is the security boundary.** `(itemType, itemId)`
+comes from a request body, so before anything is written the generic path runs
+one `UNION ALL` over `SavedAesthetic`/`SavedPalette`/`Profile` joined to
+`"User"` on the publisher's `discordId`. No row means 403 — *you can only
+publish something of your own*. Without it, any signed-in account could
+publish anyone's profile by guessing an id, since `Profile.id` is the only
+thing the feed needs.
+
+**Hydration returns flat cards.** `hydrateFeedPosts()` maps each post to
+`{...post, media, attribution}` — `caption` and `authorDiscordId` are top
+level, everything presentational (`title`, `palette`, `guild`, `kind`, …) is
+under `.media`. A post whose source row has been deleted is *not* dropped; it
+comes back with `media: null` and `FeedCard` renders a "this no longer
+exists" fallback, so a like count never disappears with the thing it counted.
+
+**The chip rename.** The old "Profiles" chip filtered `AESTHETIC`. With a real
+`PROFILE` type in the feed that label became ambiguous, so the chips now read
+"Aesthetics" (saved looks) and "Profiles" (Builder compositions), matching
+`SHARED_ITEM_LABELS` on the cards.
+
+**Publishing pays once per item, ever.** The Crown key is
+`publish:<itemType>:<itemId>` — the *item*, not the post row. `shareItemToFeed`
+upserts on `(userId, itemType, itemId)`, but deleting a post and re-sharing
+mints a fresh post id; keying on that would turn unshare-and-republish into a
+daily Crown farm.
+
+### Testing it
+
+`node scripts/testPublishToDiscover.js` (259 assertions) covers the slice.
+Offline, over a fake adapter with `next/server` stubbed and the real pure
+`features.ts` loaded, it checks the enum and its migration, that
+`assertPublishableItem` refuses another owner's item and rejects `PACK`, that
+the ownership probe joins `"User"` rather than trusting a caller id, that
+hydration produces flat cards with `null` media for a deleted source, that
+`FeedCard` renders the pack and profile shapes, that every search match branch
+is type-guarded and the term only ever travels as a parameter, that the
+Discover chips expose both new types, that creator counts include both, and
+that a publish pays once per item under a key that survives unshare-and-
+republish. Against the real database it runs the whole round trip: publish,
+re-publish reuses the row, wrong-owner and wrong-guild are refused, hydration,
+search by name/colour/caption/tag, creator counts, the Crown ledger, and
+unpublish/delete cleanup. It finishes with a `tsc --noEmit` of the Studio, and
+skips the database section rather than failing when none is reachable.
+

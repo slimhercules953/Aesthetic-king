@@ -3,6 +3,7 @@
 import {
     Check,
     ChevronDown,
+    Globe2,
     Pencil,
     Plus,
     Save,
@@ -25,6 +26,12 @@ import {
 } from "../../lib/moods";
 
 import Modal from "../ui/Modal";
+import UpgradePrompt from "../ui/UpgradePrompt";
+
+import {
+    readDeniedBody,
+    type FeatureDeniedBody,
+} from "../../lib/denied";
 
 import type {
     ServerAestheticPack,
@@ -99,6 +106,28 @@ export default function AestheticPackManager({
         setError,
     ] = useState<
         string | null
+    >(null);
+
+    /**
+     * Which pack's publish button is in flight. Only one at a time is
+     * meaningful — the buttons are per-card, and a single id keeps every other
+     * card's control enabled.
+     */
+    const [
+        publishingId,
+        setPublishingId,
+    ] = useState<
+        string | null
+    >(null);
+
+    const [
+        publishDenied,
+        setPublishDenied,
+    ] = useState<
+        {
+            pack: ServerAestheticPack;
+            denied: FeatureDeniedBody;
+        } | null
     >(null);
 
     const enabledCount =
@@ -367,6 +396,151 @@ export default function AestheticPackManager({
         }
     }
 
+    /*
+     * Publishing is guild-scoped, so it goes to the pack's own publish route
+     * rather than /api/feed: entitlement there is MANAGE_GUILD, and the pack id
+     * is only meaningful inside this server.
+     */
+    async function publishPack(
+        pack: ServerAestheticPack
+    ) {
+        setPublishingId(pack.id);
+        setError(null);
+        setPublishDenied(null);
+
+        try {
+            const response =
+                await fetch(
+                    `/api/servers/${guildId}/packs/${pack.id}/publish`,
+                    {
+                        method:
+                            "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                        },
+
+                        body:
+                            JSON.stringify({}),
+                    }
+                );
+
+            const body =
+                await response.json() as {
+                    error?: string;
+                };
+
+            if (!response.ok) {
+                const refusal =
+                    readDeniedBody(
+                        response.status,
+                        body
+                    );
+
+                if (refusal) {
+                    setPublishDenied({
+                        pack,
+                        denied: refusal,
+                    });
+
+                    return;
+                }
+
+                setError(
+                    body.error ||
+                    "Could not publish Aesthetic Pack."
+                );
+
+                return;
+            }
+
+            setPacks(
+                (
+                    current
+                ) =>
+                    current.map(
+                        (
+                            item
+                        ) =>
+                            item.id === pack.id
+                            ? {
+                                ...item,
+                                published:
+                                    true,
+                            }
+                            : item
+                    )
+            );
+        } catch {
+            setError(
+                "Could not publish Aesthetic Pack."
+            );
+        } finally {
+            setPublishingId(
+                null
+            );
+        }
+    }
+
+    async function unpublishPack(
+        pack: ServerAestheticPack
+    ) {
+        setPublishingId(pack.id);
+        setError(null);
+
+        try {
+            const response =
+                await fetch(
+                    `/api/servers/${guildId}/packs/${pack.id}/publish`,
+                    {
+                        method:
+                            "DELETE",
+                    }
+                );
+
+            const body =
+                await response.json() as {
+                    error?: string;
+                };
+
+            if (!response.ok) {
+                setError(
+                    body.error ||
+                    "Could not unpublish Aesthetic Pack."
+                );
+
+                return;
+            }
+
+            setPacks(
+                (
+                    current
+                ) =>
+                    current.map(
+                        (
+                            item
+                        ) =>
+                            item.id === pack.id
+                            ? {
+                                ...item,
+                                published:
+                                    false,
+                            }
+                            : item
+                    )
+            );
+        } catch {
+            setError(
+                "Could not unpublish Aesthetic Pack."
+            );
+        } finally {
+            setPublishingId(
+                null
+            );
+        }
+    }
+
     async function setDefaultPack(
         packId: string | null
     ) {
@@ -461,6 +635,26 @@ export default function AestheticPackManager({
                 </p>
             )}
 
+            {publishDenied && (
+                <div className="mt-5">
+                    <UpgradePrompt
+                        denied={publishDenied.denied}
+                        onUnlocked={() => {
+                            const pack =
+                                publishDenied.pack;
+
+                            setPublishDenied(
+                                null
+                            );
+
+                            void publishPack(
+                                pack
+                            );
+                        }}
+                    />
+                </div>
+            )}
+
             <div className="mt-6 grid gap-4 lg:grid-cols-2">
                 {packs.map(
                     (
@@ -504,6 +698,17 @@ export default function AestheticPackManager({
                                                 ? "Enabled"
                                                 : "Disabled"}
                                         </span>
+
+                                        {pack.published && (
+                                            <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/20 bg-violet-500/10 px-2 py-0.5 text-[10px] font-medium text-violet-300">
+                                                <Globe2
+                                                    size={
+                                                        11
+                                                    }
+                                                />
+                                                On Discover
+                                            </span>
+                                        )}
                                     </div>
 
                                     <p className="mt-2 text-sm leading-6 text-zinc-600">
@@ -588,7 +793,7 @@ export default function AestheticPackManager({
                                 )}
                             </div>
 
-                            <div className="mt-6 grid gap-2 sm:grid-cols-3">
+                            <div className="mt-6 grid gap-2 sm:grid-cols-4">
                                 <button
                                     type="button"
                                     onClick={() =>
@@ -619,6 +824,49 @@ export default function AestheticPackManager({
                                     {pack.enabled
                                         ? "Disable"
                                         : "Enable"}
+                                </button>
+
+                                {/*
+                                  * Publishing spends the pressing member's own
+                                  * weekly publication allowance, so the label
+                                  * says "Publish" rather than the vaguer
+                                  * "Share" used for personal items.
+                                  */}
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        pack.published
+                                            ? unpublishPack(
+                                                pack
+                                            )
+                                            : publishPack(
+                                                pack
+                                            )
+                                    }
+                                    disabled={
+                                        publishingId ===
+                                        pack.id
+                                    }
+                                    className={[
+                                        "inline-flex items-center justify-center gap-1 rounded-xl border px-3 py-2 text-xs font-medium transition disabled:opacity-60",
+                                        pack.published
+                                            ? "border-white/[0.06] bg-black/20 text-zinc-400 hover:text-zinc-200"
+                                            : "border-violet-500/25 bg-violet-500/10 text-violet-300 hover:border-violet-500/40",
+                                    ].join(
+                                        " "
+                                    )}
+                                >
+                                    <Globe2
+                                        size={
+                                            13
+                                        }
+                                    />
+                                    {publishingId ===
+                                        pack.id
+                                        ? "Saving..."
+                                        : pack.published
+                                        ? "Unpublish"
+                                        : "Publish"}
                                 </button>
 
                                 <button

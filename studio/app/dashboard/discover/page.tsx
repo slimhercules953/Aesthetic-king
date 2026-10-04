@@ -17,6 +17,7 @@ import {
 import {
     getFeedPosts,
     getSharedPostCommentsByPostIds,
+    isSharedItemType,
 } from "../../../lib/sharedFeed";
 
 import type {
@@ -45,6 +46,12 @@ import FeedCard, {
 const PAGE_SIZE =
     18;
 
+/*
+ * The chip labels have to agree with `SHARED_ITEM_LABELS` on the cards. The
+ * old "Profiles" chip meant AESTHETIC, which is now ambiguous against the
+ * PROFILE type the Profile Builder publishes, so the two are named apart:
+ * a saved look is an "aesthetic", a Builder composition is a "profile".
+ */
 const FILTERS: {
     label: string;
     value: SharedItemType | null;
@@ -54,8 +61,12 @@ const FILTERS: {
         value: null,
     },
     {
-        label: "Profiles",
+        label: "Aesthetics",
         value: "AESTHETIC",
+    },
+    {
+        label: "Profiles",
+        value: "PROFILE",
     },
     {
         label: "Palettes",
@@ -64,6 +75,10 @@ const FILTERS: {
     {
         label: "Asset sets",
         value: "ASSET",
+    },
+    {
+        label: "Server packs",
+        value: "PACK",
     },
 ];
 
@@ -129,10 +144,13 @@ export default async function DiscoverPage({
             ? raw.type.toUpperCase()
             : null;
 
+    /*
+     * Validated against the shared list rather than a local set of literals,
+     * otherwise a new item type would silently fall back to "All" here while
+     * working everywhere else.
+     */
     const itemType: SharedItemType | null =
-        typeParam === "AESTHETIC" ||
-        typeParam === "PALETTE" ||
-        typeParam === "ASSET"
+        typeParam && isSharedItemType(typeParam)
             ? typeParam
             : null;
 

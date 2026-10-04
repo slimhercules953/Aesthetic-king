@@ -35,9 +35,21 @@ export type CreatorProfile = {
     joinedAt: Date;
 
     postCount: number;
+
+    /**
+     * Saved aesthetics, which the UI has always called "profiles".
+     *
+     * `composedProfileCount` is the newer PROFILE type — a Profile Builder
+     * composition. They are separate numbers because they are separate tables
+     * and separate things to make; merging them would make the label a lie.
+     */
     profileCount: number;
+    composedProfileCount: number;
     paletteCount: number;
     assetSetCount: number;
+
+    /** Packs from this server's Server Studio that they published. */
+    packCount: number;
 
     likesReceived: number;
     commentsReceived: number;
@@ -82,8 +94,10 @@ export async function getCreatorProfile(
 
                 COALESCE(stats.posts, 0)::int AS "postCount",
                 COALESCE(stats.profiles, 0)::int AS "profileCount",
+                COALESCE(stats."composedProfiles", 0)::int AS "composedProfileCount",
                 COALESCE(stats.palettes, 0)::int AS "paletteCount",
                 COALESCE(stats.sets, 0)::int AS "assetSetCount",
+                COALESCE(stats.packs, 0)::int AS "packCount",
                 COALESCE(stats.likes, 0)::int AS "likesReceived",
                 COALESCE(stats.comments, 0)::int AS "commentsReceived",
                 COALESCE(remixes.total, 0)::int AS "remixesReceived"
@@ -97,12 +111,20 @@ export async function getCreatorProfile(
                     )::bigint AS profiles,
 
                     COUNT(*) FILTER (
+                        WHERE sp."itemType" = 'PROFILE'
+                    )::bigint AS "composedProfiles",
+
+                    COUNT(*) FILTER (
                         WHERE sp."itemType" = 'PALETTE'
                     )::bigint AS palettes,
 
                     COUNT(*) FILTER (
                         WHERE sp."itemType" = 'ASSET'
                     )::bigint AS sets,
+
+                    COUNT(*) FILTER (
+                        WHERE sp."itemType" = 'PACK'
+                    )::bigint AS packs,
 
                     COALESCE(
                         SUM(sp."likeCount"),

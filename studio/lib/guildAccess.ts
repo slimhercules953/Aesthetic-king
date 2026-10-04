@@ -109,34 +109,43 @@ async function checkGuildAccess(
 }
 
 /**
- * Route-guard form of the guild permission check.
+ * Route-guard form of the guild permission check, keeping the session.
  *
- * Usage: `const denied = await guardGuildAccess(request, id); if (denied)
- * return denied;` — a response is only produced on failure, so `null` means
- * the caller is authorized and may proceed.
+ * Returns either the caller's session (authorized) or the response to send
+ * (denied), so the caller can both short-circuit on failure and know *who*
+ * is acting on success. Needed by anything that records the managing member
+ * as well as checking they may manage — publishing a pack to Discover, for
+ * instance, authors the post as that member.
  */
-export async function guardGuildAccess(
+export async function guardGuildAccessWithSession(
     request: NextRequest,
     guildId: string
-): Promise<NextResponse | null> {
+): Promise<
+    { session: SessionUser; response?: never } |
+    { session?: never; response: NextResponse }
+> {
     const cookie =
         request.cookies.get(SESSION_COOKIE_NAME);
 
     if (!cookie) {
-        return NextResponse.json(
-            { error: "Unauthorized" },
-            { status: 401 }
-        );
+        return {
+            response: NextResponse.json(
+                { error: "Unauthorized" },
+                { status: 401 }
+            ),
+        };
     }
 
     const session =
         await verifySessionToken(cookie.value);
 
     if (!session) {
-        return NextResponse.json(
-            { error: "Unauthorized" },
-            { status: 401 }
-        );
+        return {
+            response: NextResponse.json(
+                { error: "Unauthorized" },
+                { status: 401 }
+            ),
+        };
     }
 
     let access: GuildAccess | null;
@@ -151,26 +160,49 @@ export async function guardGuildAccess(
             error instanceof Error ? error.message : error
         );
 
-        return NextResponse.json(
-            {
-                error:
-                    "Could not verify your Discord permissions. Please try again.",
-            },
-            { status: 502 }
-        );
+        return {
+            response: NextResponse.json(
+                {
+                    error:
+                        "Could not verify your Discord permissions. Please try again.",
+                },
+                { status: 502 }
+            ),
+        };
     }
 
     if (!access) {
-        return NextResponse.json(
-            {
-                error:
-                    "You do not have permission to manage this server.",
-            },
-            { status: 403 }
-        );
+        return {
+            response: NextResponse.json(
+                {
+                    error:
+                        "You do not have permission to manage this server.",
+                },
+                { status: 403 }
+            ),
+        };
     }
 
-    return null;
+    return { session };
+}
+
+/**
+ * Route-guard form of the guild permission check.
+ *
+ * Usage: `const denied = await guardGuildAccess(request, id); if (denied)
+ * return denied;` — a response is only produced on failure, so `null` means
+ * the caller is authorized and may proceed.
+ */
+export async function guardGuildAccess(
+    request: NextRequest,
+    guildId: string
+): Promise<NextResponse | null> {
+    const result = await guardGuildAccessWithSession(
+        request,
+        guildId
+    );
+
+    return result.response ?? null;
 }
 
 /**

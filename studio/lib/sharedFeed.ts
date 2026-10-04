@@ -17,10 +17,41 @@ import {
     createNotificationForDiscordUser,
 } from "./notifications";
 
+import { getAssetSetById } from "./assetCatalog";
+
 export type SharedItemType =
     | "AESTHETIC"
     | "PALETTE"
-    | "ASSET";
+    | "ASSET"
+    | "PROFILE"
+    | "PACK";
+
+/**
+ * Every publishable type, in the order the UI lists them.
+ *
+ * Exported so the feed route validates the request body against the same
+ * list the ownership guard uses. A type accepted by one and not the other
+ * would either reject legitimate publishes or — worse — reach
+ * `assertPublishableItem()` and fall through its `switch` unchecked.
+ */
+export const SHARED_ITEM_TYPES: readonly SharedItemType[] = [
+    "AESTHETIC",
+    "PALETTE",
+    "ASSET",
+    "PROFILE",
+    "PACK",
+];
+
+export function isSharedItemType(
+    value: unknown
+): value is SharedItemType {
+    return (
+        typeof value === "string" &&
+        SHARED_ITEM_TYPES.indexOf(
+            value as SharedItemType
+        ) !== -1
+    );
+}
 
 export type SharedPostSummary = {
     id: string;
@@ -59,6 +90,109 @@ export type SharedPostComment = {
     avatarHash: string | null;
 };
 
+/**
+ * Refuses to publish something the publisher is not entitled to publish.
+ *
+ * `SharedPost.itemId` has no foreign key, so before this the feed route
+ * would happily insert a post for *any* id it was given — including another
+ * user's saved aesthetic. Nothing rendered it, because Discover hydrates the
+ * item and the card links to an edit page the viewer cannot open, but the
+ * victim's item name, palette and bio appeared on the card all the same.
+ * Publishing someone's work for them, with their artwork on it, is exactly
+ * what the remix rules already forbid.
+ *
+ * The check belongs in the lib rather than the route because
+ * `shareItemToFeed()` is the only door into the table, and a second caller
+ * (a bot command, a future bulk import) must not have to remember to repeat
+ * it.
+ *
+ * `PACK` is refused outright. A pack belongs to a *server*, so entitlement
+ * there is a Discord permission rather than an ownership row, and the
+ * information needed to check it lives in the session's guild list. Packs
+ * publish through `publishPackToFeed()`, which is scoped by guild id and
+ * therefore cannot reach a pack in a server the publisher does not manage.
+ */
+async function assertPublishableItem(
+    discordId: string,
+    itemType: SharedItemType,
+    itemId: string
+): Promise<void> {
+    if (itemType === "ASSET") {
+        // Catalog profile sets are shared by definition — nobody owns them.
+        // The entitlement that matters is PREMIUM_ASSETS for a premium set,
+        // which the route already checks. It still has to be a real set, or
+        // the post renders as "content that no longer exists" forever.
+        if (!getAssetSetById(itemId)) {
+            throw new ExpectedError(
+                "That profile set does not exist.",
+                404
+            );
+        }
+
+        return;
+    }
+
+    if (itemType === "PACK") {
+        throw new ExpectedError(
+            "Aesthetic Packs are published from Server Studio.",
+            400
+        );
+    }
+
+    // One statement for the three owned types, with the type guard written
+    // inside each branch. Interpolating a table name from the `itemType`
+    // would be safe here (the value is already narrowed to a literal), but a
+    // single parameterised statement is smaller, has one shape to test, and
+    // cannot be broken by the next type added to the union.
+    const result =
+        await query<{ id: string }>(
+            `
+            SELECT item.id
+            FROM (
+                SELECT
+                    sa.id,
+                    sa."userId",
+                    'AESTHETIC' AS "kind"
+                FROM "SavedAesthetic" sa
+                WHERE sa.id = $1
+
+                UNION ALL
+
+                SELECT
+                    sp.id,
+                    sp."userId",
+                    'PALETTE'
+                FROM "SavedPalette" sp
+                WHERE sp.id = $1
+
+                UNION ALL
+
+                SELECT
+                    pr.id,
+                    pr."userId",
+                    'PROFILE'
+                FROM "Profile" pr
+                WHERE pr.id = $1
+            ) item
+            INNER JOIN "User" u
+                ON u.id = item."userId"
+
+            WHERE
+                item."kind" = $2
+                AND u."discordId" = $3
+            LIMIT 1
+            `,
+            [itemId, itemType, discordId]
+        );
+
+    if (!result.rows[0]) {
+        throw new ExpectedError(
+            "You can only publish something of your own.",
+            403
+        );
+    }
+}
+
 function normalizeTags(
     input: (string | null | undefined)[]
 ): string[] {
@@ -74,22 +208,24 @@ function normalizeTags(
     return [...new Set(cleaned)].slice(0, 10);
 }
 
-export async function shareItemToFeed(
+/**
+ * Inserts (or refreshes) the post row and returns it hydrated.
+ *
+ * Split out of {@link shareItemToFeed} because a pack's entitlement is a
+ * Discord permission rather than an ownership row, so it cannot pass through
+ * `assertPublishableItem()` — but it still needs the same upsert, the same
+ * crown award, and the same return shape. Keeping the INSERT in one place is
+ * what stops the two paths from drifting apart.
+ *
+ * Callers must have checked entitlement already.
+ */
+async function createOrUpdatePost(
     discordId: string,
-    input: {
-        itemType: SharedItemType;
-        itemId: string;
-        caption?: string | null;
-        tags?: (string | null | undefined)[];
-    }
+    itemType: SharedItemType,
+    itemId: string,
+    caption: string | null,
+    tags: string[]
 ): Promise<SharedPostSummary> {
-    const caption =
-        input.caption?.trim() ?? null;
-
-    const tags = normalizeTags(
-        input.tags ?? []
-    );
-
     const result =
         await query<{
             id: string;
@@ -130,8 +266,8 @@ export async function shareItemToFeed(
             `,
             [
                 discordId,
-                input.itemType,
-                input.itemId,
+                itemType,
+                itemId,
                 caption,
                 tags,
             ]
@@ -160,11 +296,71 @@ export async function shareItemToFeed(
 
     await awardForPublish(
         discordId,
+        itemType,
+        itemId
+    );
+
+    return post;
+}
+
+/**
+ * {@link shareItemToFeed} without the ownership check.
+ *
+ * For items whose entitlement is not an ownership row — currently only
+ * Aesthetic Packs, where the right to publish is a Discord permission on the
+ * server. The caller must have resolved the item through a guild-scoped query
+ * before calling this, which is what makes it safe: a pack fetched by
+ * `getPackInGuild(discordGuildId, packId)` cannot be a pack from a server the
+ * publisher does not manage.
+ */
+export async function publishVerifiedItemToFeed(
+    discordId: string,
+    input: {
+        itemType: SharedItemType;
+        itemId: string;
+        caption?: string | null;
+        tags?: (string | null | undefined)[];
+    }
+): Promise<SharedPostSummary> {
+    return createOrUpdatePost(
+        discordId,
+        input.itemType,
+        input.itemId,
+        input.caption?.trim() ?? null,
+        normalizeTags(input.tags ?? [])
+    );
+}
+
+/**
+ * Publishes one of the caller's own items to Discover.
+ *
+ * Entitlement is checked here rather than in the route: this is the only door
+ * into `SharedPost` for user-owned types, and a second caller must not have to
+ * remember to repeat the check. Packs go through `publishPackToFeed()` in
+ * `lib/aestheticPacks.ts` instead.
+ */
+export async function shareItemToFeed(
+    discordId: string,
+    input: {
+        itemType: SharedItemType;
+        itemId: string;
+        caption?: string | null;
+        tags?: (string | null | undefined)[];
+    }
+): Promise<SharedPostSummary> {
+    await assertPublishableItem(
+        discordId,
         input.itemType,
         input.itemId
     );
 
-    return post;
+    return createOrUpdatePost(
+        discordId,
+        input.itemType,
+        input.itemId,
+        input.caption?.trim() ?? null,
+        normalizeTags(input.tags ?? [])
+    );
 }
 
 export const FEED_SELECT_SQL = `
@@ -391,6 +587,41 @@ export async function unshareItemById(
     return (
         result.rowCount ?? 0
     ) > 0;
+}
+
+/**
+ * Deletes the published posts pointing at an item that is going away.
+ *
+ * `SharedPost.itemId` deliberately has no foreign key — the feed is
+ * polymorphic, so Postgres cannot cascade for it. Without this call, the
+ * card survives its subject and Discover shows "This post references content
+ * that no longer exists" forever, still counting against the publisher's
+ * limit and still appearing in the author's own list.
+ *
+ * Every delete path for a publishable item should call it. It is not
+ * enforced by the database, which is the trade-off the polymorphic design
+ * makes; the alternative is five nullable FK columns on the feed.
+ *
+ * Deliberately not scoped by user: the caller has already established that
+ * the item is theirs (or, for packs, that the guild is theirs), and the item
+ * id is unique, so the extra join would only add a way to get it wrong.
+ */
+export async function removePostsForItem(
+    itemType: SharedItemType,
+    itemId: string
+): Promise<number> {
+    const result =
+        await query(
+            `
+            DELETE FROM "SharedPost"
+            WHERE
+                "itemType" = $1::"SharedItemType"
+                AND "itemId" = $2
+            `,
+            [itemType, itemId]
+        );
+
+    return result.rowCount ?? 0;
 }
 
 export async function toggleSharedPostLike(

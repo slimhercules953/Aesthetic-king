@@ -22,7 +22,12 @@ import {
 } from "../../lib/denied";
 
 type ShareToFeedButtonProps = {
-    itemType: "AESTHETIC" | "PALETTE" | "ASSET";
+    /**
+     * `PACK` is deliberately absent: a server pack is published through the
+     * guild-scoped `/api/servers/:id/packs/:packId/publish` route, where
+     * entitlement comes from MANAGE_GUILD rather than from owning the row.
+     */
+    itemType: "AESTHETIC" | "PALETTE" | "ASSET" | "PROFILE";
     itemId: string;
     defaultTitle?: string;
     compact?: boolean;

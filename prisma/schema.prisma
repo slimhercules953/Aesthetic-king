@@ -729,10 +729,23 @@ enum GenerationType {
   PALETTE
 }
 
+/// What a feed post renders.
+///
+/// `AESTHETIC` is a saved generation, `PALETTE` a saved palette, and `ASSET`
+/// a catalog profile set. `PROFILE` is a Profile Builder composition — the
+/// thing a user actually assembles and applies, which until now had no way
+/// out of their own account. `PACK` is a server's Aesthetic Pack, published
+/// by someone entitled to speak for that server.
+///
+/// Adding a member here is not enough to make a type publishable: the item
+/// has to be owned (or authorised), hydrated into card media, and matched by
+/// feed search. See `assertPublishableItem()` in `lib/sharedFeed.ts`.
 enum SharedItemType {
   AESTHETIC
   PALETTE
   ASSET
+  PROFILE
+  PACK
 }
 
 enum EntitlementType {

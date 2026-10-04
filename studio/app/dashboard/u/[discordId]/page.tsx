@@ -1,5 +1,7 @@
 import {
     ArrowLeft,
+    Building2,
+    CircleUserRound,
     Compass,
     Heart,
     Layers,
@@ -392,6 +394,40 @@ export default async function CreatorProfilePage({
                                 "asset sets"
                             )}
                         </span>
+
+                        {/*
+                          * Only shown when non-zero: a composed profile is the
+                          * newest thing to publish, and a row of zeros on every
+                          * creator page would be noise.
+                          */}
+                        {profile.composedProfileCount > 0 && (
+                            <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.06] px-2.5 py-1">
+                                <CircleUserRound
+                                    size={12}
+                                />
+
+                                {profile.composedProfileCount}{" "}
+                                {plural(
+                                    profile.composedProfileCount,
+                                    "composed profile",
+                                    "composed profiles"
+                                )}
+                            </span>
+                        )}
+
+                        {profile.packCount > 0 && (
+                            <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.06] px-2.5 py-1">
+                                <Building2
+                                    size={12}
+                                />
+
+                                {profile.packCount}{" "}
+                                {plural(
+                                    profile.packCount,
+                                    "server pack"
+                                )}
+                            </span>
+                        )}
                     </div>
                 </div>
             </div>

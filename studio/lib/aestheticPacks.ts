@@ -6,6 +6,13 @@ import {
     query,
 } from "./database";
 
+import {
+    getFeedPostById,
+    publishVerifiedItemToFeed,
+    removePostsForItem,
+    type SharedPostSummary,
+} from "./sharedFeed";
+
 export type ServerAestheticPack = {
     id: string;
     guildId: string;
@@ -18,16 +25,44 @@ export type ServerAestheticPack = {
     enabled: boolean;
     createdAt: Date;
     updatedAt: Date;
+    /**
+     * Whether the pack currently has a Discover post.
+     *
+     * Derived from `SharedPost` rather than stored on the pack. A column would
+     * have to be kept in sync with an unpublish from the feed, which deletes
+     * by post id and knows nothing about packs; a join cannot go stale.
+     */
+    published: boolean;
 };
 
+/** The `AestheticPack` columns, before the derived `published` flag. */
 type AestheticPackRow =
-    ServerAestheticPack;
+    Omit<ServerAestheticPack, "published">;
+
+/**
+ * Adds `published` to a row that came from an INSERT/UPDATE `RETURNING`.
+ *
+ * `RETURNING` cannot evaluate an `EXISTS` subquery against another table, so
+ * the write paths ask separately. A brand-new pack is never published, which
+ * is why {@link newPack} skips the query.
+ */
+async function withPublished(
+    pack: AestheticPackRow
+): Promise<ServerAestheticPack> {
+    return {
+        ...pack,
+        published:
+            (await getPackPostId(pack.id)) !== null,
+    };
+}
 
 export async function getServerAestheticPacks(
     discordGuildId: string
 ): Promise<ServerAestheticPack[]> {
     const result =
-        await query<AestheticPackRow>(
+        await query<AestheticPackRow & {
+            published: boolean;
+        }>(
             `
                 SELECT
                     p.id,
@@ -40,7 +75,16 @@ export async function getServerAestheticPacks(
                     p.symbols,
                     p.enabled,
                     p."createdAt",
-                    p."updatedAt"
+                    p."updatedAt",
+
+                    EXISTS (
+                        SELECT 1
+                        FROM "SharedPost" sp
+                        WHERE
+                            sp."itemType" =
+                                'PACK'::"SharedItemType"
+                            AND sp."itemId" = p.id
+                    ) AS published
 
                 FROM "AestheticPack" p
 
@@ -145,7 +189,7 @@ export async function createServerAestheticPack(
         );
     }
 
-    return pack;
+    return { ...pack, published: false };
 }
 
 export async function updateServerAestheticPack(
@@ -218,7 +262,7 @@ export async function updateServerAestheticPack(
         );
     }
 
-    return pack;
+    return withPublished(pack);
 }
 
 export async function deleteServerAestheticPack(
@@ -251,6 +295,186 @@ export async function deleteServerAestheticPack(
             "Aesthetic Pack was not found."
         );
     }
+
+    // `SharedPost.itemId` has no foreign key, so Postgres will not cascade
+    // this away. Without it the card outlives the pack and sits in Discover
+    // saying the content no longer exists.
+    await removePostsForItem("PACK", packId);
+}
+
+/**
+ * The pack, but only if it lives in this server.
+ *
+ * Every pack query in this file is scoped through `Guild.discordId` for the
+ * same reason: a pack id on its own proves nothing about who may touch it.
+ * Publishing to Discover needs this specifically, because the insert into
+ * `SharedPost` is not guild-scoped and cannot be.
+ */
+async function getPackInGuild(
+    discordGuildId: string,
+    packId: string
+): Promise<ServerAestheticPack | null> {
+    const result =
+        await query<AestheticPackRow & {
+            published: boolean;
+        }>(
+            `
+                SELECT
+                    p.id,
+                    p."guildId",
+                    p.name,
+                    p.description,
+                    p."aestheticId",
+                    p."moodId",
+                    p.colors,
+                    p.symbols,
+                    p.enabled,
+                    p."createdAt",
+                    p."updatedAt",
+
+                    EXISTS (
+                        SELECT 1
+                        FROM "SharedPost" sp
+                        WHERE
+                            sp."itemType" =
+                                'PACK'::"SharedItemType"
+                            AND sp."itemId" = p.id
+                    ) AS published
+
+                FROM "AestheticPack" p
+
+                INNER JOIN "Guild" g
+                    ON g.id =
+                        p."guildId"
+
+                WHERE
+                    p.id = $2
+                    AND g."discordId" = $1
+
+                LIMIT 1
+            `,
+            [
+                discordGuildId,
+                packId,
+            ]
+        );
+
+    return result.rows[0] ?? null;
+}
+
+/**
+ * The published post for a pack, whoever published it.
+ *
+ * A pack gets one Discover post. `SharedPost` is unique on
+ * `(userId, itemType, itemId)`, so a second manager of the same server
+ * publishing the same pack would otherwise create a second card for it —
+ * Discover showing the same pack twice, side by side, under two authors.
+ */
+async function getPackPostId(
+    packId: string
+): Promise<string | null> {
+    const result =
+        await query<{ id: string }>(
+            `
+                SELECT id
+                FROM "SharedPost"
+                WHERE
+                    "itemType" = 'PACK'::"SharedItemType"
+                    AND "itemId" = $1
+                ORDER BY "createdAt" ASC
+                LIMIT 1
+            `,
+            [packId]
+        );
+
+    return result.rows[0]?.id ?? null;
+}
+
+/**
+ * Publishes a server's Aesthetic Pack to Discover.
+ *
+ * The author of the post is the member who published it, not the server:
+ * `SharedPost.userId` is required and a guild cannot author anything. The
+ * card shows the server's name alongside the author so it still reads as
+ * "this pack belongs to that community".
+ *
+ * Entitlement is the caller's responsibility — every route reaching this is
+ * behind `guardGuildAccess()`, which checks MANAGE_GUILD/ADMINISTRATOR against
+ * Discord's own bitfield. That is why this file, not the feed route, owns the
+ * pack path: the feed route has no guild context to check.
+ *
+ * Idempotent. Re-publishing an already-published pack returns the existing
+ * post rather than re-awarding crowns to a second manager.
+ */
+export async function publishPackToFeed(
+    discordGuildId: string,
+    publisherDiscordId: string,
+    packId: string,
+    caption?: string | null
+): Promise<SharedPostSummary> {
+    const pack = await getPackInGuild(
+        discordGuildId,
+        packId
+    );
+
+    if (!pack) {
+        throw new ExpectedError(
+            "Aesthetic Pack was not found."
+        );
+    }
+
+    const existingPostId =
+        await getPackPostId(packId);
+
+    if (existingPostId) {
+        const existing =
+            await getFeedPostById(
+                existingPostId,
+                publisherDiscordId
+            );
+
+        if (existing) {
+            return existing;
+        }
+    }
+
+    return publishVerifiedItemToFeed(
+        publisherDiscordId,
+        {
+            itemType: "PACK",
+            itemId: packId,
+            caption:
+                caption ?? pack.description,
+        }
+    );
+}
+
+/**
+ * Removes a pack's Discover post.
+ *
+ * Deliberately not limited to the post's author. The member who published a
+ * pack may have left the server, and whoever now manages it has to be able to
+ * take it back down; the guild check the route already did is the authority
+ * here.
+ */
+export async function unpublishPackFromFeed(
+    discordGuildId: string,
+    packId: string
+): Promise<boolean> {
+    const pack = await getPackInGuild(
+        discordGuildId,
+        packId
+    );
+
+    if (!pack) {
+        throw new ExpectedError(
+            "Aesthetic Pack was not found."
+        );
+    }
+
+    return (
+        await removePostsForItem("PACK", packId)
+    ) > 0;
 }
 
 export async function getDefaultAestheticPackId(

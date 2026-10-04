@@ -6,6 +6,10 @@ import {
     query,
 } from "./database";
 
+import {
+    removePostsForItem,
+} from "./sharedFeed";
+
 export type SavedPalette = {
     id: string;
     name: string | null;
@@ -195,9 +199,14 @@ export async function deleteSavedPalette(
             ]
         );
 
-    return (
-        result.rowCount ?? 0
-    ) > 0;
+    const deleted =
+        (result.rowCount ?? 0) > 0;
+
+    if (deleted) {
+        await removePostsForItem("PALETTE", paletteId);
+    }
+
+    return deleted;
 }
 
 export async function getSavedPaletteByIdForDiscordUser(

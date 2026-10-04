@@ -22,14 +22,25 @@ import {
 
 import {
     hasSharedItem,
+    isSharedItemType,
     shareItemToFeed,
     type SharedItemType,
 } from "../../../lib/sharedFeed";
 
-const VALID_ITEM_TYPES: SharedItemType[] = [
+/**
+ * Types this route may publish.
+ *
+ * `PACK` is a valid `SharedItemType` but is deliberately absent: a pack
+ * belongs to a server, so publishing one requires the MANAGE_GUILD check
+ * that only the guild-scoped route can perform. It is rejected by name below
+ * rather than by the generic "unknown type" message, because someone wiring
+ * up a client deserves to be told where packs are published instead.
+ */
+const ROUTE_ITEM_TYPES: SharedItemType[] = [
     "AESTHETIC",
     "PALETTE",
     "ASSET",
+    "PROFILE",
 ];
 
 export async function POST(
@@ -95,14 +106,27 @@ export async function POST(
         body.itemType as
             SharedItemType | undefined;
 
+    if (itemType === "PACK") {
+        return NextResponse.json(
+            {
+                error:
+                    "Aesthetic Packs are published from Server Studio.",
+            },
+            {
+                status: 400,
+            }
+        );
+    }
+
     if (
         !itemType ||
-        !VALID_ITEM_TYPES.includes(itemType)
+        !isSharedItemType(itemType) ||
+        !ROUTE_ITEM_TYPES.includes(itemType)
     ) {
         return NextResponse.json(
             {
                 error:
-                    "itemType must be AESTHETIC, PALETTE or ASSET.",
+                    "itemType must be AESTHETIC, PALETTE, ASSET or PROFILE.",
             },
             {
                 status: 400,

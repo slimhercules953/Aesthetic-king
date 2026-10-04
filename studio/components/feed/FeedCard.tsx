@@ -1,6 +1,7 @@
 "use client";
 
 import {
+    Building2,
     Heart,
     MessageCircle,
     MoreHorizontal,
@@ -15,11 +16,16 @@ import {
 
 import {
     useState,
+    type ReactNode,
 } from "react";
 
 import type {
     FeedPostMedia,
 } from "../../lib/feedItems";
+
+import type {
+    SharedItemType,
+} from "../../lib/sharedFeed";
 
 import {
     creatorProfileHref,
@@ -54,7 +60,7 @@ export type FeedCommentData = {
 
 export type FeedCardData = {
     id: string;
-    itemType: "AESTHETIC" | "PALETTE" | "ASSET";
+    itemType: SharedItemType;
     caption: string | null;
     tags: string[];
     likeCount: number;
@@ -68,6 +74,88 @@ export type FeedCardData = {
     media: FeedPostMedia | null;
     attribution?: FeedAttributionData | null;
 };
+
+/**
+ * What a post's item is called, shown under the author's name.
+ *
+ * Centralised because the same words appear in the Discover filter chips, and
+ * "AESTHETIC" has always been the awkward one: it is a whole saved look, while
+ * the newer PROFILE type is what the Profile Builder actually calls a profile.
+ * Keeping both in one place is what stops the two lists drifting apart and
+ * labelling two different things "profile".
+ */
+export const SHARED_ITEM_LABELS: Record<
+    SharedItemType,
+    string
+> = {
+    AESTHETIC: "aesthetic",
+    PALETTE: "palette",
+    ASSET: "profile set",
+    PROFILE: "composed profile",
+    PACK: "server pack",
+};
+
+/**
+ * The clickable media area of a card.
+ *
+ * Falls back to a plain div when the item has no page a viewer can open. An
+ * Aesthetic Pack lives inside someone else's Server Studio and a composed
+ * profile only has the owner's Builder behind it, so neither card has a
+ * `detailHref`; rendering `<a href="#">` instead would jump the feed to the
+ * top and read as a broken link.
+ */
+function MediaSurface({
+    detailHref,
+    onDoubleClick,
+    className,
+    children,
+}: {
+    detailHref: string | null;
+    onDoubleClick: () => void;
+    className: string;
+    children: ReactNode;
+}) {
+    if (detailHref) {
+        return (
+            <a
+                href={detailHref}
+                onDoubleClick={onDoubleClick}
+                className={className}
+            >
+                {children}
+            </a>
+        );
+    }
+
+    return (
+        <div
+            onDoubleClick={onDoubleClick}
+            className={className}
+        >
+            {children}
+        </div>
+    );
+}
+
+/**
+ * Header art for items with no banner image.
+ *
+ * Composed profiles and server packs pick a colour rather than uploading art,
+ * so the gradient is painted from that colour. Anything that is not a plain
+ * `#rrggbb` is ignored — the value originates from user input, and an inline
+ * style is not a place to be permissive about it.
+ */
+function headerGradient(
+    accentColor: string | null
+): { backgroundImage: string } | undefined {
+    if (!accentColor || !/^#[0-9a-fA-F]{6}$/.test(accentColor)) {
+        return undefined;
+    }
+
+    return {
+        backgroundImage: `linear-gradient(135deg, ${accentColor}40 0%, ${accentColor}18 45%, transparent 80%)`,
+    };
+}
 
 function discordAvatarUrl(
     discordId: string,
@@ -224,12 +312,18 @@ export default function FeedCard({
      * Remixing your own post is neither useful nor allowed, so the button is
      * absent rather than disabled — a disabled control on your own card reads
      * like a bug. ASSET posts are absent too: a catalog set is not the
-     * poster's work, so crediting them for it would be wrong.
+     * poster's work, so crediting them for it would be wrong. PROFILE and
+     * PACK are absent because `lib/remix.ts` refuses to copy them — a profile
+     * is a whole composition and a pack belongs to a server, so neither has a
+     * meaningful "copy and tweak" the way an aesthetic or palette does.
      */
     const canRemix =
         !isOwner &&
         viewerDiscordId !== null &&
-        post.itemType !== "ASSET";
+        (
+            post.itemType === "AESTHETIC" ||
+            post.itemType === "PALETTE"
+        );
 
     const attribution =
         post.attribution ?? null;
@@ -466,11 +560,9 @@ export default function FeedCard({
                                 <p className="text-xs text-zinc-600">
                                     {timeAgo(post.createdAt)}
                                     {" • "}
-                                    {post.itemType === "AESTHETIC"
-                                        ? "full profile"
-                                        : post.itemType === "PALETTE"
-                                        ? "palette"
-                                        : "profile set"}
+                                    {SHARED_ITEM_LABELS[
+                                        post.itemType
+                                    ]}
                                 </p>
                             </div>
                         </>
@@ -550,15 +642,17 @@ export default function FeedCard({
 
             {media &&
                 media.kind !== "palette" && (
-                    <a
-                        href={
-                            media.detailHref ??
-                            "#"
-                        }
+                    <MediaSurface
+                        detailHref={media.detailHref}
                         onDoubleClick={handleMediaDoubleClick}
                         className="group block"
                     >
-                        <div className="relative h-52 overflow-hidden bg-zinc-900 sm:h-64">
+                        <div
+                            className="relative h-52 overflow-hidden bg-zinc-900 sm:h-64"
+                            style={headerGradient(
+                                media.accentColor
+                            )}
+                        >
                             {media.bannerUrl ? (
                                 <img
                                     src={media.bannerUrl}
@@ -581,22 +675,46 @@ export default function FeedCard({
                                 </div>
                             )}
 
+                            {media.guild && (
+                                /*
+                                 * A pack is a community's work, but the post is
+                                 * authored by the member who published it, so
+                                 * the server has to be credited here or the
+                                 * card misattributes it to one person.
+                                 */
+                                <span className="absolute bottom-4 right-4 flex max-w-[60%] items-center gap-2 rounded-full border border-white/10 bg-black/50 py-1 pl-1 pr-3 text-[11px] font-semibold text-zinc-200 backdrop-blur">
+                                    {media.guild.iconUrl ? (
+                                        <img
+                                            src={media.guild.iconUrl}
+                                            alt=""
+                                            className="h-5 w-5 rounded-full object-cover"
+                                        />
+                                    ) : (
+                                        <Building2
+                                            size={13}
+                                            className="text-zinc-400"
+                                        />
+                                    )}
+
+                                    <span className="truncate">
+                                        {media.guild.name}
+                                    </span>
+                                </span>
+                            )}
+
                             {media.aestheticId && (
                                 <span className="absolute right-4 top-4 rounded-full border border-white/10 bg-black/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-300 backdrop-blur">
                                     {media.aestheticId}
                                 </span>
                             )}
                         </div>
-                    </a>
+                    </MediaSurface>
                 )}
 
             {media &&
                 media.kind === "palette" && (
-                    <a
-                        href={
-                            media.detailHref ??
-                            "#"
-                        }
+                    <MediaSurface
+                        detailHref={media.detailHref}
                         onDoubleClick={handleMediaDoubleClick}
                         className="block px-5 py-6"
                     >
@@ -618,7 +736,7 @@ export default function FeedCard({
                                 )
                             )}
                         </div>
-                    </a>
+                    </MediaSurface>
                 )}
 
             {media &&
@@ -676,6 +794,54 @@ export default function FeedCard({
                             <p className="mt-1 truncate text-xs uppercase tracking-[0.16em] text-zinc-600">
                                 {media.subtitle}
                             </p>
+                        )}
+                    </div>
+                )}
+
+            {media &&
+                media.kind === "pack" && (
+                    /*
+                     * A pack is a bundle of colours, symbols and a default
+                     * aesthetic rather than a profile, so the swatches are the
+                     * thing worth showing; the server itself is already credited
+                     * on the header art above.
+                     */
+                    <div className="px-5 pt-4">
+                        <p className="text-sm font-semibold text-zinc-200">
+                            {media.title}
+                        </p>
+
+                        {media.bio && (
+                            <p className="mt-1 line-clamp-2 text-sm text-zinc-500">
+                                {media.bio}
+                            </p>
+                        )}
+
+                        {media.symbols.length > 0 && (
+                            <p className="mt-2 truncate text-base tracking-[0.3em] text-zinc-400">
+                                {media.symbols.slice(0, 8).join(" ")}
+                            </p>
+                        )}
+
+                        {media.palette.length > 0 && (
+                            <div className="mt-3 flex h-8 overflow-hidden rounded-lg border border-white/[0.06]">
+                                {media.palette.map(
+                                    (
+                                        color,
+                                        index
+                                    ) => (
+                                        <div
+                                            key={`${color}-${index}`}
+                                            className="flex-1"
+                                            style={{
+                                                backgroundColor:
+                                                    color,
+                                            }}
+                                            title={color}
+                                        />
+                                    )
+                                )}
+                            </div>
                         )}
                     </div>
                 )}

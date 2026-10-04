@@ -161,6 +161,32 @@ export const FEED_SEARCH_MATCH_SQL = `
             sp."itemType" = 'ASSET'
             AND sp."itemId" = ANY($3::text[])
         )
+        OR (
+            sp."itemType" = 'PROFILE'
+            AND pr.id IS NOT NULL
+            AND (
+                pr.name ILIKE $2
+                OR pr.username ILIKE $2
+                OR pr.bio ILIKE $2
+                OR pr.status ILIKE $2
+                OR pr."profileSetId" = ANY($3::text[])
+            )
+        )
+        OR (
+            sp."itemType" = 'PACK'
+            AND apk.id IS NOT NULL
+            AND (
+                apk.name ILIKE $2
+                OR apk.description ILIKE $2
+                OR apk."aestheticId" ILIKE $2
+                OR apk."moodId" ILIKE $2
+                OR EXISTS (
+                    SELECT 1
+                    FROM unnest(apk.colors) AS pc(hex)
+                    WHERE pc.hex ILIKE $2
+                )
+            )
+        )
         OR sp.caption ILIKE $2
         OR EXISTS (
             SELECT 1
@@ -234,6 +260,14 @@ export function buildFeedSearchQuery(
         LEFT JOIN "SavedPalette" spal
             ON sp."itemType" = 'PALETTE'
             AND spal.id = sp."itemId"
+
+        LEFT JOIN "Profile" pr
+            ON sp."itemType" = 'PROFILE'
+            AND pr.id = sp."itemId"
+
+        LEFT JOIN "AestheticPack" apk
+            ON sp."itemType" = 'PACK'
+            AND apk.id = sp."itemId"
 
         WHERE ${FEED_SEARCH_MATCH_SQL}
         ${filterSql}

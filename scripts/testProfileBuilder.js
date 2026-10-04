@@ -111,6 +111,15 @@ function loadModule(modulePath, stubRequire = {}) {
                 specifier
             );
 
+            // A relative `.json` import (e.g. the asset catalogue) resolves
+            // against the module's own directory, not the test script's.
+            if (
+                specifier.endsWith(".json") &&
+                fs.existsSync(base)
+            ) {
+                return require(base);
+            }
+
             for (const candidate of [
                 `${base}.ts`,
                 path.join(base, "index.ts"),

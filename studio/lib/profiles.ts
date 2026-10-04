@@ -8,6 +8,10 @@ import {
 } from "./database";
 
 import {
+    removePostsForItem,
+} from "./sharedFeed";
+
+import {
     clampText,
     FREE_PROFILE_VERSIONS,
     normalizeDiscriminator,
@@ -552,9 +556,17 @@ export async function deleteProfileForDiscordUser(
             ]
         );
 
-    return (
-        result.rowCount ?? 0
-    ) > 0;
+    const deleted =
+        (result.rowCount ?? 0) > 0;
+
+    if (deleted) {
+        // A published profile keeps its Discover post alive without this:
+        // `SharedPost.itemId` has no foreign key, so the card would stay in
+        // the feed claiming the content no longer exists.
+        await removePostsForItem("PROFILE", id);
+    }
+
+    return deleted;
 }
 
 /**

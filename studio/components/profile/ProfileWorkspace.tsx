@@ -5,6 +5,8 @@ import {
 
 import ProfileBuilder from "./ProfileBuilder";
 
+import ShareToFeedButton from "../feed/ShareToFeedButton";
+
 import type {
     Profile,
 } from "../../lib/profiles";
@@ -91,6 +93,20 @@ export default function ProfileWorkspace({
                                 </p>
                             </div>
                         </div>
+                    )}
+
+                    {profile && (
+                        /*
+                         * Only a saved profile can be published — the Builder is
+                         * also mounted on /profile/new, where there is no row to
+                         * point a post at yet.
+                         */
+                        <ShareToFeedButton
+                            itemType="PROFILE"
+                            itemId={profile.id}
+                            defaultTitle={profile.name}
+                            compact
+                        />
                     )}
 
                     {canCreate &&
