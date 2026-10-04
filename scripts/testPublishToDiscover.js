@@ -362,6 +362,13 @@ function partOne() {
     check("SharedPost is indexed on (itemType, itemId)", /@@index\(\[itemType, itemId\]\)/.test(postBody), postBody.replace(/\s+/g, " "));
     check("SharedPost keeps its per-author uniqueness", /@@unique\(\[userId, itemType, itemId\]\)/.test(postBody));
 
+    // A Discover chip filters on itemType and sorts by time (or popularity).
+    // (itemType, itemId) cannot serve that sort and (createdAt) ignores the
+    // filter, so the composite indexes below are what keep a filtered page
+    // from scanning the feed.
+    check("SharedPost is indexed on (itemType, createdAt)", /@@index\(\[itemType, createdAt\]\)/.test(postBody));
+    check("SharedPost is indexed on (itemType, likeCount, createdAt)", /@@index\(\[itemType, likeCount, createdAt\]\)/.test(postBody));
+
     const migrationsDir = path.join(ROOT, "prisma", "migrations");
     const dirs = fs.existsSync(migrationsDir)
         ? fs.readdirSync(migrationsDir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort()
@@ -1501,6 +1508,47 @@ async function partThree() {
         await packs.deleteServerAestheticPack(guildDiscordId, packId);
         const stillThere = await client.query('SELECT id FROM "AestheticPack" WHERE id = $1', [packId]);
         check("deleting a pack removes the pack", stillThere.rowCount === 0);
+
+        // --- the chip indexes actually exist in the applied schema
+        const indexes = await client.query(
+            'SELECT indexdef FROM pg_indexes WHERE tablename = $1',
+            ["SharedPost"]
+        );
+        const defs = indexes.rows.map((r) => r.indexdef.replace(/\s+/g, " ").toLowerCase());
+        for (const [name, cols] of [
+            ["SharedPost_itemType_createdAt_idx", '("itemtype", "createdat")'],
+            ["SharedPost_itemType_likeCount_createdAt_idx", '("itemtype", "likecount", "createdat")'],
+        ]) {
+            const hit = defs.find((d) => d.includes(name.toLowerCase()));
+            check("the database has " + name, Boolean(hit), hit || "missing");
+            check(name + " covers " + cols, Boolean(hit) && hit.includes(cols), hit || "missing");
+        }
+
+        // Prove the index serves the sorted query rather than merely existing:
+        // with sequential scans disabled the planner must reach for it and,
+        // because itemType is the leading key, return rows already ordered so
+        // no Sort node appears. A dev table is too small for the planner to
+        // choose an index scan on cost alone, hence the override.
+        await client.query("SET enable_seqscan = off");
+        try {
+            const plan = await client.query(
+                'EXPLAIN SELECT sp.id FROM "SharedPost" sp WHERE sp."itemType" = $1::"SharedItemType" ORDER BY sp."createdAt" DESC LIMIT 18',
+                ["PACK"]
+            );
+            const text = plan.rows.map((r) => r["QUERY PLAN"]).join("\n");
+            check(
+                "a filtered recent query scans the itemType index",
+                /SharedPost_itemType_createdAt_idx/.test(text),
+                text.replace(/\s+/g, " ")
+            );
+            check(
+                "a filtered recent query needs no separate sort",
+                !/^\s*->\s*Sort/m.test(text),
+                text.replace(/\s+/g, " ")
+            );
+        } finally {
+            await client.query("SET enable_seqscan = on");
+        }
     } catch (e) {
         check("live end-to-end run completed", false, e && (e.stack || e.message));
     } finally {

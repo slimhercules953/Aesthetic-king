@@ -799,9 +799,23 @@ upserts on `(userId, itemType, itemId)`, but deleting a post and re-sharing
 mints a fresh post id; keying on that would turn unshare-and-republish into a
 daily Crown farm.
 
+**Six chips changed what the feed needs from the index.** Every chip and every
+filtered search is `WHERE "itemType" = $n ORDER BY "createdAt" DESC LIMIT 18`.
+The old `SharedPost_itemType_itemId_idx` can find the type but its second key is
+`itemId`, so the rows come back unordered and each page sorts;
+`SharedPost_createdAt_idx` gives the order but ignores the filter, so a narrow
+chip like "Server packs" walks most of the feed backwards to fill one page.
+`20261005130000_add_discover_item_type_sort_indexes` adds
+`(itemType, createdAt)` and `(itemType, likeCount, createdAt)` — equality column
+first, then the `ORDER BY` columns in precedence order — so the scan returns
+rows already sorted and `LIMIT` stops at one page. Both are declared `ASC` even
+though the feed sorts `DESC`: Postgres walks a btree backwards, so one index
+serves either direction, and matching the schema keeps `prisma migrate diff`
+quiet.
+
 ### Testing it
 
-`node scripts/testPublishToDiscover.js` (259 assertions) covers the slice.
+`node scripts/testPublishToDiscover.js` (267 assertions) covers the slice.
 Offline, over a fake adapter with `next/server` stubbed and the real pure
 `features.ts` loaded, it checks the enum and its migration, that
 `assertPublishableItem` refuses another owner's item and rejects `PACK`, that
@@ -814,6 +828,9 @@ that a publish pays once per item under a key that survives unshare-and-
 republish. Against the real database it runs the whole round trip: publish,
 re-publish reuses the row, wrong-owner and wrong-guild are refused, hydration,
 search by name/colour/caption/tag, creator counts, the Crown ledger, and
-unpublish/delete cleanup. It finishes with a `tsc --noEmit` of the Studio, and
+unpublish/delete cleanup. It also asserts the chip indexes exist in the applied
+schema and, with sequential scans disabled, that a filtered recent query really
+does use `(itemType, createdAt)` and needs no `Sort` node — an index the planner
+never picks is decoration. It finishes with a `tsc --noEmit` of the Studio, and
 skips the database section rather than failing when none is reachable.
 

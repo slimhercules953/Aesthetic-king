@@ -477,6 +477,8 @@ model SharedPost {
   @@index([createdAt])
   @@index([likeCount])
   @@index([itemType, itemId])
+  @@index([itemType, createdAt])
+  @@index([itemType, likeCount, createdAt])
 }
 
 model SharedPostLike {
