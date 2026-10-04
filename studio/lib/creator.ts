@@ -41,6 +41,13 @@ export type CreatorProfile = {
 
     likesReceived: number;
     commentsReceived: number;
+
+    /**
+     * How many saved items other accounts built from this creator's posts.
+     * Counted over the library, not the feed, so it still counts when the
+     * remixer never publishes what they made.
+     */
+    remixesReceived: number;
 };
 
 export type CreatorTag = {
@@ -78,7 +85,8 @@ export async function getCreatorProfile(
                 COALESCE(stats.palettes, 0)::int AS "paletteCount",
                 COALESCE(stats.sets, 0)::int AS "assetSetCount",
                 COALESCE(stats.likes, 0)::int AS "likesReceived",
-                COALESCE(stats.comments, 0)::int AS "commentsReceived"
+                COALESCE(stats.comments, 0)::int AS "commentsReceived",
+                COALESCE(remixes.total, 0)::int AS "remixesReceived"
             FROM "User" u
             LEFT JOIN LATERAL (
                 SELECT
@@ -108,6 +116,28 @@ export async function getCreatorProfile(
                 FROM "SharedPost" sp
                 WHERE sp."userId" = u.id
             ) stats ON TRUE
+            /*
+             * A separate lateral rather than another FILTER on stats: a remix
+             * lives in the library, not the feed, so it cannot be counted from
+             * SharedPost. Both item tables are summed because either kind of
+             * post can be remixed.
+             */
+            LEFT JOIN LATERAL (
+                SELECT
+                    (
+                        SELECT COUNT(*)
+                        FROM "SavedAesthetic" sa
+                        WHERE
+                            sa."remixedFromUserId" = u.id
+                    )
+                    +
+                    (
+                        SELECT COUNT(*)
+                        FROM "SavedPalette" spal
+                        WHERE
+                            spal."remixedFromUserId" = u.id
+                    ) AS total
+            ) remixes ON TRUE
             WHERE u."discordId" = $1
             LIMIT 1
             `,

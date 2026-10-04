@@ -10,6 +10,14 @@ import {
     query,
 } from "./database";
 
+import {
+    getAttributionsForPosts,
+} from "./remix";
+
+import type {
+    PostAttribution,
+} from "./remix";
+
 import type {
     SharedPostSummary,
 } from "./sharedFeed";
@@ -37,6 +45,12 @@ export type FeedPostMedia = {
 
 export type HydratedFeedPost = SharedPostSummary & {
     media: FeedPostMedia | null;
+
+    /**
+     * Set when the item this post renders was itself copied from someone
+     * else's post. The card turns it into a "Remixed from @x" line.
+     */
+    attribution: PostAttribution | null;
 };
 
 type AestheticRow = {
@@ -306,10 +320,12 @@ export async function hydrateFeedPosts(
     const [
         aesthetics,
         palettes,
+        attributions,
     ] =
         await Promise.all([
             hydrateAesthetics(aestheticIds),
             hydratePalettes(paletteIds),
+            getAttributionsForPosts(posts),
         ]);
 
     const assets =
@@ -322,6 +338,9 @@ export async function hydrateFeedPosts(
                 aesthetics.get(post.itemId) ??
                 palettes.get(post.itemId) ??
                 assets.get(post.itemId) ??
+                null,
+            attribution:
+                attributions.get(post.id) ??
                 null,
         })
     );

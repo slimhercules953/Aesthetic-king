@@ -39,6 +39,10 @@ model User {
   sharedLikes   SharedPostLike[]
   sharedComment SharedPostComment[]
 
+  /// Work other users made by remixing this account's published posts.
+  remixedAesthetics SavedAesthetic[] @relation("AestheticRemixAuthor")
+  remixedPalettes   SavedPalette[]   @relation("PaletteRemixAuthor")
+
   notifications Notification[]
 
   discordOAuth DiscordOAuthCredential?
@@ -107,6 +111,9 @@ enum NotificationType {
 
   /// A server the user manages hit a usage limit or lost the bot.
   SERVER
+
+  /// Someone copied a post the user published into their own library.
+  REMIX
 }
 
 model DiscordOAuthCredential {
@@ -150,11 +157,29 @@ model SavedAesthetic {
   symbols String[]
   palette String[]
 
+  /**
+   * Set when this aesthetic was made by remixing someone's published
+   * post. `remixedFromUserId` is kept even though the post row already
+   * knows its author, because the source post can be unshared and the
+   * credit must survive that.
+   *
+   * Both are nullable and both are cleared (never cascaded) if the
+   * original creator deletes their account — a remix is the remixer's
+   * work, and deleting somebody else's account must not delete it.
+   */
+  remixedFromPostId String?
+  remixedFromUserId String?
+
+  remixedFromPost SharedPost? @relation("AestheticRemixSource", fields: [remixedFromPostId], references: [id], onDelete: SetNull)
+  remixedFromUser User?       @relation("AestheticRemixAuthor", fields: [remixedFromUserId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([aestheticId])
+  @@index([remixedFromPostId])
+  @@index([remixedFromUserId])
 }
 
 /**
@@ -214,10 +239,20 @@ model SavedPalette {
 
   colors String[]
 
+  /// Provenance when this palette was made by remixing a published post.
+  /// See `SavedAesthetic.remixedFromPostId` for why both columns exist.
+  remixedFromPostId String?
+  remixedFromUserId String?
+
+  remixedFromPost SharedPost? @relation("PaletteRemixSource", fields: [remixedFromPostId], references: [id], onDelete: SetNull)
+  remixedFromUser User?       @relation("PaletteRemixAuthor", fields: [remixedFromUserId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+  @@index([remixedFromPostId])
+  @@index([remixedFromUserId])
 }
 
 model FavoriteAsset {
@@ -431,6 +466,10 @@ model SharedPost {
 
   likes    SharedPostLike[]
   comments SharedPostComment[]
+
+  /// Saved items other users made by remixing this post.
+  remixedAesthetics SavedAesthetic[] @relation("AestheticRemixSource")
+  remixedPalettes   SavedPalette[]   @relation("PaletteRemixSource")
 
   @@unique([userId, itemType, itemId])
   @@index([createdAt])

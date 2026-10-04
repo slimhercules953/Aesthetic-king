@@ -23,7 +23,8 @@ export type NotificationType =
     | "PREMIUM_EXPIRING"
     | "BOT_UPDATE"
     | "VOTE"
-    | "SERVER";
+    | "SERVER"
+    | "REMIX";
 
 export type NotificationItem = {
     id: string;
@@ -78,8 +79,18 @@ export async function createNotification(input: {
             await query<{ id: string }>(
                 `
                 INSERT INTO "Notification"
-                    ("userId", "type", "title", "body", "href", "icon", "dedupeKey", "createdAt")
-                VALUES ($1, $2::"NotificationType", $3, $4, $5, $6, $7, NOW())
+                    ("id", "userId", "type", "title", "body", "href", "icon", "dedupeKey", "createdAt")
+                VALUES (
+                    gen_random_uuid()::text,
+                    $1,
+                    $2::"NotificationType",
+                    $3,
+                    $4,
+                    $5,
+                    $6,
+                    $7,
+                    NOW()
+                )
                 ON CONFLICT ("dedupeKey") DO NOTHING
                 RETURNING "id"
                 `,

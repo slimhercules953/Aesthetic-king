@@ -5,6 +5,7 @@ import {
     MessageCircle,
     MoreHorizontal,
     Send,
+    Sparkles,
     Trash2,
 } from "lucide-react";
 
@@ -23,6 +24,19 @@ import type {
 import {
     creatorProfileHref,
 } from "../../lib/creatorHref";
+
+import RemixButton from "./RemixButton";
+
+/**
+ * Who a remixed item came from. Mirrors `PostAttribution` in `lib/remix.ts`
+ * but keeps only what the card renders, so the serialized props stay small.
+ */
+export type FeedAttributionData = {
+    sourcePostId: string | null;
+    sourceDiscordId: string;
+    sourceUsername: string | null;
+    sourceDisplayName: string | null;
+};
 
 export type FeedCommentData = {
     id: string;
@@ -48,6 +62,7 @@ export type FeedCardData = {
     authorAvatarHash: string | null;
     likedByViewer: boolean;
     media: FeedPostMedia | null;
+    attribution?: FeedAttributionData | null;
 };
 
 function discordAvatarUrl(
@@ -189,6 +204,34 @@ export default function FeedCard({
         viewerDiscordId !== null &&
         viewerDiscordId ===
             post.authorDiscordId;
+
+    /*
+     * Remixing your own post is neither useful nor allowed, so the button is
+     * absent rather than disabled — a disabled control on your own card reads
+     * like a bug. ASSET posts are absent too: a catalog set is not the
+     * poster's work, so crediting them for it would be wrong.
+     */
+    const canRemix =
+        !isOwner &&
+        viewerDiscordId !== null &&
+        post.itemType !== "ASSET";
+
+    const attribution =
+        post.attribution ?? null;
+
+    const attributionName = attribution
+        ? (
+            attribution.sourceDisplayName ||
+            attribution.sourceUsername ||
+            "someone"
+        )
+        : null;
+
+    const attributionHref = attribution
+        ? creatorProfileHref(
+            attribution.sourceDiscordId
+        )
+        : null;
 
     const media =
         post.media;
@@ -664,6 +707,13 @@ export default function FeedCard({
                     />
                 </button>
 
+                {canRemix && (
+                    <RemixButton
+                        postId={post.id}
+                        onNotice={setError}
+                    />
+                )}
+
                 <span className="ml-2 text-sm font-semibold text-zinc-300">
                     {likeCount.toLocaleString()}{" "}
                     {likeCount === 1
@@ -678,6 +728,37 @@ export default function FeedCard({
                         : "comments"}
                 </span>
             </div>
+
+            {attribution && attributionName && (
+                /*
+                 * The credit line. It links to the original creator, not to
+                 * the original post, because the post may have been unshared
+                 * while the credit remains — that is the case the stored
+                 * author id exists for.
+                 */
+                <p className="mt-3 px-5 text-xs text-zinc-500">
+                    {attributionHref ? (
+                        <a
+                            href={attributionHref}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-white/[0.04] px-2.5 py-1 font-medium text-zinc-400 transition hover:bg-white/[0.07] hover:text-violet-300"
+                        >
+                            <Sparkles
+                                size={12}
+                            />
+
+                            {`Remixed from ${attributionName}`}
+                        </a>
+                    ) : (
+                        <span className="inline-flex items-center gap-1.5">
+                            <Sparkles
+                                size={12}
+                            />
+
+                            {`Remixed from ${attributionName}`}
+                        </span>
+                    )}
+                </p>
+            )}
 
             {(post.caption ||
                 post.tags.length > 0) && (

@@ -49,6 +49,9 @@ export type CrownEarnSource =
     /** Someone commented on a post of theirs. */
     | "comment_received"
 
+    /** Someone copied a post of theirs into their own library. */
+    | "remix_received"
+
     /** Opened the Studio on a day they had not opened it yet. */
     | "daily_visit"
 
@@ -108,6 +111,21 @@ export const CROWN_EARN_RULES: Record<
         label: "A post of yours got a comment",
         amount: 2,
         dailyCap: 10,
+    },
+
+    /*
+     * Priced above a comment and below a publish. A remix is the strongest
+     * signal Discover produces — someone found the work worth building on —
+     * and unlike a like it costs the remixer a slot in their own library.
+     *
+     * The cap is low because one popular post could otherwise be remixed
+     * into the ceiling by a handful of accounts in an afternoon.
+     */
+    remix_received: {
+        source: "remix_received",
+        label: "Someone remixed your post",
+        amount: 3,
+        dailyCap: 5,
     },
 
     daily_visit: {
@@ -671,6 +689,38 @@ export async function awardForComment(
         authorDiscordId,
         "comment_received",
         `comment_received:${commentId}`
+    );
+}
+
+/**
+ * A remix pays the author of the *source* post, once per remixer.
+ *
+ * The key is (post, remixer) rather than the new item, for the same reason
+ * `publish` keys on the item: the id of the thing being created is not the
+ * event. Deleting the copy and remixing again must not pay twice, and
+ * remixing two different posts by the same person should pay twice.
+ *
+ * The self-remix check is here rather than only in `remixFromPost` because
+ * this is the last place that can stop an award, and the remix lib already
+ * refuses self-remixes for reasons that have nothing to do with Crowns.
+ */
+export async function awardForRemix(
+    authorDiscordId: string,
+    remixerDiscordId: string,
+    sourcePostId: string
+): Promise<void> {
+    if (
+        !authorDiscordId ||
+        !sourcePostId ||
+        authorDiscordId === remixerDiscordId
+    ) {
+        return;
+    }
+
+    await award(
+        authorDiscordId,
+        "remix_received",
+        `remix_received:${sourcePostId}:${remixerDiscordId}`
     );
 }
 

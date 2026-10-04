@@ -90,6 +90,7 @@ rows behind them.
 | `publish` | 5 | 3 | whoever shares to Discover |
 | `like_received` | 1 | 10 | the post's author |
 | `comment_received` | 2 | 10 | the post's author |
+| `remix_received` | 3 | 5 | the post's author |
 | `daily_visit` | 3 | 1 | the visitor |
 | `topgg_vote` | 10 | 1 | the voter |
 
@@ -556,4 +557,112 @@ and sort produce the expected SQL. Against the database (skipped, not
 failed, when none is reachable): the profile's counts and tag aggregation,
 creator lookup by name and by tag, and — the check that matters most — that
 a term matching only internal IDs leaks no posts.
+
+## Remixing with attribution
+
+Phase 7's second slice: a **Remix** button on any feed post. It copies the
+published item into the remixer's library, records who it came from, credits
+them on the card, and pays them Crowns.
+
+**The copy carries its own artwork; it does not point at the original.**
+`POST /api/feed/[id]/remix` runs an `INSERT … SELECT` that writes a new
+`SavedAesthetic` / `SavedPalette` row owned by the remixer. This is the
+difference between a remix and a bookmark. The remixer can rename it,
+re-share it, or delete the original without their copy breaking — and the
+original author cannot reach into it, because it is not theirs.
+
+Provenance is two nullable columns on both tables:
+`remixedFromPostId` and `remixedFromUserId`, both `ON DELETE SET NULL`.
+
+**Both columns exist because one of them is a lie waiting to happen.**
+`remixedFromPostId` is the interesting link, but `SharedPost` rows are
+deleted every time someone unshares. If the credit were resolved by joining
+through the post, unsharing would silently erase the attribution from every
+copy ever made — and the copies would stay in people's libraries, uncredited.
+So `remixedFromUserId` is what `getAttributionsForPosts()` actually keys on,
+and the post id is only ever used to build a link. `testRemix.js` asserts
+this directly: it unshares the original, publishes the copy, and requires the
+credit to survive with `sourcePostId === null`.
+
+`SET NULL` (rather than `CASCADE`) is also what makes deleting an account
+safe. The person's own library rows cascade away; the provenance columns on
+*other people's* copies go null instead of deleting their work.
+
+**ASSET posts are not remixable.** An asset post points at a catalog set,
+not at anything the poster made. Copying it would credit someone for
+authorship they do not have. `REMIXABLE_ITEM_TYPES` is `AESTHETIC` and
+`PALETTE` only, and `isRemixableItemType()` is a real type guard — narrowing
+that property is what lets `remixFromPost()` branch without a cast. Note that
+the guard has to *rebuild* the row (`{ ...post, itemType }`) for the
+narrowing to reach the object type; narrowing a property does not narrow the
+containing object.
+
+**A remix is not auto-published.** The button writes a library row and
+nothing else. Sharing is a separate, deliberate act with its own
+`SAVED_PROFILE_LIMIT` and `publish` reward, and letting one click both copy
+and publish would let someone republish someone else's work into the feed
+without ever looking at it.
+
+**Premium is checked twice.** The route asks `getFeatureAccess("PREMIUM_ASSETS")`
+so it can return a proper upsell, and `remixFromPost()` refuses again on
+`premiumUnlocked` rather than trusting its caller — the same belt-and-braces
+`toggleSharedPostLike()` uses for `SHARED_FEED_INTERACTION`. The gate is read
+from the *source item's* `profileSetId` via `premiumSetForPost()`, because
+that is the artwork the copy carries. A palette post can never be premium, so
+the lookup is scoped to `itemType = 'AESTHETIC'`.
+
+**The reward cannot be farmed.** `awardForRemix()` keys the ledger row
+`remix_received:<sourcePostId>:<remixerDiscordId>`, and
+`@@unique([userId, idempotencyKey])` does the rest. Remixing the same post
+twice makes two copies and pays once; a second remixer pays again; a
+self-remix is refused before anything is written. 3 Crowns at a daily cap of
+5 — above a comment, below a publish, and capped low because one popular post
+could otherwise be farmed to the daily ceiling by a few accounts.
+
+The `Notification` is written with `dedupeKey = remix:<postId>:<remixer>`, so
+the repeat-remix case cannot stack notices either. Its title names the
+*remixer*, looked up from their own row — the post row carries the author's
+name, and the author is the one reading the notice.
+
+### Two bugs this slice's tests found
+
+Both were pre-existing and neither was visible in the UI, because both layers
+swallow their errors by design.
+
+- **`createNotification()` never inserted a row.** `Notification.id` is
+  `@default(cuid())` in Prisma, which is a *client-side* default — the column
+  has no database default at all. Every raw-SQL insert from `lib/notifications.ts`
+  was failing on the NOT NULL constraint and being caught by the
+  `catch` that keeps notices from failing their caller. It now supplies
+  `gen_random_uuid()::text` like every other raw insert in `lib/`.
+- **`remixFromPost()` addressed the notice to the wrong person.** It built
+  the title from the post row, which is the author, producing
+  "you remixed your own palette". Fixed to look up the actor, matching the
+  like path.
+
+A notice that silently never arrives looks identical to a notice that was
+never earned. Anything wrapped in a "never let this fail" `catch` needs a
+test that asserts the row exists.
+
+### Testing it
+
+`node scripts/testRemix.js` (67 assertions) runs the real module twice.
+
+Offline, over a fake adapter, it inspects the SQL and the order of
+operations: that a missing post, a self-remix and an asset post are all
+refused before any `INSERT` (the asset refusal before the premium lookup),
+that the copy's insert binds the source post id and the author's internal id
+rather than concatenating them, that it resolves the owner from
+`discordId` rather than trusting a passed-in id, that it writes both
+timestamps, and that it writes a literal `NULL` for `generationId` — which is
+`UNIQUE`, so copying it would collide. Also that the reward and the notice
+happen *after* the copy exists, and that a throwing reward surfaces instead
+of being hidden.
+
+Against the database, with nothing stubbed, it proves the things a fake
+cannot: that the idempotency keys actually hold under the unique indexes,
+that the copy is not auto-published, that the credit survives the source
+being unshared, and that `getCreatorProfile().remixesReceived` counts copies
+and not distinct remixers. It skips rather than fails when no database is
+reachable.
 

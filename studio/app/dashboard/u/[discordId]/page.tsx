@@ -169,6 +169,8 @@ export default async function CreatorProfilePage({
                 likedByViewer:
                     post.likedByViewer,
                 media: post.media,
+                attribution:
+                    post.attribution,
             })
         );
 
@@ -232,6 +234,11 @@ export default async function CreatorProfilePage({
             label: "comments received",
             value: profile.commentsReceived,
             icon: MessageCircle,
+        },
+        {
+            label: "remixes received",
+            value: profile.remixesReceived,
+            icon: Sparkles,
         },
     ];
 

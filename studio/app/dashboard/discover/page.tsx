@@ -249,6 +249,8 @@ export default async function DiscoverPage({
                 likedByViewer:
                     post.likedByViewer,
                 media: post.media,
+                attribution:
+                    post.attribution,
             })
         );
 
