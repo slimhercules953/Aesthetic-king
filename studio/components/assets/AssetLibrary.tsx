@@ -528,7 +528,7 @@ export default function AssetLibrary({
 
             {activeChips.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-700">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">
                         Active
                     </span>
 
@@ -718,7 +718,7 @@ export default function AssetLibrary({
                                         </p>
 
                                         <div className="mt-5">
-                                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-700">
+                                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">
                                                 Moods
                                             </p>
 
@@ -748,7 +748,7 @@ export default function AssetLibrary({
                                         </div>
 
                                         <div className="mt-5">
-                                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-700">
+                                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">
                                                 Tags
                                             </p>
 
@@ -781,7 +781,7 @@ export default function AssetLibrary({
                                                     set.tags || []
                                                 ).length >
                                                     4 && (
-                                                    <span className="px-1 py-0.5 text-[10px] text-zinc-700">
+                                                    <span className="px-1 py-0.5 text-[10px] text-zinc-600">
                                                         +
                                                         {
                                                             set
@@ -870,7 +870,7 @@ function FacetChips({
 
     return (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-            <span className="mt-1.5 w-20 shrink-0 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-700">
+            <span className="mt-1.5 w-20 shrink-0 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">
                 {label}
             </span>
 
@@ -914,7 +914,7 @@ function FacetChips({
                                     active
                                         ? "border-violet-500/40 bg-violet-500/[0.12] text-violet-200"
                                         : count === 0
-                                          ? "border-white/[0.05] text-zinc-700 hover:text-zinc-500"
+                                          ? "border-white/[0.05] text-zinc-600 hover:text-zinc-300"
                                           : "border-white/[0.07] text-zinc-500 hover:border-white/15 hover:text-zinc-300",
                                 ].join(
                                     " "

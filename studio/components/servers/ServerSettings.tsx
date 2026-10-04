@@ -315,7 +315,7 @@ export default function ServerSettings({
                             }}
                             placeholder="123456789012345678"
                             inputMode="numeric"
-                            className="mt-2 h-12 w-full rounded-xl border border-white/[0.07] bg-black/20 px-4 font-mono text-sm text-zinc-300 outline-none placeholder:text-zinc-700 focus:border-violet-500/35"
+                            className="mt-2 h-12 w-full rounded-xl border border-white/[0.07] bg-black/20 px-4 font-mono text-sm text-zinc-300 outline-none placeholder:text-zinc-600 focus:border-violet-500/35"
                         />
                     </label>
 

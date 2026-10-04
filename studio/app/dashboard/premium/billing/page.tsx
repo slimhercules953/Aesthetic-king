@@ -486,7 +486,7 @@ export default async function PremiumBillingPage() {
                                                     }
                                                 </p>
 
-                                                <p className="mt-1 text-xs text-zinc-700">
+                                                <p className="mt-1 text-xs text-zinc-600">
                                                     {
                                                         row.skuId
                                                             ? `Store SKU ${row.skuId}`

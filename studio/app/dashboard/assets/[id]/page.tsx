@@ -336,7 +336,7 @@ export default async function AssetDetailPage({
                     />
 
                     <div className="mt-6">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-700">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">
                             Tags
                         </p>
 
@@ -360,7 +360,7 @@ export default async function AssetDetailPage({
 
                             {(set.tags || []).length ===
                                 0 && (
-                                <span className="text-xs text-zinc-700">
+                                <span className="text-xs text-zinc-600">
                                     Run `node scripts/tagAssetCatalog.js`
                                     to tag this set.
                                 </span>
@@ -435,7 +435,7 @@ function MetadataGroup({
 }) {
     return (
         <div className="mt-6">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-700">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">
                 {
                     title
                 }

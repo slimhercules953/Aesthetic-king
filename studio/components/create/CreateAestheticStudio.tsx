@@ -661,10 +661,10 @@ export default function CreateAestheticStudio({
                             }
                             rows={5}
                             placeholder="Dark vampire-inspired profile, elegant rather than edgy..."
-                            className="mt-2 w-full resize-none rounded-xl border border-white/[0.07] bg-[#0c0c11] p-4 text-sm leading-6 text-zinc-300 outline-none placeholder:text-zinc-700 focus:border-violet-500/40"
+                            className="mt-2 w-full resize-none rounded-xl border border-white/[0.07] bg-[#0c0c11] p-4 text-sm leading-6 text-zinc-300 outline-none placeholder:text-zinc-600 focus:border-violet-500/40"
                         />
 
-                        <span className="mt-2 block text-right text-[10px] text-zinc-700">
+                        <span className="mt-2 block text-right text-[10px] text-zinc-600">
                             {
                                 request.length
                             }

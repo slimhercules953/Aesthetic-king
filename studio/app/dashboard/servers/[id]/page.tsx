@@ -637,7 +637,7 @@ function ConfigurationCard({
                     className={
                         configured
                             ? "text-xs font-medium text-emerald-400"
-                            : "text-xs font-medium text-zinc-700"
+                            : "text-xs font-medium text-zinc-600"
                     }
                 >
                     {configured
@@ -714,7 +714,7 @@ function StudioAreaCard({
                 className={
                     href
                         ? "mt-5 flex items-center gap-1 text-sm font-medium text-violet-400"
-                        : "mt-5 flex items-center gap-1 text-sm font-medium text-zinc-700"
+                        : "mt-5 flex items-center gap-1 text-sm font-medium text-zinc-600"
                 }
             >
                 {href

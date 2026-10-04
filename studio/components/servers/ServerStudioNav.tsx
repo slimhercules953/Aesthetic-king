@@ -95,7 +95,7 @@ export default function ServerStudioNav({
                                 ? "flex items-center gap-2 border-b-2 border-violet-500 px-4 py-3 text-sm font-medium text-violet-300"
                                 : item.enabled
                                   ? "flex items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-medium text-zinc-500 transition hover:text-zinc-200"
-                                  : "flex cursor-default items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-medium text-zinc-700";
+                                  : "flex cursor-default items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-medium text-zinc-600";
 
                         if (
                             !item.enabled

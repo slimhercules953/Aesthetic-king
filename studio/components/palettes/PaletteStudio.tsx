@@ -313,7 +313,7 @@ export default function PaletteStudio({
                                     )
                                 }
                                 placeholder="Midnight Bloom"
-                                className="mt-2 h-11 w-full rounded-xl border border-white/[0.07] bg-black/20 px-3 text-sm text-zinc-300 outline-none placeholder:text-zinc-700 focus:border-violet-500/35"
+                                className="mt-2 h-11 w-full rounded-xl border border-white/[0.07] bg-black/20 px-3 text-sm text-zinc-300 outline-none placeholder:text-zinc-600 focus:border-violet-500/35"
                             />
                         </label>
 
@@ -336,7 +336,7 @@ export default function PaletteStudio({
                                     )
                                 }
                                 placeholder="gothic"
-                                className="mt-2 h-11 w-full rounded-xl border border-white/[0.07] bg-black/20 px-3 text-sm text-zinc-300 outline-none placeholder:text-zinc-700 focus:border-violet-500/35"
+                                className="mt-2 h-11 w-full rounded-xl border border-white/[0.07] bg-black/20 px-3 text-sm text-zinc-300 outline-none placeholder:text-zinc-600 focus:border-violet-500/35"
                             />
                         </label>
 
@@ -359,7 +359,7 @@ export default function PaletteStudio({
                                     )
                                 }
                                 placeholder="dramatic"
-                                className="mt-2 h-11 w-full rounded-xl border border-white/[0.07] bg-black/20 px-3 text-sm text-zinc-300 outline-none placeholder:text-zinc-700 focus:border-violet-500/35"
+                                className="mt-2 h-11 w-full rounded-xl border border-white/[0.07] bg-black/20 px-3 text-sm text-zinc-300 outline-none placeholder:text-zinc-600 focus:border-violet-500/35"
                             />
                         </label>
                     </div>
