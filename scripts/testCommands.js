@@ -228,6 +228,21 @@ for (const [name, count] of counts) {
  * account-level data and need no guild. A new command that is neither
  * guild-scoped nor listed here has not had the question asked, so fail loudly
  * rather than ship another command that quietly bypasses the guild rules.
+ *
+ * The rule for joining this list is "the command needs no guild to do its job",
+ * not "the command happens to link to Studio". Each entry was checked against
+ * that: none of them reads `interaction.guildId`, and the only guild-scoped
+ * query in studioBridgeService is the one behind /serverstats. So the
+ * guild-guarded stages of the interaction pipeline (per-command switch, server
+ * access rules, generation-channel restriction) have no guild policy for these
+ * commands to skip.
+ *
+ *   ping      - health check
+ *   saved     - the caller's own saved aesthetics and palettes
+ *   premium   - the caller's own plan, Crowns and unlocks
+ *   analytics - the caller's own rows, and entitlement-gated on CREATOR_ANALYTICS
+ *   remix     - read-only lookup of published SharedPost rows
+ *   discover  - public feed, public-by-design by intent
  */
 const DM_USABLE_COMMANDS = new Set([
     "ping",
