@@ -73,7 +73,15 @@ export default function ProfilePreview({
             </div>
 
             <div className="px-4 pb-4">
-                <div className="-mt-8 mb-2 flex justify-start">
+                {/*
+                 * `relative z-10` is load-bearing, not tidiness. The
+                 * banner above is `position: relative`, and a positioned
+                 * element paints after unpositioned in-flow content no
+                 * matter where it sits in the DOM — so pulling the avatar
+                 * up with a negative margin alone left the banner art
+                 * painted straight over it.
+                 */}
+                <div className="relative z-10 -mt-8 mb-2 flex justify-start">
                     <div
                         className="flex h-[68px] w-[68px] overflow-hidden rounded-full border-4"
                         style={{
