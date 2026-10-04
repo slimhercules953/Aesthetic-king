@@ -39,6 +39,11 @@ import {
 } from "../../../../lib/unlocks";
 
 import {
+    getEarnStatus,
+    type EarnSourceStatus,
+} from "../../../../lib/crownEarning";
+
+import {
     crownDevToolsEnabled,
 } from "../../../../lib/devTools";
 
@@ -86,6 +91,22 @@ function formatDateTime(
             minute: "2-digit",
         }
     );
+}
+
+/**
+ * "3 left today" / "Earned out for today".
+ *
+ * The remaining count is the only part a user can act on, so it leads;
+ * the cap is left out because seeing "0 left" already implies it.
+ */
+function describeRemaining(
+    source: EarnSourceStatus
+): string {
+    if (source.remaining <= 0) {
+        return "Earned out for today";
+    }
+
+    return `${source.remaining} left today`;
 }
 
 /**
@@ -147,6 +168,7 @@ export default async function PremiumCrownsPage() {
         balance,
         history,
         unlocks,
+        earnStatus,
     ] =
         await Promise.all([
             getCrownBalance(
@@ -158,6 +180,10 @@ export default async function PremiumCrownsPage() {
             ),
 
             getUnlockSummary(
+                identity.discordId
+            ),
+
+            getEarnStatus(
                 identity.discordId
             ),
         ]);
@@ -296,6 +322,92 @@ export default async function PremiumCrownsPage() {
                 </p>
             </section>
 
+            <section className="mt-6 rounded-3xl border border-white/[0.06] bg-[#101015] p-6 lg:p-7">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-600">
+                            Earning Crowns
+                        </p>
+
+                        <p className="mt-2 max-w-2xl text-xs leading-6 text-zinc-500">
+                            Crowns come from participating: publishing
+                            work, getting engagement on it, and turning
+                            up day to day. Each source has its own
+                            daily limit, and everything together is
+                            capped per day, so the balance reflects
+                            activity rather than how long a tab has
+                            been open.
+                        </p>
+                    </div>
+
+                    <div className="text-right">
+                        <p className="text-sm font-semibold text-zinc-200 tabular-nums">
+                            {earnStatus.earnedToday}
+                            <span className="text-zinc-600">
+                                {" / "}
+                                {earnStatus.dailyCap}
+                            </span>
+                        </p>
+
+                        <p className="mt-1 text-[11px] text-zinc-600">
+                            earned today
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {earnStatus.sources.map(
+                        (source: EarnSourceStatus) => {
+                            const maxed =
+                                source.remaining <= 0 ||
+                                earnStatus.dailyRemaining <= 0;
+
+                            return (
+                                <div
+                                    key={source.source}
+                                    className={
+                                        "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 " +
+                                        (maxed
+                                            ? "border-white/[0.04] bg-[#0c0c11] opacity-60"
+                                            : "border-white/[0.06] bg-[#0c0c11]")
+                                    }
+                                >
+                                    <span className="min-w-0 text-sm text-zinc-300">
+                                        {source.label}
+                                    </span>
+
+                                    <span className="shrink-0 text-right">
+                                        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-300">
+                                            <Crown
+                                                size={13}
+                                            />
+
+                                            {source.amount}
+                                        </span>
+
+                                        <span className="mt-0.5 block text-[11px] text-zinc-600">
+                                            {describeRemaining(
+                                                source
+                                            )}
+                                        </span>
+                                    </span>
+                                </div>
+                            );
+                        }
+                    )}
+                </div>
+
+                <p className="mt-4 text-xs leading-6 text-zinc-600">
+                    Daily limits reset at 00:00 UTC. Amounts are
+                    placeholders in{" "}
+                    <code className="rounded bg-white/[0.05] px-1 py-0.5 text-[11px]">
+                        studio/lib/crownEarning.ts
+                    </code>{" "}
+                    and are expected to change before the economy is
+                    finalised.
+                </p>
+            </section>
+
             {
                 unlocks.length > 0 && (
                     <section className="mt-6 rounded-3xl border border-white/[0.06] bg-[#101015] p-6 lg:p-7">
@@ -417,9 +529,9 @@ export default async function PremiumCrownsPage() {
                             </p>
 
                             <p className="text-xs leading-6 text-zinc-600">
-                                Earning rules are still being decided,
-                                so nothing awards Crowns automatically
-                                at the moment.
+                                Publish something to Discover, or
+                                collect the daily visit, and the first
+                                rows will show up here.
                             </p>
                         </div>
                     ) : (

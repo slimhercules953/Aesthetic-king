@@ -6,6 +6,12 @@ import {
     query,
 } from "./database";
 
+import {
+    awardForComment,
+    awardForLike,
+    awardForPublish,
+} from "./crownEarning";
+
 export type SharedItemType =
     | "AESTHETIC"
     | "PALETTE"
@@ -140,6 +146,12 @@ export async function shareItemToFeed(
             "Unable to load the shared post."
         );
     }
+
+    await awardForPublish(
+        discordId,
+        input.itemType,
+        input.itemId
+    );
 
     return post;
 }
@@ -373,6 +385,7 @@ export async function toggleSharedPostLike(
         await query<{
             liked: boolean;
             "likeCount": number;
+            "authorDiscordId": string | null;
         }>(
             `
             WITH actor AS (
@@ -416,7 +429,14 @@ export async function toggleSharedPostLike(
             )
             SELECT
                 (SELECT COUNT(*) > 0 FROM liked) AS liked,
-                (SELECT "likeCount" FROM counted) AS "likeCount"
+                (SELECT "likeCount" FROM counted) AS "likeCount",
+                (
+                    SELECT author_u."discordId"
+                    FROM "SharedPost" author_sp
+                    INNER JOIN "User" author_u
+                        ON author_u.id = author_sp."userId"
+                    WHERE author_sp.id = $1
+                ) AS "authorDiscordId"
             `,
             [
                 postId,
@@ -431,8 +451,18 @@ export async function toggleSharedPostLike(
         return null;
     }
 
+    const liked = Boolean(row.liked);
+
+    if (liked) {
+        await awardForLike(
+            String(row.authorDiscordId ?? ""),
+            discordId,
+            postId
+        );
+    }
+
     return {
-        liked: Boolean(row.liked),
+        liked,
         likeCount: Number(row.likeCount ?? 0),
     };
 }
@@ -560,7 +590,11 @@ export async function addSharedPostComment(
     }
 
     const result =
-        await query<SharedPostComment>(
+        await query<
+            SharedPostComment & {
+                authorDiscordId: string | null;
+            }
+        >(
             `
             WITH actor AS (
                 SELECT id
@@ -610,10 +644,15 @@ export async function addSharedPostComment(
                 u.id AS "userId",
                 u.username,
                 u."displayName",
-                u."avatarHash"
+                u."avatarHash",
+                author_u."discordId" AS "authorDiscordId"
             FROM inserted spc
             INNER JOIN "User" u
                 ON u.id = spc."userId"
+            LEFT JOIN "SharedPost" author_sp
+                ON author_sp.id = spc."postId"
+            LEFT JOIN "User" author_u
+                ON author_u.id = author_sp."userId"
             LIMIT 1
             `,
             [
@@ -623,8 +662,26 @@ export async function addSharedPostComment(
             ]
         );
 
-    return (
-        result.rows[0] ??
-        null
+    const row = result.rows[0];
+
+    if (!row) {
+        return null;
+    }
+
+    await awardForComment(
+        String(row.authorDiscordId ?? ""),
+        discordId,
+        row.id
     );
+
+    return {
+        id: row.id,
+        postId: row.postId,
+        body: row.body,
+        createdAt: row.createdAt,
+        userId: row.userId,
+        username: row.username,
+        displayName: row.displayName,
+        avatarHash: row.avatarHash,
+    };
 }

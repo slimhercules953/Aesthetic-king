@@ -67,11 +67,74 @@ Crown price. Change a number there, never at a call site.
   "not tracked yet" instead of a false `0 of N`.
 - `lib/crowns.ts` is an append-only ledger. Balance is always
   `SUM(amount)`; `spendCrowns` is the only safe way to debit.
+- `lib/crownEarning.ts` is the only way Crowns come into existence.
+  See "Earning Crowns" below.
 - `lib/gate.ts` enforces limits server-side. Every protected route
   calls `requireFeature` — hiding a button is not a limit.
 
 Pages: `/dashboard/premium`, `/premium/usage`, `/premium/crowns`,
 `/premium/billing`.
+
+### Earning Crowns
+
+A `CrownTransaction` row is the only record of a Crown, so earning is
+just writing a positive row. There is no balance column and no counter
+table to keep in sync — the daily caps are counted out of the ledger
+itself, which means the numbers on the page can never disagree with the
+rows behind them.
+
+`CROWN_EARN_RULES` in `lib/crownEarning.ts` holds every amount and cap
+(placeholder numbers, same convention as `features.ts`):
+
+| Source | Amount | Per day | Paid to |
+| --- | --- | --- | --- |
+| `publish` | 15 | 3 | whoever shares to Discover |
+| `like_received` | 2 | 10 | the post's author |
+| `comment_received` | 3 | 10 | the post's author |
+| `daily_visit` | 5 | 1 | the visitor |
+| `topgg_vote` | 25 | 1 | the voter |
+
+`CROWN_EARN_DAILY_TOTAL_CAP` (60) is a second ceiling on top of the
+per-source ones, so no combination of sources can exceed it.
+
+Product code never calls `awardCrowns` directly — it calls one of
+`awardForPublish`, `awardForLike`, `awardForComment`,
+`awardForDailyVisit` or `awardForTopggVote`. Three rules those hooks
+enforce, all of them anti-farming:
+
+- **An idempotency key per event, not per call.** `publish:<itemType>:<itemId>`
+  (not the post id — unsharing and re-sharing mints a new post id, which
+  would otherwise be a way to re-earn), `like_received:<postId>:<liker>`
+  (unliking and re-liking pays once), `comment_received:<commentId>`,
+  `daily_visit:<UTC day>`, `topgg_vote:<voter>:<UTC day>`. The unique
+  index on `(userId, idempotencyKey)` is what actually enforces this.
+- **You cannot pay yourself.** Self-likes and self-comments award
+  nothing. The check lives in `crownEarning.ts` rather than in the API
+  route so any future like surface inherits it.
+- **Awarding never breaks the thing that earned it.** `awardCrowns`
+  catches everything and returns `{ awarded: false }`; a failed award is
+  logged, never thrown at a publish or comment that already succeeded.
+
+Awards take a `FOR UPDATE` lock on the user row inside the transaction,
+the same way `spendCrowns` does, so an earn and a spend cannot both read
+the same daily total. Because the daily-visit hook fires on every
+dashboard page load, there is a cheap duplicate read *before* the
+transaction so the common "already awarded today" case costs no lock.
+
+`/dashboard/premium/crowns` shows what is left today per source via
+`getEarnStatus`.
+
+**Top.gg votes.** `app/api/webhooks/topgg/route.ts` receives vote
+webhooks. Set `TOPGG_WEBHOOK_SECRET` to the webhook authorization token
+you configure on Top.gg; requests are compared against it in constant
+time. Without the variable the route answers `404` so an unconfigured
+deployment exposes nothing. Only `type: "upvote"` pays — `test` and
+`revote` are acknowledged and ignored — and the vote pays the *voter*,
+not the bot owner. An unknown Discord id is acknowledged with `200` but
+invents no account and no balance.
+
+`node scripts/testCrownEarning.js` covers all of it without a database,
+including the webhook route itself (74 assertions).
 
 ## Server Studio
 

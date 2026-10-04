@@ -208,7 +208,7 @@ npm run deploy   # deploy to Cloudflare Workers
 
 ### Tests & utilities
 
-Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `testOllama.js`, `testColors.js`, `testRenderer.js`, `testAestheticService.js`, `testPremiumGate.js`, `testPremiumStatus.js`, `testUserService.js`, `testSavedAestheticService.js`, `testStudioPhase2.js`, `testAssetExplorer.js`, `testProfileBuilder.js`, `testCompleteProfile.js`, `testGuildSettingsPatch.js`, plus asset catalog tooling (`generateAssetCatalog.js`, `seedAssetClassifications.js`, `tagAssetSet.js`, `tagAssetCatalog.js`) and command management (`clearGlobalCommands.js`, `clearGuildCommands.js`, `deleteGuildCommand.js`). Run individually, e.g. `node scripts/testDatabase.js`.
+Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `testOllama.js`, `testColors.js`, `testRenderer.js`, `testAestheticService.js`, `testPremiumGate.js`, `testPremiumStatus.js`, `testUserService.js`, `testSavedAestheticService.js`, `testStudioPhase2.js`, `testAssetExplorer.js`, `testProfileBuilder.js`, `testCompleteProfile.js`, `testGuildSettingsPatch.js`, `testCrownEarning.js`, plus asset catalog tooling (`generateAssetCatalog.js`, `seedAssetClassifications.js`, `tagAssetSet.js`, `tagAssetCatalog.js`) and command management (`clearGlobalCommands.js`, `clearGuildCommands.js`, `deleteGuildCommand.js`). Run individually, e.g. `node scripts/testDatabase.js`.
 
 `node scripts/testPremiumGate.js` verifies the bot-side Premium Assets gate: that a free user is never handed a premium set (catalog path and R2 path), that an unlocked user still is, that premium-only filters produce the upsell rather than an empty-library reply, that plans resolve from live entitlements, and that every upsell is answered ephemerally.
 
@@ -225,6 +225,8 @@ Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `t
 `node scripts/testGuildSettingsPatch.js` covers the server settings PATCH (`studio/lib/guildSettings.ts`) against the real database: that one save writes channel, aesthetic and mood together, that patching one column preserves the others, that an explicit `null` clears a column, that repeated saves update the row rather than adding one, and that an empty patch or an uninstalled guild is refused. It also checks the generated SQL directly — the guild id is always the first parameter, only patched columns appear in the statement, and `createdAt`/`updatedAt` are always written. It creates a throwaway guild and deletes it again.
 
 `node scripts/tagAssetCatalog.js` regenerates the `tags` array on every catalog set from the aesthetics, moods and colors already in `src/data/assetCatalog.json`. It is deterministic and safe to re-run after `generateAssetCatalog.js`; pass `--dry-run` to preview. See *Catalog tags* in [`studio/README.md`](studio/README.md).
+
+`node scripts/testCrownEarning.js` covers the Crowns earn layer (`studio/lib/crownEarning.ts`) without a database, against a fake `database` module that is a real in-memory ledger rather than a set of canned answers: that each source pays its configured amount, that per-source caps and the daily total cap bite at exactly the right award, that a repeated event is refused by its idempotency key, that self-likes and self-comments pay nothing, that a like and a comment still pay the *author* when someone else acts, that an unknown Discord id invents no row, and that a failed award is swallowed instead of thrown. Its last section drives the actual Top.gg webhook route with `next/server` stubbed, checking that an unconfigured deployment answers 404, a missing or wrong secret 401, a malformed body 400, that `test` and `revote` deliveries are acknowledged but pay nobody, that a real vote pays the voter exactly once even when Top.gg retries the delivery, and that a vote from an unknown account creates nothing.
 
 ---
 
@@ -249,7 +251,7 @@ The product direction is incremental. Current foundation: bot V2, aesthetic/mood
 | **3** ✅ | Asset Explorer — searchable R2 library with aesthetic/mood/color metadata, tags, filters, profile sets |
 | **4** ✅ | Profile Builder — visual Discord-style profile construction with live preview |
 | **5** ✅ | Complete My Profile — coordinate a full identity from one starting element (PFP, banner, palette, aesthetic…) |
-| **6** | Finalize Free/Premium boundaries and the Crowns economy (earn via community participation, Top.gg votes; spend on individual premium actions) |
+| **6** 🔄 | Finalize Free/Premium boundaries and the Crowns economy — earn via community participation and Top.gg votes; spend on individual premium actions. Earn side shipped: `studio/lib/crownEarning.ts` is the only path Crowns enter the ledger through (publish, likes, comments, daily visit, Top.gg votes), with per-source and daily-total caps counted out of the ledger itself and an idempotency key per event so nothing can be farmed. Spend side and final numbers are still placeholders |
 | **7** | Community — publish Packs/profiles to Discover, creator profiles, search/filters, remixing with attribution, creator analytics |
 
 ### Design constraints

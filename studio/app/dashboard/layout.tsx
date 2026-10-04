@@ -14,6 +14,10 @@ import {
     verifySessionToken,
 } from "../../lib/session";
 
+import {
+    awardForDailyVisit,
+} from "../../lib/crownEarning";
+
 export default async function DashboardLayout({
     children,
 }: {
@@ -39,6 +43,14 @@ export default async function DashboardLayout({
     if (!session) {
         redirect("/");
     }
+
+    /*
+     * The daily visit is awarded here because this layout is the single
+     * place every signed-in page passes through. It is a duplicate lookup
+     * on all but the first visit of the day, so it costs one indexed read
+     * rather than a write.
+     */
+    await awardForDailyVisit(session.discordId);
 
     return (
         <div className="h-screen overflow-hidden bg-[#08080c] text-white">
