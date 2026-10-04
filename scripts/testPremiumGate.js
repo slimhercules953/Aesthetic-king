@@ -331,13 +331,204 @@ async function main() {
         );
 
     /*
-     * Commands and buttons that pick a set themselves must resolve the
-     * entitlement before acknowledging the interaction, otherwise the
-     * reply is already public and the upsell cannot be hidden.
+     * The entitlement check lives in the shared helpers (`generateProfile`,
+     * `prepareTheme`) rather than at each call site, so grepping a command
+     * file for it proves nothing. These cases run the real handlers with a
+     * locked user and a pick that only matches premium sets, and assert on
+     * the calls actually made: the first thing sent must be an ephemeral
+     * reply, and nothing may be deferred before it.
+     */
+    const {
+        PREMIUM_SETS_ONLY_ERROR,
+    } = require("../src/services/assets/premiumSets");
+
+    function withStubs(stubs, load) {
+        const saved = new Map();
+
+        for (const [relative, exports] of Object.entries(stubs)) {
+            const filename = require.resolve(relative);
+
+            saved.set(filename, require.cache[filename]);
+
+            require.cache[filename] = {
+                id: filename,
+                filename,
+                loaded: true,
+                exports,
+                children: [],
+                paths: [],
+            };
+        }
+
+        try {
+            return load();
+        } finally {
+            for (const [filename, entry] of saved) {
+                if (entry) {
+                    require.cache[filename] = entry;
+                } else {
+                    delete require.cache[filename];
+                }
+            }
+        }
+    }
+
+    function loadFresh(relative) {
+        const filename = require.resolve(
+            path.join(__dirname, "..", relative)
+        );
+
+        delete require.cache[filename];
+
+        return require(filename);
+    }
+
+    const stubs = {
+        "../src/services/entitlements/featureAccessService": {
+            resolvePremiumAssets: async () => false,
+        },
+
+        "../src/services/aesthetics/packSetService": {
+            pickProfileSet: async () => {
+                throw new Error(PREMIUM_SETS_ONLY_ERROR);
+            },
+
+            hasFilters: () => false,
+        },
+
+        "../src/services/aesthetics/packContextService": {
+            withPackOption: (option) => option,
+            respondToPackAutocomplete: async () => {},
+            buildPackUnavailableReply: () => ({}),
+            resolveGenerationContext: async () => ({
+                aestheticId: null,
+                moodId: null,
+                pack: null,
+            }),
+        },
+
+        "../src/services/interactions/interactionStateService": {
+            getState: (stateId) =>
+                stateId === "state-1"
+                    ? {
+                        data: {
+                            userId: "user-1",
+                            aestheticId: null,
+                            moodId: null,
+                            packName: null,
+                            packColors: [],
+                            profileSetId: null,
+                        },
+                    }
+                    : null,
+            createState: () => "state-1",
+            updateState: () => {},
+        },
+    };
+
+    function fakeInteraction(customId) {
+        const calls = [];
+
+        return {
+            calls,
+            user: { id: "user-1" },
+            guildId: "guild-1",
+            customId,
+            options: { getString: () => null },
+            deferReply: async () => calls.push("defer"),
+            deferUpdate: async () => calls.push("defer"),
+            reply: async (payload) => calls.push(payload),
+            editReply: async () => calls.push("edit"),
+            followUp: async () => calls.push("followUp"),
+        };
+    }
+
+    const lockedCallSites = withStubs(stubs, () => ({
+        "profile.js": loadFresh(
+            "src/commands/profile/profile.js"
+        ).execute,
+
+        "theme.js": loadFresh(
+            "src/commands/profile/theme.js"
+        ).execute,
+
+        "profileReroll.js": loadFresh(
+            "src/components/buttons/profileReroll.js"
+        ).execute,
+
+        "themeReroll.js": loadFresh(
+            "src/components/buttons/themeReroll.js"
+        ).execute,
+    }));
+
+    for (const [name, execute] of Object.entries(lockedCallSites)) {
+        const interaction = fakeInteraction(
+            "profile:reroll:state-1"
+        );
+
+        let thrown = null;
+
+        try {
+            await execute(interaction);
+        } catch (error) {
+            thrown = error;
+        }
+
+        check(
+            `${name} answers a locked pick without throwing`,
+            thrown === null,
+            thrown?.message
+        );
+
+        const first = interaction.calls[0];
+
+        check(
+            `${name} replies to a lock before deferring`,
+            first && typeof first === "object",
+            `first call was ${JSON.stringify(first)}`
+        );
+
+        check(
+            `${name} replies to a lock ephemerally`,
+            first &&
+                typeof first === "object" &&
+                (first.flags & MessageFlags.Ephemeral) ===
+                    MessageFlags.Ephemeral,
+            `flags ${first?.flags}`
+        );
+
+        /*
+         * Guards against a false pass: an expired button session also
+         * answers with a single ephemeral reply, so assert the payload is
+         * genuinely the upsell embed rather than any other private notice.
+         */
+        check(
+            `${name} answers the lock with the upsell embed`,
+            first &&
+                typeof first === "object" &&
+                Array.isArray(first.embeds) &&
+                first.embeds.length > 0 &&
+                !first.content,
+            JSON.stringify(first?.content ?? null)
+        );
+
+        check(
+            `${name} locks nothing else into the channel`,
+            interaction.calls.length === 1,
+            interaction.calls
+                .map((call) =>
+                    typeof call === "string" ? call : "reply"
+                )
+                .join(", ")
+        );
+    }
+
+    /*
+     * The helpers themselves must resolve the entitlement before any
+     * rendering work, which is also what keeps the slow path out of the
+     * three-second window.
      */
     for (const file of [
-        "src/commands/profile/profile.js",
-        "src/commands/profile/theme.js",
         "src/components/buttons/profileReroll.js",
         "src/components/buttons/themeReroll.js",
     ]) {
@@ -349,15 +540,9 @@ async function main() {
         );
 
         check(
-            `${path.basename(file)} checks entitlement before deferring`,
-            gateAt !== -1 && deferAt !== -1 && gateAt < deferAt
-        );
-
-        check(
-            `${path.basename(file)} replies to a lock with the ephemeral payload`,
-            /interaction\.reply\(\s*buildPremiumLockedReply\(/.test(
-                source
-            )
+            `${path.basename(file)} resolves entitlement before deferring`,
+            gateAt !== -1 && deferAt !== -1 && gateAt < deferAt,
+            `gate ${gateAt}, defer ${deferAt}`
         );
     }
 
