@@ -2,6 +2,7 @@
 
 import {
     Activity,
+    BarChart3,
     CircleUserRound,
     Coins,
     Compass,
@@ -105,6 +106,16 @@ const premiumNavigation = [
         label: "Usage",
         href: "/dashboard/premium/usage",
         icon: Activity,
+    },
+    /*
+     * Listed for everyone, including free accounts. The page itself refuses
+     * the request; a nav entry that silently disappears for non-Premium users
+     * hides the feature rather than selling it.
+     */
+    {
+        label: "Analytics",
+        href: "/dashboard/analytics",
+        icon: BarChart3,
     },
     {
         label: "Crowns",

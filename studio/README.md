@@ -666,3 +666,90 @@ being unshared, and that `getCreatorProfile().remixesReceived` counts copies
 and not distinct remixers. It skips rather than fails when no database is
 reachable.
 
+## Creator analytics
+
+Phase 7's last unbuilt piece: `/dashboard/analytics`, a Premium page that
+tells a creator how their published work is doing. `lib/creatorAnalytics.ts`
+is the whole data layer — `recordPostView()` on the write side,
+`getCreatorAnalytics()` on the read side.
+
+**A "view" is a person, not an impression.** `SharedPostView` keeps one row
+per `(post, viewer)` and upserts it: `views` grows, `lastViewAt` moves,
+`firstViewAt` stays put. That single table answers both questions a creator
+asks — `COUNT(*)` is honest reach, `SUM(views)` is impressions — without an
+append-only log. A raw log would be the only unbounded table in the product,
+and it would let one tab refreshing on a feed invent a four-figure audience.
+Reach is the number the page leans on, and reach is exact.
+
+**There is no denormalized `viewCount` on `SharedPost`.** `likeCount` and
+`commentCount` live there because every feed card reads them; views are read
+only by the analytics page, which aggregates across posts anyway. A counter
+column nobody on the hot path reads is just another thing that can drift out
+of sync.
+
+**The author never gets a row, and that is enforced in SQL.** The upsert is
+one statement — `INSERT … SELECT viewer CROSS JOIN post … WHERE post."userId"
+<> viewer.id ON CONFLICT … DO UPDATE … RETURNING`. A creator scrolling their
+own published work would otherwise be their own biggest audience, which makes
+every number on the page meaningless. Doing the check in the `WHERE` costs
+nothing; a second round trip to fetch the author would double the price of
+every scroll. When zero rows come back, one cheap lookup distinguishes
+`"self"` from `"not-found"`.
+
+**The write path is deliberately forgiving.** `PostViewTracker.ts` reports a
+card once it is 60% visible for 1.2 seconds, guarded by a module-scoped
+`Set` so filter changes and `router.refresh()` remounts don't re-report. The
+route answers `204` for every outcome and swallows write failures — the
+reader is not waiting on an answer, and a view is not worth an error toast.
+The lib, by contrast, lets a database failure propagate: the route may
+ignore it, but the lib must not *claim* a view that never landed.
+
+**The window moves some numbers and not others.** `getCreatorAnalytics(id,
+{days})` clamps `days` to 1..90 and passes it only to the per-post window
+column and the trend. The totals are lifetime figures on purpose — a creator
+who published last month still has the same likes when they switch to "last
+7 days". `Number.isFinite` guards the clamp: `Math.floor(NaN)` is `NaN`,
+`NaN` survives both `Math.min`/`Math.max`, and it would otherwise bind
+straight into a `::int` placeholder and throw.
+
+**The trend is generated, not derived from rows.** `generate_series` fills
+every day in the window so quiet days show as zeroes instead of vanishing.
+It is bucketed on `firstViewAt` for reach and `lastViewAt` for impressions,
+which is approximate for the latter by design — the row only remembers its
+most recent view, so a viewer who looked Monday and Thursday lands in
+Thursday's bucket twice.
+
+### Two bugs this slice's tests found
+
+`testCreatorAnalytics.js` runs the real module against the real database, and
+both of these surfaced immediately — neither was visible offline.
+
+- **The trend was always empty.** `generate_series($2 - 1, 0, 1)` counts
+  *up* from 29 to 0, which is no rows at all, so every window returned zero
+  buckets. Fixed to `generate_series(0, $2 - 1, 1)` with the offset
+  subtracted in the `SELECT`.
+- **`windowViews` counted viewers, not impressions.** It used `COUNT(*)`
+  over the view rows, so one person who looked four times in the window read
+  as one — sitting right next to a "Views" column that meant something else.
+  Fixed to `SUM(views)`.
+
+A chart that renders empty and a stat that quietly undercounts both look
+exactly like "you don't have traffic yet". Anything that aggregates needs a
+test that puts a known number in and asks for it back.
+
+### Testing it
+
+`node scripts/testCreatorAnalytics.js` (85 assertions) covers the write and
+read halves. Offline, over a recording adapter, it inspects the SQL: that the
+upsert targets the `(userId, postId)` key and bumps the counter rather than
+inserting, that it leaves `firstViewAt` alone, that the author is excluded
+inside the statement, that neither id is interpolated, that a malformed
+viewer id or empty post id never reaches SQL, that a no-op write is
+classified `self` or `not-found` from one lookup, that a throwing write
+propagates, and that every `$n` placeholder has a parameter. Against the
+database it proves what a fake cannot: that repeat views collapse into one
+row while still counting as multiple impressions, that the author's own view
+is refused, that reach counts people while views count lookings, and that a
+30-day trend returns thirty buckets with quiet days present as zeroes. It
+skips rather than fails when no database is reachable.
+

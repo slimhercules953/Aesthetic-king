@@ -38,6 +38,7 @@ model User {
   shares        SharedPost[]
   sharedLikes   SharedPostLike[]
   sharedComment SharedPostComment[]
+  sharedViews   SharedPostView[]
 
   /// Work other users made by remixing this account's published posts.
   remixedAesthetics SavedAesthetic[] @relation("AestheticRemixAuthor")
@@ -466,6 +467,7 @@ model SharedPost {
 
   likes    SharedPostLike[]
   comments SharedPostComment[]
+  views    SharedPostView[]
 
   /// Saved items other users made by remixing this post.
   remixedAesthetics SavedAesthetic[] @relation("AestheticRemixSource")
@@ -488,6 +490,34 @@ model SharedPostLike {
 
   @@id([userId, postId])
   @@index([postId])
+}
+
+/// One row per (post, viewer) rather than one row per impression.
+///
+/// Creator analytics wants two different numbers — how many *people* saw a
+/// post and how many *times* it was seen — and only the first is honest
+/// reach. Counting raw impressions would let one tab refreshing on a feed
+/// produce a four-figure view count, so the row is upserted: `views` grows,
+/// `lastViewAt` moves, and the row's existence is the unique-audience
+/// count.
+///
+/// The author never gets a row. A creator scrolling their own published work
+/// would otherwise be their own biggest audience, which makes every stat on
+/// the page meaningless.
+model SharedPostView {
+  userId String
+  postId String
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post SharedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  views       Int      @default(1)
+  firstViewAt DateTime @default(now())
+  lastViewAt  DateTime @default(now())
+
+  @@id([userId, postId])
+  @@index([postId, lastViewAt])
+  @@index([userId])
 }
 
 model SharedPostComment {

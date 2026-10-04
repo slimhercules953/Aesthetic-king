@@ -25,6 +25,10 @@ import {
     creatorProfileHref,
 } from "../../lib/creatorHref";
 
+import {
+    usePostViewTracking,
+} from "./PostViewTracker";
+
 import RemixButton from "./RemixButton";
 
 /**
@@ -204,6 +208,17 @@ export default function FeedCard({
         viewerDiscordId !== null &&
         viewerDiscordId ===
             post.authorDiscordId;
+
+    /*
+     * Counts as a view only for someone else's card. The hook returns a ref
+     * for the outer element, which is what the observer watches.
+     */
+    const cardRef = usePostViewTracking({
+        postId: post.id,
+        viewerDiscordId,
+        authorDiscordId:
+            post.authorDiscordId,
+    });
 
     /*
      * Remixing your own post is neither useful nor allowed, so the button is
@@ -411,7 +426,10 @@ export default function FeedCard({
     }
 
     return (
-        <article className="overflow-hidden rounded-3xl border border-white/[0.06] bg-[#101015]">
+        <article
+            ref={cardRef}
+            className="overflow-hidden rounded-3xl border border-white/[0.06] bg-[#101015]"
+        >
             <div className="flex items-center gap-3 px-5 py-4">
                 {(() => {
                     /*
