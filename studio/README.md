@@ -203,6 +203,10 @@ not exist; an API client gets 401/403/502 so it can tell the difference.
   matching DENY denies, any ALLOW present requires a match, otherwise
   open.
 - `lib/guildAnalytics.ts` — five aggregate queries over `GuildUsageEvent`.
+- `lib/guildRoles.ts` — the hex-code cosmetic role maker on the Appearance tab.
+  Validation, hex↔integer conversion, a WCAG readability warning and the
+  `GuildCosmeticRole` receipt table. The Discord write itself lives in
+  `discordBot.ts`, because that module owns the bot-token REST client.
 - `lib/guildSettings.ts` — `getGuildSettingsByDiscordId()` and a single
   `updateGuildSettings(guildId, patch)` that writes any combination of the
   patchable columns in one upsert. The settings API validates every field in
@@ -283,6 +287,10 @@ In addition, and regardless of the flags:
 
 The flags are read from Cloudflare bindings *and* `process.env`, so
 either `.dev.vars` or a real environment variable works.
+
+`node scripts/testDevTools.js` asserts all of the above by trying to get
+the guard to return `true` in every way an operator might plausibly
+misconfigure a deploy.
 
 ### Store provenance
 
