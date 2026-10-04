@@ -3,7 +3,7 @@
  * Pack (or server default) that narrowed things to, say, `dark` had nowhere
  * to take effect. This keeps the two commands on one picker: the full pool
  * when nothing narrows the request, and the catalog-filtered pool as soon as
- * an aesthetic, mood, or colour is known.
+ * an aesthetic, mood, or color is known.
  */
 
 const {

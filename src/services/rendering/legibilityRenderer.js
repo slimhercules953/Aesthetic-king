@@ -99,7 +99,7 @@ function drawThemePanel(ctx, { y, theme, username, color, ratio }) {
         avatarY + avatarSize / 2 + 1
     );
 
-    // Username line, exactly how Discord tints a role colour
+    // Username line, exactly how Discord tints a role color
     const textX = avatarX + avatarSize + 18;
     const maxTextWidth = boxX + boxW - 22 - textX;
 
@@ -126,7 +126,7 @@ function drawThemePanel(ctx, { y, theme, username, color, ratio }) {
         avatarY + 24
     );
 
-    // Message body in the theme's own text colour
+    // Message body in the theme's own text color
     ctx.font = `17px ${FONT_STACK}`;
     ctx.fillStyle = theme.text;
     ctx.fillText(
@@ -139,9 +139,9 @@ function drawThemePanel(ctx, { y, theme, username, color, ratio }) {
         avatarY + 58
     );
 
-    // Role chip, the other place a colour gets used
+    // Role chip, the other place a color gets used
     const chipY = avatarY + 82;
-    const chipLabel = "@role colour";
+    const chipLabel = "@role color";
 
     ctx.font = `bold 15px ${FONT_STACK}`;
     const chipW = ctx.measureText(chipLabel).width + 22;
@@ -204,8 +204,8 @@ function drawSwatchRow(ctx, { y, colors }) {
 /**
  * @param {object} params
  * @param {string} params.username  text to preview (display name / username)
- * @param {string} params.color     the colour being tested as a role colour
- * @param {Array}  params.colors    analyzed colours for the swatch strip
+ * @param {string} params.color     the color being tested as a role color
+ * @param {Array}  params.colors    analyzed colors for the swatch strip
  */
 async function renderLegibilityPreview({
     username,

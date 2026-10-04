@@ -193,7 +193,7 @@ export default function ProfileBuilder({
      * Runs once, on mount. "Use in Aesthetic" means "put this set on my
      * profile", so the set is applied even when the profile already has
      * one; the palette is only seeded when the profile has none of its
-     * own, so hand-picked colours survive.
+     * own, so hand-picked colors survive.
      *
      * `replaceState` drops the query string afterwards so a refresh (or a
      * second mount from Fast Refresh) cannot re-apply it and quietly undo
@@ -214,7 +214,7 @@ export default function ProfileBuilder({
 
         setDraft((current) => {
             /*
-             * The catalog tags sets with colour *names* ("black", "gold"),
+             * The catalog tags sets with color *names* ("black", "gold"),
              * not hex, so the names are translated through the same table
              * "Complete My Profile" uses. Anything already in hex passes
              * through untouched.
@@ -442,7 +442,7 @@ export default function ProfileBuilder({
      *
      * A draft with no set and no usable palette is not sent at all. The
      * API would reject it, so autosaving it would turn "I typed a name"
-     * into a red error message about colours. The status line says why
+     * into a red error message about colors. The status line says why
      * instead, and the first real save happens as soon as the draft is
      * saveable.
      */
@@ -648,8 +648,8 @@ export default function ProfileBuilder({
     /**
      * Replaces an existing palette entry in place.
      *
-     * Keying the swatches by colour value means a recolour that lands on a
-     * colour already in the palette would produce two identical keys and a
+     * Keying the swatches by color value means a recolor that lands on a
+     * color already in the palette would produce two identical keys and a
      * duplicate entry, so the list is de-duplicated after the swap.
      */
     function replaceColor(
@@ -921,14 +921,14 @@ export default function ProfileBuilder({
 
                     <p className="mt-1.5 text-xs text-zinc-500">
                         Picks the pfp and banner. Pick a
-                        colour below instead to paint the
+                        color below instead to paint the
                         card from the palette.
                     </p>
 
                     <input
                         className={`${inputClass} mt-4`}
                         value={setQuery}
-                        placeholder="Search sets by id or colour"
+                        placeholder="Search sets by id or color"
                         onChange={(e) =>
                             setQueryInput(
                                 e.target.value
@@ -1003,7 +1003,7 @@ export default function ProfileBuilder({
                     </h2>
 
                     <p className="mt-1.5 text-xs text-zinc-600">
-                        Click a colour to change it.
+                        Click a color to change it.
                     </p>
 
                     <div className="mt-4 flex flex-wrap gap-2">
@@ -1021,15 +1021,15 @@ export default function ProfileBuilder({
                                         }}
                                     >
                                         {/*
-                                         * A transparent native colour input
+                                         * A transparent native color input
                                          * laid over the swatch, so clicking
-                                         * the colour itself opens the OS
+                                         * the color itself opens the OS
                                          * picker. Previously a swatch could
                                          * only be removed and re-added.
                                          */}
                                         <input
                                             type="color"
-                                            aria-label={`Change colour ${color}`}
+                                            aria-label={`Change color ${color}`}
                                             title={`${color} — click to change`}
                                             value={color}
                                             onChange={(e) =>
@@ -1098,7 +1098,7 @@ export default function ProfileBuilder({
                         MIN_PALETTE_COLORS && (
                         <p className="mt-3 text-xs text-amber-400/80">
                             A palette needs at least{" "}
-                            {MIN_PALETTE_COLORS} colours.
+                            {MIN_PALETTE_COLORS} colors.
                         </p>
                     )}
 
@@ -1107,7 +1107,7 @@ export default function ProfileBuilder({
                             className={labelClass}
                             htmlFor="accent-color"
                         >
-                            Accent colour
+                            Accent color
                         </label>
 
                         <input
@@ -1132,7 +1132,7 @@ export default function ProfileBuilder({
 
                         <p className="mt-1.5 text-xs text-zinc-600">
                             Blank uses the palette
-                            &rsquo;s second colour.
+                            &rsquo;s second color.
                         </p>
                     </div>
                 </section>

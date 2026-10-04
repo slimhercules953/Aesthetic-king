@@ -179,7 +179,7 @@ export async function regenerateAestheticPart(
             });
 
         /*
-         * A new set is a new mood and colour, so the resolved tags travel
+         * A new set is a new mood and color, so the resolved tags travel
          * back with it. The client merges this object over the current
          * result, which keeps the saved record in step with whatever the
          * profile actually looks like now. A filter the user picked still

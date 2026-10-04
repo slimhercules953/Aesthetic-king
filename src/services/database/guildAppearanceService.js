@@ -4,7 +4,7 @@
  * Studio writes these columns; this service is the only bot-side reader.
  * Rather than threading five settings through every embed builder, the
  * builders finish as normal and then hand their payload to
- * applyGuildAppearance(), which rewrites the colour, footer, pack badge,
+ * applyGuildAppearance(), which rewrites the color, footer, pack badge,
  * images and reroll buttons in one place.
  *
  * Everything fails open to the bot's built-in defaults: a guild with no

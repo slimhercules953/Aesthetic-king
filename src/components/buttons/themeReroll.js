@@ -78,8 +78,8 @@ async function buildThemeResponse(
 
     /*
      * A Pack's curated palette wins over whatever the banner happens to
-     * contain, matching how `/aesthetic` treats pack colours. Two is the
-     * floor because the embed reports a Primary and Secondary colour.
+     * contain, matching how `/aesthetic` treats pack colors. Two is the
+     * floor because the embed reports a Primary and Secondary color.
      */
     const colors =
         packColors.length >= 2
@@ -208,7 +208,7 @@ async function buildThemeResponse(
 }
 
 /*
- * Split in two because the preview render (banner download, colour
+ * Split in two because the preview render (banner download, color
  * extraction, canvas) is slow. Entitlements and the pick happen first —
  * Discord fixes ephemerality when the reply is created, so a premium-only
  * match must be known before anything is deferred — and the render happens
@@ -320,7 +320,7 @@ module.exports = {
         } = state.data;
 
         /*
-         * The reroll only needs the Pack's display name and colours, both of
+         * The reroll only needs the Pack's display name and colors, both of
          * which were stored when the theme was first generated, so the Pack
          * row itself is not re-read.
          */

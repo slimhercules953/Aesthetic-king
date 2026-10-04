@@ -48,7 +48,7 @@ type CompletionResponse = {
 const KINDS: { id: SeedKind; label: string }[] = [
     { id: "set", label: "Profile set" },
     { id: "aesthetic", label: "Aesthetic" },
-    { id: "color", label: "Colour" },
+    { id: "color", label: "Color" },
     { id: "palette", label: "My palette" },
 ];
 
@@ -62,7 +62,7 @@ const FIELD_LABELS: Record<string, string> = {
     status: "status",
     symbols: "symbols",
     palette: "palette",
-    accentColor: "accent colour",
+    accentColor: "accent color",
 };
 
 const selectClass =
@@ -101,7 +101,7 @@ export default function ProfileCompletionPanel({
     function buildBody(reroll: boolean): Record<string, unknown> {
         /*
          * The wire shape is the server's, not this component's: `id` for a
-         * set and an aesthetic, `name` for a colour, `colors` for a palette.
+         * set and an aesthetic, `name` for a color, `colors` for a palette.
          * `parseCompletionSeed` rejects anything else, so a field renamed
          * here would look like a working UI that always 400s.
          */
@@ -134,7 +134,7 @@ export default function ProfileCompletionPanel({
         }
 
         if (kind === "palette" && !hasPalette) {
-            setError("Add at least one colour to your palette first.");
+            setError("Add at least one color to your palette first.");
             return;
         }
 
@@ -275,7 +275,7 @@ export default function ProfileCompletionPanel({
                         </div>
 
                         <span className="text-xs text-zinc-600">
-                            {draft.palette.length} colours
+                            {draft.palette.length} colors
                         </span>
                     </div>
                 )}

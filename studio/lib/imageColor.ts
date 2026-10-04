@@ -1,5 +1,5 @@
 /**
- * Colour sampling that runs in the browser.
+ * Color sampling that runs in the browser.
  *
  * Studio ships to Cloudflare Workers, where there is no canvas and no
  * native image decoder, so the pixels are read on the client and only
@@ -19,10 +19,10 @@ export type SampledColor = {
 const MAX_SAMPLE_EDGE = 220;
 
 /**
- * Per-channel resolution of the colour histogram. Four bits per
+ * Per-channel resolution of the color histogram. Four bits per
  * channel gives 4096 buckets, which is coarse enough that a photo's
  * compression noise collapses into a handful of buckets and fine
- * enough that distinct design colours stay separate.
+ * enough that distinct design colors stay separate.
  */
 const HISTOGRAM_BITS = 4;
 const HISTOGRAM_SHIFT = 8 - HISTOGRAM_BITS;
@@ -117,7 +117,7 @@ export function lightness(hex: string) {
 }
 
 /**
- * How much colour a swatch carries, independent of how light it is.
+ * How much color a swatch carries, independent of how light it is.
  *
  * HSL saturation is the wrong measure for "vivid": it pushes a cream or
  * a lavender-white close to 1 because the denominator collapses as the
@@ -141,7 +141,7 @@ type HistogramBucket = {
 };
 
 /**
- * Counts how often each colour appears, at histogram resolution.
+ * Counts how often each color appears, at histogram resolution.
  *
  * Median cut is the usual choice here, but it averages the pixels it
  * groups, so a flat image of a violet stripe next to an off-white one
@@ -149,7 +149,7 @@ type HistogramBucket = {
  * trade for this tool: the swatches are shown as "the exact pixels
  * your image contains", and the palette is what the model judges.
  *
- * A histogram keeps every returned colour anchored to pixels that are
+ * A histogram keeps every returned color anchored to pixels that are
  * really there, and gives an honest population for each one.
  */
 function buildHistogram(
@@ -210,9 +210,9 @@ function bucketColor(
 }
 
 /**
- * Collapses buckets that describe the same colour - a photo's
- * compression noise spreads one visual colour across many buckets -
- * keeping the more common colour and folding the loser's population
+ * Collapses buckets that describe the same color - a photo's
+ * compression noise spreads one visual color across many buckets -
+ * keeping the more common color and folding the loser's population
  * into it so the percentages still add up.
  */
 function mergeSimilar(
@@ -249,12 +249,12 @@ function mergeSimilar(
 }
 
 /**
- * Picks the most common colours, spreading the remainder across the
+ * Picks the most common colors, spreading the remainder across the
  * rest of the palette.
  *
  * Taking the top N buckets alone would report five shades of a
- * background and miss the accent colour entirely, so the most common
- * colour is kept and the rest are chosen greedily by "population
+ * background and miss the accent color entirely, so the most common
+ * color is kept and the rest are chosen greedily by "population
  * times distance from everything already chosen".
  */
 function pickPalette(
@@ -314,7 +314,7 @@ function pickPalette(
 
 
 /**
- * Reads an image file and returns its dominant colours, most common
+ * Reads an image file and returns its dominant colors, most common
  * first.
  */
 export async function extractColorsFromFile(
@@ -390,7 +390,7 @@ export async function extractColorsFromFile(
 
     if (sampled.length === 0) {
         throw new Error(
-            "No colours could be sampled from that image."
+            "No colors could be sampled from that image."
         );
     }
 

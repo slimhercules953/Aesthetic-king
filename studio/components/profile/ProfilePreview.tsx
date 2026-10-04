@@ -26,7 +26,7 @@ type ProfilePreviewProps = {
  * `src/services/rendering/profileRenderer.js`. That cannot run here —
  * the Studio is a Workers app with no canvas binding — so the card is
  * markup instead. It is a plain server component with no state and no
- * handlers: every colour and string arrives already resolved in `state`,
+ * handlers: every color and string arrives already resolved in `state`,
  * which is why the fallback rules are testable in `profileModel.ts`
  * rather than buried in JSX.
  *
@@ -216,7 +216,7 @@ export default function ProfilePreview({
                                 state.mutedTextColor,
                         }}
                     >
-                        Add at least two colours to finish
+                        Add at least two colors to finish
                         this palette.
                     </p>
                 )}

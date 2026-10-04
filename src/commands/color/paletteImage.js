@@ -41,18 +41,18 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName("palette-image")
         .setDescription(
-            "Prototype: pull a colour palette out of an image you upload."
+            "Prototype: pull a color palette out of an image you upload."
         )
         .addAttachmentOption((option) =>
             option
                 .setName("image")
-                .setDescription("JPEG, PNG or WebP to sample colours from.")
+                .setDescription("JPEG, PNG or WebP to sample colors from.")
                 .setRequired(true)
         )
         .addIntegerOption((option) =>
             option
                 .setName("colors")
-                .setDescription("How many colours to pull (2-8).")
+                .setDescription("How many colors to pull (2-8).")
                 .setMinValue(2)
                 .setMaxValue(8)
                 .setRequired(false)
@@ -172,7 +172,7 @@ module.exports = {
                         title: "Nothing To Sample",
                         description:
                             error?.message ??
-                            "No colours could be extracted from that image.",
+                            "No colors could be extracted from that image.",
                         type: "error",
                     }),
                 ],
@@ -187,7 +187,7 @@ module.exports = {
                     buildSystemEmbed({
                         title: "Nothing To Sample",
                         description:
-                            "That image had no usable colours in it.",
+                            "That image had no usable colors in it.",
                         type: "error",
                     }),
                 ],
@@ -222,7 +222,7 @@ module.exports = {
 
         const embed = new EmbedBuilder()
             .setTitle("✦ Sampled From Your Image")
-            .setDescription(lines.join("\n") || "No colours found.")
+            .setDescription(lines.join("\n") || "No colors found.")
             .setColor(parseInt(hexes[0].replace("#", ""), 16))
             .addFields(
                 {

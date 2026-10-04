@@ -217,11 +217,11 @@ export default function ServerAppearanceManager({
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <h3 className="text-lg font-semibold tracking-tight">
-                            Embed Colour
+                            Embed Color
                         </h3>
 
                         <p className="mt-1 text-sm text-zinc-500">
-                            The accent bar and heading colour
+                            The accent bar and heading color
                             on every reply.
                         </p>
                     </div>
@@ -244,7 +244,7 @@ export default function ServerAppearanceManager({
                                 })
                             }
                             className="h-9 w-14 cursor-pointer rounded-lg border border-white/10 bg-transparent"
-                            aria-label="Embed colour"
+                            aria-label="Embed color"
                         />
                     </div>
                 </div>

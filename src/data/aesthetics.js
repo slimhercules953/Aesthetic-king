@@ -1,8 +1,8 @@
-﻿/**
+/**
  * The aesthetic definitions live in `aesthetics.json` so that the Studio can
  * read them directly. The Studio compiles with `allowJs: false`, so a `.js`
  * module it cannot import would otherwise force a second copy of the palettes
- * to be maintained there - and a Gothic that renders in one set of colours in
+ * to be maintained there - and a Gothic that renders in one set of colors in
  * the bot and another in the web app is the kind of inconsistency nobody
  * notices until a user reports it.
  */

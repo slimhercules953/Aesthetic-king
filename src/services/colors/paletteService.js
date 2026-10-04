@@ -401,7 +401,7 @@ async function generatePalette({
 
     /*
      * An Aesthetic Pack carries its own curated palette. When it has enough
-     * colours to mix from, those replace the aesthetic's defaults so the
+     * colors to mix from, those replace the aesthetic's defaults so the
      * server's chosen palette actually shows up in the result.
      */
     const colors =

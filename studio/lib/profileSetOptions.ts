@@ -22,6 +22,6 @@ export type ProfileSetOption = {
  * The catalog has 64 sets and the Builder's picker is a client component,
  * so every set costs bytes on every profile page load. Twenty-four fills
  * several rows of thumbnails, which is enough to browse and to find by id
- * or colour; the full filtered library is what /dashboard/assets is for.
+ * or color; the full filtered library is what /dashboard/assets is for.
  */
 export const BUILDER_SET_LIMIT = 24;

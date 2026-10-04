@@ -194,7 +194,7 @@ Administrator or Manage Server. A page answers `notFound()` so that a
 guild belonging to someone else is indistinguishable from one that does
 not exist; an API client gets 401/403/502 so it can tell the difference.
 
-- `lib/guildAppearance.ts` — per-server embed colour, footer and display
+- `lib/guildAppearance.ts` — per-server embed color, footer and display
   toggles on `GuildSettings`. A server with no settings row is not an
   error; the defaults are returned so the form renders.
 - `lib/guildAccessRules.ts` — ordered allow/deny rules over roles and
@@ -364,17 +364,17 @@ JavaScript copy that could drift.
 ## Profile Builder
 
 `/dashboard/profile` builds a Discord profile — display name, username,
-pronouns, bio, status, palette, symbols, accent colour and an optional
+pronouns, bio, status, palette, symbols, accent color and an optional
 asset set — against a live preview of the card.
 
 **The preview is DOM, not canvas.** The bot draws profiles with
 `node-canvas` in `src/services/rendering/profileRenderer.js`, and the
 Studio runs on Workers, which has no canvas binding. So
 `components/profile/ProfilePreview.tsx` renders the card in markup. It is
-a server component with no state and no handlers: every colour and string
+a server component with no state and no handlers: every color and string
 arrives already resolved in a `ProfilePreviewState`, which is why the
-fallback rules (what shows when the name is blank, what colour text goes
-on a mid-tone background, how a one-colour palette is padded) live in
+fallback rules (what shows when the name is blank, what color text goes
+on a mid-tone background, how a one-color palette is padded) live in
 `lib/profileModel.ts` where they can be asserted rather than in JSX. It
 is a likeness of Discord's card, not a pixel copy.
 
@@ -386,7 +386,7 @@ aesthetic library from growing a bio column every time the card gains a
 field.
 
 **Everything is clamped on the way in.** `parseProfileInput` in
-`lib/profileModel.ts` enforces `PROFILE_LIMITS` and normalises colours,
+`lib/profileModel.ts` enforces `PROFILE_LIMITS` and normalises colors,
 symbols and the discriminator before anything reaches SQL, and
 `lib/profiles.ts` runs the same function on create *and* update. The
 limits match the bot's renderer, so a profile that saves is a profile
@@ -424,20 +424,20 @@ It skips itself when the database is unreachable rather than failing.
 ## Complete My Profile
 
 `/dashboard/profile/new` opens with a panel that builds a whole identity
-from one thing the user likes: a profile set, an aesthetic, a colour, or
+from one thing the user likes: a profile set, an aesthetic, a color, or
 the palette they have already painted. It fills whatever is still empty
 and leaves anything they typed alone.
 
 **Composition is deterministic; AI only rewrites text.**
 `lib/profileComposer.ts` picks the set, palette, symbols, username, bio,
-status and accent colour out of the catalogs with an injected `random`,
+status and accent color out of the catalogs with an injected `random`,
 so a given seed and seed-value always produce the same profile. Nothing
 in it reads a database, a session or the clock. `lib/profileCompletion.ts`
 is the half that is allowed to do those things: it resolves the seed,
 calls the composer and then optionally asks Ollama to rewrite the three
 text fields. Keeping them apart is what makes the interesting part
 testable — `scripts/testCompleteProfile.js` sweeps every aesthetic and
-colour in the catalog and asserts the result is a complete, coherent
+color in the catalog and asserts the result is a complete, coherent
 profile, which would be impossible if the maths depended on a live
 request.
 
@@ -469,17 +469,17 @@ response is re-read after `recordUsage` rather than taken from the
 pre-flight check, because a Crown boost can expire mid-request.
 
 **`lib/completionColors.ts` exists to keep the client bundle clean.**
-The panel needs the catalog colour names to build its dropdown, but
+The panel needs the catalog color names to build its dropdown, but
 `profileComposer.ts` imports `apiError.ts`, which imports `next/server`.
 Importing the composer from a client component would drag the server
-runtime into the browser. The colour table therefore lives in its own
+runtime into the browser. The color table therefore lives in its own
 leaf module that both sides import.
 
 ### Testing it
 
 `node scripts/testCompleteProfile.js` covers the composer across every
-aesthetic and colour, the coherence rules (a bio describes the aesthetic
-it uses, a palette is anchored to the seed colour), and the wire format —
+aesthetic and color, the coherence rules (a bio describes the aesthetic
+it uses, a palette is anchored to the seed color), and the wire format —
 the exact JSON the panel posts. That last section is not decoration: the
 parser lowercases `kind` and once compared it against the camelCase
 literal, so every profile-set seed 400'd in the browser while the

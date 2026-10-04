@@ -118,7 +118,7 @@ export default async function AppearancePage({
 
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-500">
                     Everything Aesthetic King posts in this
-                    server — embed colour, footer, and which
+                    server — embed color, footer, and which
                     controls appear under a result. Changes
                     apply to the next command, not to
                     messages already sent. You can also give

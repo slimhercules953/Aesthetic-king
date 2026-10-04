@@ -41,7 +41,7 @@ const FALLBACK: GuildAppearance = {
 /**
  * A server with no settings row yet is not an error — the bot works fine
  * before anyone opens Studio, and so does this page. Defaults are returned so
- * the form renders rather than showing a blank colour swatch.
+ * the form renders rather than showing a blank color swatch.
  */
 export async function getGuildAppearance(
     discordGuildId: string
@@ -91,7 +91,7 @@ const HEX_COLOR =
     /^#?[0-9a-fA-F]{6}$/;
 
 /**
- * Discord rejects an out-of-range colour number, and a 3-digit shorthand or
+ * Discord rejects an out-of-range color number, and a 3-digit shorthand or
  * an `rgb()` string would be stored happily and then break every embed.
  * Normalising here means the bot can pass the value straight through.
  */
@@ -104,7 +104,7 @@ function normaliseEmbedColor(
 
     if (typeof value !== "string") {
         throw new ExpectedError(
-            "Embed colour must be a hex value like #7C5CFF."
+            "Embed color must be a hex value like #7C5CFF."
         );
     }
 
@@ -116,7 +116,7 @@ function normaliseEmbedColor(
 
     if (!HEX_COLOR.test(trimmed)) {
         throw new ExpectedError(
-            "Embed colour must be a 6-digit hex value like #7C5CFF."
+            "Embed color must be a 6-digit hex value like #7C5CFF."
         );
     }
 

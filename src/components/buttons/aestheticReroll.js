@@ -79,9 +79,9 @@ function formatFilterName(value) {
 }
 
 /*
- * Pack colour/symbol normalisation moved into the shared pack service so
+ * Pack color/symbol normalisation moved into the shared pack service so
  * every generation command applies the same rules. This command needs the
- * colours as {hex} objects, so it adapts the shared string list.
+ * colors as {hex} objects, so it adapts the shared string list.
  */
 const {
     getPackColors,
@@ -383,7 +383,7 @@ async function buildAestheticResponse({
 
     /*
      * The filters the user picked may both be absent, but the set that
-     * was picked for them is full of mood and colour tags. Recording
+     * was picked for them is full of mood and color tags. Recording
      * those alongside the request means a saved aesthetic describes
      * what was generated rather than what was asked for. They live in
      * their own keys because `color` and `mood` are re-used as filters

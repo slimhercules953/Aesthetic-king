@@ -23,7 +23,7 @@ We do not ask for your email address, phone number, or date of birth, and we do 
 
 Anything you save in the Studio is stored so you can come back to it:
 
-- **Saved aesthetics and saved colour palettes** — the text, styles, and colour values you generated or entered.
+- **Saved aesthetics and saved color palettes** — the text, styles, and color values you generated or entered.
 - **Collections and the items inside them**, plus **favourited assets**.
 - **Generated output** produced by the AI features, kept so you can review or reuse it.
 

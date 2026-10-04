@@ -1,11 +1,11 @@
 /**
- * The colour names "Complete My Profile" can build a profile from.
+ * The color names "Complete My Profile" can build a profile from.
  *
- * The asset catalog tags every set with colour *names* rather than hex
- * values, so composing from a colour needs a translation table. These are
+ * The asset catalog tags every set with color *names* rather than hex
+ * values, so composing from a color needs a translation table. These are
  * representative hues for the fifteen names the catalog actually uses -
  * close enough to set the mood of a composition, and never used as the
- * final palette (the chosen set's real colours win).
+ * final palette (the chosen set's real colors win).
  *
  * This lives in its own module because the seed picker needs the list of
  * names while the composer needs the map, and the composer also imports
@@ -32,7 +32,7 @@ export const CATALOG_COLOR_HEX: Record<string, string> = {
 };
 
 /**
- * The selectable colour names, in the order the picker shows them.
+ * The selectable color names, in the order the picker shows them.
  *
  * Derived from the map rather than written out again so the two cannot
  * drift: a name added here but not to the map would be offered by the UI

@@ -27,13 +27,13 @@ import {
 
 /*
  * "Complete My Profile" turns one thing the user already likes — a set, an
- * aesthetic, a colour, or a palette they saved — into a whole identity:
+ * aesthetic, a color, or a palette they saved — into a whole identity:
  * matching assets, a coordinated palette, symbols, a bio, a status and a
  * username.
  *
  * This module is deliberately pure: it takes a catalog, a seed and an
  * optional random source, and returns a draft. No database, no env, no
- * Ollama. That keeps every judgement call (which set matches which colour,
+ * Ollama. That keeps every judgement call (which set matches which color,
  * which catalog aesthetic the Studio can actually render) in one file a
  * plain Node script can exercise exhaustively, and leaves the slow,
  * failure-prone AI enrichment in `profileCompletion.ts`, where it can fail
@@ -69,7 +69,7 @@ const FALLBACK_AESTHETIC = "gothic";
 const FALLBACK_SYMBOL_KEY = "gothic";
 
 /**
- * Catalog colour tags are words ("indigo", "cream") but a palette is hex.
+ * Catalog color tags are words ("indigo", "cream") but a palette is hex.
  * The table lives in `completionColors.ts` so the Builder's seed picker can
  * read the list of names without importing this module, which pulls in
  * `next/server` through `apiError.ts`.
@@ -239,8 +239,8 @@ export function getAestheticDescription(
 }
 
 /**
- * Catalog colour names to hex. Unknown names return null so the caller can
- * ignore them rather than invent a colour.
+ * Catalog color names to hex. Unknown names return null so the caller can
+ * ignore them rather than invent a color.
  */
 export function catalogColorToHex(
     name: string | null | undefined
@@ -363,7 +363,7 @@ function toStudioAesthetic(
 }
 
 /**
- * Chooses the aesthetic a colour belongs to by comparing it against every
+ * Chooses the aesthetic a color belongs to by comparing it against every
  * palette the bot ships. Closest swatch wins, which keeps a deep burgundy
  * in Gothic rather than in Pastel.
  */
@@ -531,7 +531,7 @@ function buildPalette(
     }
 
     // Rotate so repeated rolls of the same aesthetic differ instead of
-    // handing back the identical five colours every time.
+    // handing back the identical five colors every time.
     const offset =
         base.length > 0
             ? Math.floor(random() * base.length)
@@ -723,7 +723,7 @@ export function composeProfileDraft(
 
         if (!hex) {
             throw new ExpectedError(
-                "I don't know that colour yet. Pick one of the colours in the picker."
+                "I don't know that color yet. Pick one of the colors in the picker."
             );
         }
 
@@ -744,7 +744,7 @@ export function composeProfileDraft(
 
         if (colors.length === 0) {
             throw new ExpectedError(
-                "Pick at least one colour before completing from a palette."
+                "Pick at least one color before completing from a palette."
             );
         }
 
@@ -752,7 +752,7 @@ export function composeProfileDraft(
         aestheticId = aestheticForHex(colors[0]);
 
         /*
-         * Rank sets by how close their own colour tags are to the palette
+         * Rank sets by how close their own color tags are to the palette
          * the user saved, then choose among the nearest few. Ranking rather
          * than filtering means an unusual palette still gets a set instead
          * of an error.

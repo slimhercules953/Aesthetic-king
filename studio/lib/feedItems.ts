@@ -209,7 +209,7 @@ async function hydratePalettes(
                 symbols: [],
                 title:
                     row.name ??
-                    "Colour palette",
+                    "Color palette",
                 subtitle: null,
                 detailHref:
                     "/dashboard/palettes",

@@ -186,7 +186,7 @@ model Profile {
   palette String[]
 
   /**
-   * Banner/accent colour when the profile uses no profile set, as a
+   * Banner/accent color when the profile uses no profile set, as a
    * `#rrggbb` string. Null means "fall back to the palette".
    */
   accentColor String?

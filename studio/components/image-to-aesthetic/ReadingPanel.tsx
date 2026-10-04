@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Check, Copy, Loader2, Save, Sparkles } from "lucide-react";
 
@@ -45,7 +45,7 @@ export default function ReadingPanel({
                 </p>
 
                 <p className="text-xs text-zinc-600">
-                    Only your colours are sent, never the image.
+                    Only your colors are sent, never the image.
                 </p>
             </section>
         );
@@ -95,7 +95,7 @@ export default function ReadingPanel({
 
                 {reading.colorFilter && (
                     <Tag
-                        label="Colour"
+                        label="Color"
                         value={reading.colorFilter}
                     />
                 )}

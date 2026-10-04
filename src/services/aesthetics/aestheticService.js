@@ -267,7 +267,7 @@ function resolveColorTag(
 /*
  * What the generated profile actually looked like, as opposed to what
  * was asked for. Saved aesthetics keep these so a run with no filters
- * still records a mood and a colour instead of two blanks.
+ * still records a mood and a color instead of two blanks.
  */
 function resolveProfileSetAttributes(
     profileSet,

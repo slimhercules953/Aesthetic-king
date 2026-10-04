@@ -129,7 +129,7 @@ export async function searchStudio(
             group: "palette" as const,
             id: row.id,
             title: row.name?.trim() || "Untitled palette",
-            subtitle: `${row.colors.length} colours`,
+            subtitle: `${row.colors.length} colors`,
             href: `/dashboard/palettes`,
         })),
 

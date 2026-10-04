@@ -109,7 +109,7 @@ function buildFindings(audit) {
     }
 
     if (!findings.length) {
-        findings.push("✅ Nothing to flag — every colour holds up on both themes.");
+        findings.push("✅ Nothing to flag — every color holds up on both themes.");
     }
 
     return findings.join("\n\n");
@@ -121,19 +121,19 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName("legibility")
         .setDescription(
-            "Prototype: check whether your colours are actually readable in Discord light and dark mode."
+            "Prototype: check whether your colors are actually readable in Discord light and dark mode."
         )
         .addStringOption((option) =>
             option
                 .setName("colors")
-                .setDescription("Hex colours to audit, e.g. #ff0044 2b2d31 #0a0a0a")
+                .setDescription("Hex colors to audit, e.g. #ff0044 2b2d31 #0a0a0a")
                 .setRequired(false)
                 .setMaxLength(120)
         )
         .addStringOption((option) =>
             option
                 .setName("style")
-                .setDescription("Audit the colours of a built-in aesthetic.")
+                .setDescription("Audit the colors of a built-in aesthetic.")
                 .setRequired(false)
                 .addChoices(...getAestheticChoices())
         )
@@ -154,7 +154,7 @@ module.exports = {
             interaction.user.username;
 
         let colors = [];
-        let source = "your colours";
+        let source = "your colors";
 
         if (styleId) {
             const aesthetic = getAesthetic(styleId);
@@ -186,9 +186,9 @@ module.exports = {
                 await interaction.reply({
                     embeds: [
                         buildSystemEmbed({
-                            title: "No Colours Found",
+                            title: "No Colors Found",
                             description:
-                                "I couldn't read any hex colours out of that. Try something like `#ff0044 2b2d31 0a0a0a`.",
+                                "I couldn't read any hex colors out of that. Try something like `#ff0044 2b2d31 0a0a0a`.",
                             type: "error",
                         }),
                     ],
@@ -199,7 +199,7 @@ module.exports = {
             }
 
             colors = parsed;
-            source = "your colours";
+            source = "your colors";
         }
 
         colors = colors
@@ -227,7 +227,7 @@ module.exports = {
 
         const audit = auditPalette(colors);
 
-        // Preview the colour that is most likely to be used as a name colour:
+        // Preview the color that is most likely to be used as a name color:
         // the most saturated one, falling back to the first.
         const hero =
             [...audit.colors].sort(

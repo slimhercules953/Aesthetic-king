@@ -101,7 +101,7 @@ function readPixels(imageBuffer) {
                 Math.min(r, g, b);
 
             // Drop near-black and near-white pixels unless they are
-            // coloured, so a white background does not dominate.
+            // colored, so a white background does not dominate.
             if (
                 spread <= SATURATION_CUTOFF &&
                 (
@@ -224,7 +224,7 @@ function averageBucket(pixels) {
 }
 
 /**
- * Returns the most prominent colours as `{ hex, rgb: { r, g, b } }`
+ * Returns the most prominent colors as `{ hex, rgb: { r, g, b } }`
  * objects, where `hex` is an upper-case `#RRGGBB` string. This mirrors
  * the data `get-image-colors` exposed, but as plain properties instead
  * of the `hex()`/`rgb()` accessors that package returned.
@@ -281,7 +281,7 @@ async function extractDominantColors(
             hex: toHex(r, g, b).toUpperCase(),
             rgb: { r, g, b },
             // Share of the sampled pixels this bucket covers. Useful for
-            // telling an accent colour apart from the image's dominant one.
+            // telling an accent color apart from the image's dominant one.
             population: bucket.length / pixels.length,
         };
     });

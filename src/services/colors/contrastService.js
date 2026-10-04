@@ -1,4 +1,4 @@
-// WCAG 2.1 contrast maths + CIE76 colour distance.
+// WCAG 2.1 contrast maths + CIE76 color distance.
 // Used by the legibility audit so palettes are judged on real numbers
 // instead of "it looks fine on my screen".
 
@@ -139,7 +139,7 @@ function formatRatio(ratio) {
 }
 
 /**
- * WCAG bands. Discord usernames and role colours are "large-ish" text in
+ * WCAG bands. Discord usernames and role colors are "large-ish" text in
  * practice, but body copy needs 4.5, so the bands stay strict.
  */
 function rating(ratio) {
@@ -178,7 +178,7 @@ function rating(ratio) {
     };
 }
 
-/** The text colour that stays most readable on top of `hex`. */
+/** The text color that stays most readable on top of `hex`. */
 function bestTextOn(hex) {
     return contrastRatio(hex, WHITE) >= contrastRatio(hex, BLACK)
         ? WHITE
@@ -214,7 +214,7 @@ function lab(hex) {
     };
 }
 
-/** CIE76 ΔE. Under ~10 the two colours read as "the same" side by side. */
+/** CIE76 ΔE. Under ~10 the two colors read as "the same" side by side. */
 function colorDistance(hexA, hexB) {
     const a = lab(hexA);
     const b = lab(hexB);
@@ -249,7 +249,7 @@ function analyzeColor(hex) {
             ratio: onLight,
             ...rating(onLight),
         },
-        // Contrast of Discord's own default text sitting on top of this colour
+        // Contrast of Discord's own default text sitting on top of this color
         // (banners, role hoisting, embed swatches).
         withThemeText: {
             dark: {
@@ -262,12 +262,12 @@ function analyzeColor(hex) {
             },
         },
         bestText: bestTextOn(normalized),
-        // A colour is only "safe everywhere" if it clears AA as text on BOTH
-        // Discord themes. Very few colours do, which is the whole point.
+        // A color is only "safe everywhere" if it clears AA as text on BOTH
+        // Discord themes. Very few colors do, which is the whole point.
         worksEverywhere: asText >= 4.5,
         usableSomewhere: onDark >= 4.5 || onLight >= 4.5,
         // Clears the 3:1 large-text bar on both themes — usable as a big
-        // username colour, just not as body copy.
+        // username color, just not as body copy.
         largeTextEverywhere: asText >= 3,
     };
 }
@@ -315,16 +315,16 @@ function auditPalette(colors) {
     if (!analyzed.length) {
         verdict = "Nothing to audit.";
     } else if (unusable.length === analyzed.length) {
-        verdict = "None of these colours clear AA on either Discord theme.";
+        verdict = "None of these colors clear AA on either Discord theme.";
     } else if (safe.length === analyzed.length) {
-        verdict = "Every colour is readable on both Discord themes.";
+        verdict = "Every color is readable on both Discord themes.";
     } else if (safe.length > 0) {
         verdict =
-            `${safe.length} of ${analyzed.length} colours work on both themes. ` +
+            `${safe.length} of ${analyzed.length} colors work on both themes. ` +
             "The rest need a theme-specific swap.";
     } else {
         verdict =
-            "No colour works on both themes — this palette is theme-dependent.";
+            "No color works on both themes — this palette is theme-dependent.";
     }
 
     return {

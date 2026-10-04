@@ -210,7 +210,7 @@ export async function POST(
     } catch (error) {
         /*
          * Refund before answering. The composition can legitimately fail —
-         * the catalog may have no set for a colour, or a set may have been
+         * the catalog may have no set for a color, or a set may have been
          * retired since the page loaded — and charging for a profile the
          * user never received is the one outcome worse than an error.
          */

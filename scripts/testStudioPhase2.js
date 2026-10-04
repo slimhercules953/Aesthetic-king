@@ -293,7 +293,7 @@ async function testAppearance(guildId) {
     const data = embed.data;
 
     check(
-        "the embed colour is replaced",
+        "the embed color is replaced",
         data.color === 0xcc55ff,
         String(data.color?.toString(16))
     );

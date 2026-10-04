@@ -61,7 +61,7 @@ export function getBuilderSets(
 /**
  * The sets "Complete My Profile" may compose from, as catalog rows.
  *
- * `ProfileSetOption` deliberately drops the aesthetics/moods/colours the
+ * `ProfileSetOption` deliberately drops the aesthetics/moods/colors the
  * composer needs, so this returns the catalog shape instead. It shares the
  * premium filter and the "has art" filter with `getBuilderSets` so the two
  * cannot disagree about which sets exist for a given user — otherwise the

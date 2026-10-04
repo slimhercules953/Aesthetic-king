@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -64,7 +64,7 @@ export default function ImageToAestheticStudio({
     const [dragging, setDragging] = useState(false);
 
     // Populations are shares of every sampled pixel, so the handful of
-    // colours we keep rarely add to 1 - a gradient scatters across
+    // colors we keep rarely add to 1 - a gradient scatters across
     // thousands of buckets. The bar is drawn relative to what we kept,
     // which is what a reader expects it to show.
     const sampledTotal = sampled.reduce(
@@ -358,7 +358,7 @@ export default function ImageToAestheticStudio({
                             <p className="mx-auto max-w-xs text-xs text-zinc-500">
                                 JPEG, PNG or WebP up to 8 MB. The
                                 picture stays in your browser -
-                                only its colours are sent.
+                                only its colors are sent.
                             </p>
                         </div>
                     )}
@@ -367,7 +367,7 @@ export default function ImageToAestheticStudio({
                 {sampling && (
                     <p className="mt-4 flex items-center gap-2 text-xs text-zinc-500">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Sampling colours...
+                        Sampling colors...
                     </p>
                 )}
 
@@ -438,7 +438,7 @@ export default function ImageToAestheticStudio({
                         </div>
 
                         <p className="mt-2 text-[11px] text-zinc-600">
-                            Click a colour to copy it. Hover for
+                            Click a color to copy it. Hover for
                             how much of your image each one
                             covers.
                         </p>

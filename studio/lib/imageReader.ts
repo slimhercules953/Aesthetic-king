@@ -133,13 +133,13 @@ export async function readImagePalette({
 
     if (sampled.length < 3) {
         throw new ExpectedError(
-            "At least 3 sampled colours are required."
+            "At least 3 sampled colors are required."
         );
     }
 
     if (sampled.length > 6) {
         throw new ExpectedError(
-            "A palette can hold at most 6 colours."
+            "A palette can hold at most 6 colors."
         );
     }
 
@@ -152,7 +152,7 @@ export async function readImagePalette({
     const prompt = [
         "You are the creative engine for Aesthetic King, a Discord profile aesthetic application.",
         "",
-        "A user uploaded an image. Its dominant colours were sampled from the pixels and given to you in order of how much of the image they cover.",
+        "A user uploaded an image. Its dominant colors were sampled from the pixels and given to you in order of how much of the image they cover.",
         "",
         "SAMPLED PALETTE:",
         sampled.join(", "),
@@ -196,7 +196,7 @@ export async function readImagePalette({
         "- bio should be expressive but concise, and 190 characters or fewer.",
         "- status must be 128 characters or fewer.",
         "- symbols should contain 3 to 6 decorative Unicode symbols that suit the palette.",
-        "- palette must contain 3 to 6 valid six-digit hexadecimal colors derived from the sampled palette. You may adjust lightness slightly for cohesion but must stay recognisably the same colours.",
+        "- palette must contain 3 to 6 valid six-digit hexadecimal colors derived from the sampled palette. You may adjust lightness slightly for cohesion but must stay recognisably the same colors.",
         "- Everything must feel cohesive with the sampled palette, not with a generic aesthetic.",
         "- Do not include asset URLs.",
         "- Do not include anything outside the JSON object.",

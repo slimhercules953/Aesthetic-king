@@ -21,7 +21,7 @@
  *   1. Text clamping counts code points, so emoji survive.
  *   2. Hex / palette / symbol / discriminator normalisation.
  *   3. parseProfileInput truncates noise and rejects the unrenderable.
- *   4. Contrast picks a readable text colour on any background.
+ *   4. Contrast picks a readable text color on any background.
  *   5. derivePreviewState has a fallback for every empty field.
  *   6. checkCompleteness reports what is missing.
  *   7. The free version limit is enforced at the right boundary.
@@ -239,7 +239,7 @@ async function main() {
     );
 
     /* ------------------------------------------------------------------ */
-    section("Colour normalisation");
+    section("Color normalisation");
 
     check(
         "lowercase hex is uppercased",
@@ -258,7 +258,7 @@ async function main() {
 
     check(
         "garbage and non-strings are rejected",
-        normalizeHex("not-a-colour") === null &&
+        normalizeHex("not-a-color") === null &&
             normalizeHex("#12345g") === null &&
             normalizeHex("") === null &&
             normalizeHex(99) === null &&
@@ -365,7 +365,7 @@ async function main() {
     }
 
     check(
-        "rejects a palette with one colour",
+        "rejects a palette with one color",
         (() => {
             const result = parseProfileInput({
                 palette: ["#000000"],
@@ -381,7 +381,7 @@ async function main() {
     );
 
     check(
-        "rejects a profile with neither a set nor colours",
+        "rejects a profile with neither a set nor colors",
         (() => {
             const result = parseProfileInput({ name: "x" });
 
@@ -456,7 +456,7 @@ async function main() {
     );
 
     check(
-        "an invalid accent colour becomes null, not an error",
+        "an invalid accent color becomes null, not an error",
         (() => {
             const result = parseProfileInput({
                 profileSetId: "1",
@@ -500,12 +500,12 @@ async function main() {
 
     /*
      * The specific failure a luminance threshold has: #808080 sits at the
-     * midpoint, and a threshold-based rule happily returns a colour with
-     * ~3.9:1 contrast. Whichever colour is returned must be the more
+     * midpoint, and a threshold-based rule happily returns a color with
+     * ~3.9:1 contrast. Whichever color is returned must be the more
      * readable one, so compare the ratios directly.
      */
     check(
-        "mid-tone grey gets the higher-contrast colour",
+        "mid-tone grey gets the higher-contrast color",
         (() => {
             const bg = "#808080";
             const chosen = contrastTextColor(bg);
@@ -608,7 +608,7 @@ async function main() {
     );
 
     check(
-        "text colour is readable on the derived background",
+        "text color is readable on the derived background",
         (() => {
             const palettes = [
                 ["#000000", "#000000"],
@@ -665,7 +665,7 @@ async function main() {
     );
 
     check(
-        "a single-colour palette is padded so the bar still reads as a bar",
+        "a single-color palette is padded so the bar still reads as a bar",
         (() => {
             const state = derivePreviewState(
                 draft({ palette: ["#FF0000", "garbage"] })
@@ -785,7 +785,7 @@ async function main() {
     );
 
     check(
-        "one colour is not enough to be saveable",
+        "one color is not enough to be saveable",
         canSaveDraft(
             emptyDraft({ palette: ["#000000"] })
         ) === false
@@ -1118,7 +1118,7 @@ async function databaseSection() {
         );
 
         check(
-            "a profile with neither colours nor a set is refused",
+            "a profile with neither colors nor a set is refused",
             await db
                 .createProfileForDiscordUser(discordId, {
                     name: "bad",

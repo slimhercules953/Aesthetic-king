@@ -248,7 +248,7 @@ export function parseProfileInput(
 
     if (palette.length > 0 && palette.length < MIN_PALETTE_COLORS) {
         errors.push(
-            `A palette needs at least ${MIN_PALETTE_COLORS} colours.`
+            `A palette needs at least ${MIN_PALETTE_COLORS} colors.`
         );
     }
 
@@ -302,17 +302,17 @@ export function parseProfileInput(
  *
  * The component should not decide what to fall back to; it draws what
  * it is handed. That keeps the fallback rules in one place, and makes
- * "what does a profile with no set and two colours look like" a
+ * "what does a profile with no set and two colors look like" a
  * question a test can answer.
  */
 export type ProfilePreviewState = {
     /**
-     * Banner colour when no profile set supplies an image.
+     * Banner color when no profile set supplies an image.
      */
     bannerColor: string;
 
     /**
-     * Card body colour. Dark on purpose — a profile card is a dark
+     * Card body color. Dark on purpose — a profile card is a dark
      * surface in Discord, and tinting it keeps the aesthetic without
      * hurting legibility.
      */
@@ -334,7 +334,7 @@ export type ProfilePreviewState = {
     mutedTextColor: string;
 
     /**
-     * Palette padded to at least two entries so the colour bar always
+     * Palette padded to at least two entries so the color bar always
      * renders as a bar rather than a single block.
      */
     palette: string[];
@@ -435,7 +435,7 @@ export function mixHex(
  *
  * Uses contrast *ratios* rather than a luminance threshold: a mid-tone
  * such as #808080 is close enough to either endpoint that a threshold
- * picks a colour with roughly 3.9:1 contrast, which is unreadable.
+ * picks a color with roughly 3.9:1 contrast, which is unreadable.
  * Comparing both ratios and taking the winner is what actually reads.
  */
 export function contrastTextColor(
@@ -525,9 +525,9 @@ export function derivePreviewState(
 
         textColor,
 
-        // Rather than a second contrast pass, dim the chosen text colour
+        // Rather than a second contrast pass, dim the chosen text color
         // toward the card. It keeps one readable hue instead of
-        // introducing a colour that only passes on its own.
+        // introducing a color that only passes on its own.
         mutedTextColor: mixHex(
             textColor,
             backgroundColor,
@@ -606,7 +606,7 @@ export function checkCompleteness(
  * than inventing its own wording for the same rule.
  */
 export const DRAFT_NEEDS_ART =
-    "Pick a profile set or add colours before saving.";
+    "Pick a profile set or add colors before saving.";
 
 /**
  * Whether a draft is worth sending to the server at all.

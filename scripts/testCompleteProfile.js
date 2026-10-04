@@ -3,7 +3,7 @@
  * Phase 5 verification for "Complete My Profile".
  *
  * `studio/lib/profileComposer.ts` is the deterministic half of the feature:
- * given one seed (a set, an aesthetic, a colour, or a saved palette) it
+ * given one seed (a set, an aesthetic, a color, or a saved palette) it
  * returns a finished profile draft. It is pure, so unlike the rest of the
  * Studio it can be tested exhaustively without a database or a Workers
  * runtime — this script transpiles the real module with the Studio's own
@@ -13,7 +13,7 @@
  * something the Builder cannot render". The asset catalog and the Studio's
  * own dropdowns disagree: the catalog carries aesthetics (`horror`,
  * `minimalist`) and moods (`night`) the Studio does not offer, `y2k` has no
- * symbol block at all, and set colour tags are words rather than hex. Those
+ * symbol block at all, and set color tags are words rather than hex. Those
  * mismatches are what sections 3-6 hammer.
  *
  * Asserted behaviour:
@@ -257,7 +257,7 @@ for (const testCase of kindCases) {
     );
 }
 
-section("2. Every Studio aesthetic and catalog colour composes");
+section("2. Every Studio aesthetic and catalog color composes");
 
 let aestheticOk = true;
 const aestheticFailures = [];
@@ -334,7 +334,7 @@ for (const name of colorSeeds) {
 }
 
 check(
-    `all ${colorSeeds.length} catalog colours compose completely`,
+    `all ${colorSeeds.length} catalog colors compose completely`,
     colorOk,
     colorFailures.join(" | ")
 );
@@ -439,7 +439,7 @@ const composed = composeProfileDraft({
 }).draft;
 
 check(
-    "palette has at least MIN_PALETTE_COLORS colours",
+    "palette has at least MIN_PALETTE_COLORS colors",
     composed.palette.length >= MIN_PALETTE_COLORS
 );
 
@@ -456,7 +456,7 @@ check(
 );
 
 check(
-    "accent colour is a palette colour",
+    "accent color is a palette color",
     composed.palette.includes(composed.accentColor)
 );
 
@@ -498,7 +498,7 @@ const paletteSeedResult = composeProfileDraft({
 });
 
 check(
-    "a palette seed keeps the user's colours first",
+    "a palette seed keeps the user's colors first",
     eq(
         paletteSeedResult.draft.palette.slice(0, 2),
         ["#FF0044", "#222222"]
@@ -634,7 +634,7 @@ check(
 );
 
 check(
-    "an existing accent colour is kept",
+    "an existing accent color is kept",
     partial.draft.accentColor === "#ABCDEF"
 );
 
@@ -715,14 +715,14 @@ expectError(
 );
 
 expectError(
-    "an unknown colour name is refused",
+    "an unknown color name is refused",
     () =>
         composeProfileDraft({
             seed: { kind: "color", name: "blurple" },
             sets: freeSets,
             random: seeded(1),
         }),
-    "colour"
+    "color"
 );
 
 expectError(
@@ -733,7 +733,7 @@ expectError(
             sets: freeSets,
             random: seeded(1),
         }),
-    "colour"
+    "color"
 );
 
 expectError(
@@ -818,7 +818,7 @@ const seedCases = [
         expect: { kind: "aesthetic", id: "gothic" },
     },
     {
-        label: "a colour seed",
+        label: "a color seed",
         body: { kind: "color", name: "indigo" },
         expect: { kind: "color", name: "indigo" },
     },
@@ -870,7 +870,7 @@ const rejectedSeeds = [
     ["a set with a non-numeric id", { kind: "profileSet", id: "abc" }],
     ["a set with a shaped id", { kind: "profileSet", id: "1; DROP" }],
     ["an unknown aesthetic", { kind: "aesthetic", id: "goblincore" }],
-    ["an unknown colour", { kind: "color", name: "chartreuse" }],
+    ["an unknown color", { kind: "color", name: "chartreuse" }],
     ["an empty palette", { kind: "palette", colors: [] }],
     ["a palette of junk", { kind: "palette", colors: ["nope", ""] }],
 ];

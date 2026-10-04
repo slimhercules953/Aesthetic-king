@@ -115,16 +115,16 @@ function buildPrompt(
             : seed.kind === "aesthetic"
                 ? `the ${aesthetic?.name ?? seed.id} aesthetic`
                 : seed.kind === "color"
-                    ? `the colour "${seed.name}"`
-                    : `the colours ${seed.colors.join(", ")}`;
+                    ? `the color "${seed.name}"`
+                    : `the colors ${seed.colors.join(", ")}`;
 
     /*
      * The palette the composer actually picked for this profile. Passing the
-     * colour names gives the model something concrete to write towards, and
+     * color names gives the model something concrete to write towards, and
      * unlike the set's aesthetic and mood tags it can never contradict the
-     * seed — the colours were chosen *because* they suit it.
+     * seed — the colors were chosen *because* they suit it.
      */
-    const colours = (seed.kind === "color"
+    const colors = (seed.kind === "color"
         ? [seed.name]
         : seed.kind === "palette"
             ? seed.colors
@@ -144,7 +144,7 @@ Write the text for ONE Discord profile.
 
 AESTHETIC: ${aesthetic?.name ?? composed.aestheticId}${description ? ` — ${description}` : ""}
 MOOD: ${getMoodOption(composed.moodId)?.name ?? "unspecified"}
-PALETTE: ${colours || "unspecified"}
+PALETTE: ${colors || "unspecified"}
 SEEDED FROM: ${seedDescription}
 
 Everything above describes the same profile. Write copy that a fan of the ${aesthetic?.name ?? composed.aestheticId} aesthetic would recognise as their own — the aesthetic is the identity, the mood is only the tone.
@@ -413,7 +413,7 @@ export function parseCompletionSeed(
 
         if (!catalogColorToHex(name)) {
             throw new ExpectedError(
-                "Pick one of the colours in the list."
+                "Pick one of the colors in the list."
             );
         }
 
@@ -427,7 +427,7 @@ export function parseCompletionSeed(
 
         if (colors.length === 0) {
             throw new ExpectedError(
-                "That palette has no usable colours."
+                "That palette has no usable colors."
             );
         }
 

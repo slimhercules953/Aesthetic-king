@@ -513,7 +513,7 @@ export default async function ServerPage({
                         />
                     }
                     title="Appearance"
-                    description="Customize embed colour, footer, and which controls appear under a result."
+                    description="Customize embed color, footer, and which controls appear under a result."
                     href={`/dashboard/servers/${guild.id}/appearance`}
                     status="Available"
                     detail={

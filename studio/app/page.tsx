@@ -25,22 +25,22 @@ const features = [
     {
         icon: Sparkles,
         title: "Aesthetic generator",
-        body: "Pick an aesthetic and a mood, and Aesthetic King builds a matching Discord profile with colours, bio, status and symbols.",
+        body: "Pick an aesthetic and a mood, and Aesthetic King builds a matching Discord profile with colors, bio, status and symbols.",
     },
     {
         icon: Palette,
         title: "Palette studio",
-        body: "Build reusable three to six colour palettes, or pull the colours straight out of any image you upload.",
+        body: "Build reusable three to six color palettes, or pull the colors straight out of any image you upload.",
     },
     {
         icon: UserRoundCog,
         title: "Profile builder",
-        body: "Compose banner, avatar, colours and bio together and watch the Discord profile update as you change it.",
+        body: "Compose banner, avatar, colors and bio together and watch the Discord profile update as you change it.",
     },
     {
         icon: Images,
         title: "Asset explorer",
-        body: "Every banner, avatar and profile set you have saved, searchable by tag, colour and sort order.",
+        body: "Every banner, avatar and profile set you have saved, searchable by tag, color and sort order.",
     },
     {
         icon: FolderHeart,
@@ -111,7 +111,7 @@ export default async function LandingPage() {
                 </h1>
 
                 <p className="mt-6 max-w-2xl text-sm leading-7 text-zinc-400 sm:text-base lg:text-lg">
-                    Aesthetic King designs the banner, avatar, colours, bio and status for you.
+                    Aesthetic King designs the banner, avatar, colors, bio and status for you.
                     Save what you like, organise it into collections, and run the same generator
                     for your whole server.
                 </p>
