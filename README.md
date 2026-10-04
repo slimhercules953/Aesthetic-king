@@ -177,7 +177,7 @@ cp .env.example .env
 | `R2_PUBLIC_URL` | Bot, Studio | Public bucket URL (`https://pub-<hash>.r2.dev` or custom domain) — required by `/profile` and `/theme` |
 | `R2_ENDPOINT` | Bot | Optional endpoint override (defaults to the account's `r2.cloudflarestorage.com` host) |
 | `OLLAMA_URL` / `OLLAMA_MODEL` | Bot, Studio | Self-hosted AI endpoint and model |
-| `STUDIO_URL` | Bot | Optional Studio URL used in "unlock this" prompts; falls back to `NEXT_PUBLIC_APP_URL`, and to naming the path if neither is set |
+| `STUDIO_URL` | Bot | Optional **public** Studio URL used in "unlock this" prompts and Studio footer links; falls back to `NEXT_PUBLIC_APP_URL`, and to naming the path if neither is set. A localhost/LAN address is ignored (it would be unreadable to whoever sees the embed) unless `STUDIO_URL_ALLOW_PRIVATE=true` |
 | `DATABASE_URL` | Prisma | PostgreSQL connection string (migrations + bot) |
 | `NODE_ENV` | Both | `development` enables dev-only tooling; anything else is treated as production |
 
