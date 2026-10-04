@@ -22,12 +22,15 @@
  *   3. A repeated idempotency key pays once (fast path and in-transaction).
  *   4. Per-source daily caps stop the award with reason "source_cap".
  *   5. The global daily cap stops it with reason "daily_cap".
- *   6. An unknown user is not awarded and does not throw.
- *   7. A database failure is swallowed — the award never throws.
- *   8. The self-like / self-comment rules pay nobody.
- *   9. Publish is keyed on the item, so unshare + re-share cannot re-earn.
- *  10. Daily visit and Top.gg keys are day-scoped.
- *  11. getEarnStatus reports per-source progress and what is left.
+ *   6. An unknown user is not awarded, and a database failure never throws.
+ *   7. The self-like / self-comment rules pay nobody; a real like or
+ *      comment pays the author.
+ *   8. Publish is keyed on the item, so unshare + re-share cannot re-earn.
+ *   9. Daily visit and Top.gg keys are day-scoped.
+ *  10. getEarnStatus reports per-source progress and what is left.
+ *  10b. A source that cannot fire on this deployment is not advertised.
+ *  11. Awards stay inside the ledger's rules.
+ *  12. The Top.gg webhook handler: auth, payload validation, dedupe.
  *
  * Usage: node scripts/testCrownEarning.js
  */
@@ -782,9 +785,11 @@ const day = new Date().toISOString().slice(0, 10);
     const status0 = await e9.getEarnStatus("owner");
 
     check(
-        "one entry per source",
+        "one entry per live source",
         status0.sources.length ===
-        e9.CROWN_EARN_SOURCES.length
+        e9.CROWN_EARN_SOURCES.filter((s) =>
+            e9.isEarnSourceLive(s)
+        ).length
     );
 
     check(
@@ -848,7 +853,7 @@ const day = new Date().toISOString().slice(0, 10);
     );
 
     const untouched = status1.sources.find(
-        (s) => s.source === "topgg_vote"
+        (s) => s.source === "comment_received"
     );
 
     check(
@@ -862,6 +867,94 @@ const day = new Date().toISOString().slice(0, 10);
         (await e9.getEarnStatus("liker")).earnedToday ===
         0
     );
+
+    /* ---------------------------------------------------------------- */
+    section("10b. Sources that cannot fire are not advertised");
+
+    /*
+     * A Top.gg vote only arrives if the webhook is configured, and the
+     * Studio is not deployed yet. Offering "25 Crowns for voting" when no
+     * vote can ever be received is a promise the product cannot keep, so
+     * the source disappears with the secret.
+     */
+    const savedSecret = process.env.TOPGG_WEBHOOK_SECRET;
+    delete process.env.TOPGG_WEBHOOK_SECRET;
+
+    check(
+        "topgg_vote is not live without the webhook secret",
+        e9.isEarnSourceLive("topgg_vote") === false
+    );
+
+    check(
+        "every other source is always live",
+        e9.CROWN_EARN_SOURCES.filter(
+            (s) => s !== "topgg_vote"
+        ).every((s) => e9.isEarnSourceLive(s))
+    );
+
+    const hidden = await e9.getEarnStatus("owner");
+
+    check(
+        "the hidden source is absent from the Earn page",
+        !hidden.sources.some(
+            (s) => s.source === "topgg_vote"
+        )
+    );
+
+    check(
+        "hiding it does not change what was earned",
+        hidden.earnedToday === status1.earnedToday
+    );
+
+    process.env.TOPGG_WEBHOOK_SECRET = "a-secret";
+
+    check(
+        "configuring the webhook brings it back",
+        e9.isEarnSourceLive("topgg_vote") === true
+    );
+
+    const shown = await e9.getEarnStatus("owner");
+
+    check(
+        "and it appears as a fresh source",
+        shown.sources.find(
+            (s) => s.source === "topgg_vote"
+        )?.awardedToday === 0 &&
+        shown.sources.length === hidden.sources.length + 1
+    );
+
+    /*
+     * A row already paid under a source must stay visible even once the
+     * source is hidden again, or the history would silently shrink.
+     */
+    await e9.awardCrowns("owner", {
+        source: "topgg_vote",
+        idempotencyKey: "topgg_vote:voter:today",
+    });
+
+    delete process.env.TOPGG_WEBHOOK_SECRET;
+
+    const afterHide = await e9.getEarnStatus("owner");
+
+    check(
+        "a source with history is shown even when not live",
+        afterHide.sources.find(
+            (s) => s.source === "topgg_vote"
+        )?.awardedToday === 1
+    );
+
+    check(
+        "and its Crowns still count toward today",
+        afterHide.earnedToday ===
+        status1.earnedToday +
+        e9.CROWN_EARN_RULES.topgg_vote.amount
+    );
+
+    if (savedSecret === undefined) {
+        delete process.env.TOPGG_WEBHOOK_SECRET;
+    } else {
+        process.env.TOPGG_WEBHOOK_SECRET = savedSecret;
+    }
 
     /* ---------------------------------------------------------------- */
     section("11. Awards stay inside the ledger's rules");

@@ -97,6 +97,15 @@ rows behind them.
 `CROWN_EARN_DAILY_TOTAL_CAP` (60) is a second ceiling on top of the
 per-source ones, so no combination of sources can exceed it.
 
+`isEarnSourceLive()` decides what the Earn page offers. Every source
+except `topgg_vote` is wired into the product, so it is always live; a
+Top.gg vote can only arrive through the webhook, so the source is hidden
+until `TOPGG_WEBHOOK_SECRET` is set — the same condition the route uses
+to answer 404. Advertising "25 Crowns for voting" when no vote can be
+received is a promise the product cannot keep. Hiding a source hides the
+offer only: rows already awarded under it still appear in the history
+and still count toward today's total.
+
 Product code never calls `awardCrowns` directly — it calls one of
 `awardForPublish`, `awardForLike`, `awardForComment`,
 `awardForDailyVisit` or `awardForTopggVote`. Three rules those hooks
@@ -124,17 +133,23 @@ transaction so the common "already awarded today" case costs no lock.
 `/dashboard/premium/crowns` shows what is left today per source via
 `getEarnStatus`.
 
-**Top.gg votes.** `app/api/webhooks/topgg/route.ts` receives vote
-webhooks. Set `TOPGG_WEBHOOK_SECRET` to the webhook authorization token
-you configure on Top.gg; requests are compared against it in constant
-time. Without the variable the route answers `404` so an unconfigured
-deployment exposes nothing. Only `type: "upvote"` pays — `test` and
-`revote` are acknowledged and ignored — and the vote pays the *voter*,
-not the bot owner. An unknown Discord id is acknowledged with `200` but
-invents no account and no balance.
+**Top.gg votes.** Not live yet — the Studio has no public origin to
+receive webhooks, so nothing can earn this source and the Earn page hides
+it (see `isEarnSourceLive` above). The route is built and tested so that
+turning it on is a config change, not a code change.
+
+`app/api/webhooks/topgg/route.ts` receives vote webhooks at
+`POST /api/webhooks/topgg`. Set `TOPGG_WEBHOOK_SECRET` to the webhook
+authorization token you configure on Top.gg; requests are compared
+against it in constant time. Without the variable the route answers `404`
+so an unconfigured deployment exposes nothing. Only `type: "upvote"` pays
+— `test` and `revote` are acknowledged and ignored, so Top.gg's "Test
+Webhook" button verifies the URL and secret without minting Crowns — and
+the vote pays the *voter*, not the bot owner. An unknown Discord id is
+acknowledged with `200` but invents no account and no balance.
 
 `node scripts/testCrownEarning.js` covers all of it without a database,
-including the webhook route itself (74 assertions).
+including the webhook route itself (82 assertions).
 
 ## Server Studio
 

@@ -413,6 +413,29 @@ export async function awardCrowns(
 /* What is still earnable today                                         */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Whether a source can actually be earned on this deployment right now.
+ *
+ * Every other source is wired into the product, but a Top.gg vote only
+ * arrives if the webhook is configured, and the Studio is not deployed
+ * yet. Advertising a source nobody can trigger is worse than saying
+ * nothing: the user reads "25 Crowns for voting", votes, and gets
+ * nothing. So the Earn page hides it until `TOPGG_WEBHOOK_SECRET`
+ * exists, which is exactly the condition the webhook route uses to
+ * decide between answering 404 and paying.
+ *
+ * This hides the offer, not the history — rows already awarded under a
+ * source still show in the transaction list and still count toward
+ * today's total.
+ */
+export function isEarnSourceLive(source: CrownEarnSource): boolean {
+    if (source === "topgg_vote") {
+        return Boolean(process.env.TOPGG_WEBHOOK_SECRET);
+    }
+
+    return true;
+}
+
 export type EarnSourceStatus = CrownEarnRule & {
     awardedToday: number;
 
@@ -487,7 +510,11 @@ export async function getEarnStatus(
         }
     }
 
-    const sources = CROWN_EARN_SOURCES.map((source) => {
+    const sources = CROWN_EARN_SOURCES.filter(
+        (source) =>
+            isEarnSourceLive(source) ||
+            bySource.has(source)
+    ).map((source) => {
         const rule = CROWN_EARN_RULES[source];
 
         const awardedToday =
