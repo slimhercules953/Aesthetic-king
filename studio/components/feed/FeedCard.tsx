@@ -593,7 +593,12 @@ export default function FeedCard({
                     type="button"
                     onClick={toggleLike}
                     disabled={likeBusy}
-                    aria-label="Like post"
+                    aria-label={
+                        liked
+                            ? "Unlike post"
+                            : "Like post"
+                    }
+                    aria-pressed={liked}
                     className={[
                         "rounded-xl p-2.5 transition",
                         liked

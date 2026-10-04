@@ -4,6 +4,7 @@ import {
 
 import {
     query,
+    withTransaction,
 } from "./database";
 
 import {
@@ -385,99 +386,173 @@ export async function toggleSharedPostLike(
     liked: boolean;
     likeCount: number;
 } | null> {
-    const result =
-        await query<{
-            liked: boolean;
-            "likeCount": number;
-            "authorDiscordId": string | null;
-            "itemType": string | null;
-            "itemId": string | null;
-            "likerUsername": string | null;
-        }>(
-            `
-            WITH actor AS (
-                SELECT id
-                FROM "User"
-                WHERE "discordId" = $2
-                LIMIT 1
-            ),
-            existing AS (
-                DELETE FROM "SharedPostLike" spl
-                USING actor
-                WHERE
-                    spl."postId" = $1
-                    AND spl."userId" = actor.id
-                RETURNING spl."userId"
-            ),
-            liked AS (
-                INSERT INTO "SharedPostLike" ("userId", "postId", "createdAt")
-                SELECT actor.id, $1, NOW()
-                FROM actor
-                WHERE NOT EXISTS (SELECT 1 FROM existing)
-                  AND EXISTS (
-                      SELECT 1
-                      FROM "SharedPost"
-                      WHERE id = $1
-                  )
-                ON CONFLICT ("userId", "postId") DO NOTHING
-                RETURNING "SharedPostLike"."userId"
-            ),
-            counted AS (
-                UPDATE "SharedPost" sp
-                SET
-                    "likeCount" = (
-                        SELECT COUNT(*)::int
-                        FROM "SharedPostLike"
-                        WHERE "postId" = $1
+    /*
+     * The like row and the cached "likeCount" have to change together, and
+     * the recount has to happen *after* the insert/delete is visible.
+     *
+     * Doing both in one statement with data-modifying CTEs looks tidy but is
+     * wrong: every CTE in a statement reads the same snapshot, so a recount
+     * CTE cannot see the row its sibling CTE just inserted or deleted. The
+     * stored count then trails the truth by exactly one toggle, which is the
+     * "I unliked my own post and it now says 1 like" bug.
+     *
+     * Locking the post row for the whole transaction also stops two people
+     * liking at the same moment from each recounting off the same snapshot
+     * and quietly losing one of the two likes.
+     */
+    const outcome =
+        await withTransaction(
+            async (client) => {
+                const post =
+                    await client.query<{
+                        "id": string;
+                        "authorDiscordId": string | null;
+                        "itemType": string | null;
+                    }>(
+                        `
+                        SELECT
+                            sp.id,
+                            au."discordId" AS "authorDiscordId",
+                            sp."itemType"::text AS "itemType"
+                        FROM "SharedPost" sp
+                        LEFT JOIN "User" au
+                            ON au.id = sp."userId"
+                        WHERE sp.id = $1
+                        FOR UPDATE OF sp
+                        `,
+                        [
+                            postId,
+                        ]
+                    );
+
+                const postRow =
+                    post.rows[0];
+
+                if (!postRow) {
+                    return null;
+                }
+
+                const actor =
+                    await client.query<{
+                        id: string;
+                    }>(
+                        `
+                        SELECT id
+                        FROM "User"
+                        WHERE "discordId" = $1
+                        LIMIT 1
+                        `,
+                        [
+                            discordId,
+                        ]
+                    );
+
+                const actorId =
+                    actor.rows[0]?.id;
+
+                if (!actorId) {
+                    return null;
+                }
+
+                const removed =
+                    await client.query(
+                        `
+                        DELETE FROM "SharedPostLike"
+                        WHERE
+                            "postId" = $1
+                            AND "userId" = $2
+                        `,
+                        [
+                            postId,
+                            actorId,
+                        ]
+                    );
+
+                /*
+                 * A row coming back out of the DELETE means the like already
+                 * existed, so this click removed it. Only when nothing was
+                 * deleted do we add the like, and only then is the post
+                 * "liked" afterwards.
+                 */
+                const wasLiked =
+                    (removed.rowCount ?? 0) > 0;
+
+                let liked =
+                    false;
+
+                if (!wasLiked) {
+                    const inserted =
+                        await client.query(
+                            `
+                            INSERT INTO "SharedPostLike" (
+                                "userId",
+                                "postId",
+                                "createdAt"
+                            )
+                            VALUES ($2, $1, NOW())
+                            ON CONFLICT ("userId", "postId")
+                                DO NOTHING
+                            `,
+                            [
+                                postId,
+                                actorId,
+                            ]
+                        );
+
+                    liked =
+                        (inserted.rowCount ?? 0) > 0;
+                }
+
+                /*
+                 * A separate statement, so this COUNT sees the row that was
+                 * just inserted or deleted.
+                 */
+                const counted =
+                    await client.query<{
+                        likeCount: number;
+                    }>(
+                        `
+                        UPDATE "SharedPost"
+                        SET
+                            "likeCount" = (
+                                SELECT COUNT(*)::int
+                                FROM "SharedPostLike"
+                                WHERE "postId" = $1
+                            ),
+                            "updatedAt" = NOW()
+                        WHERE id = $1
+                        RETURNING "likeCount"::int AS "likeCount"
+                        `,
+                        [
+                            postId,
+                        ]
+                    );
+
+                return {
+                    liked,
+                    likeCount: Number(
+                        counted.rows[0]?.likeCount ?? 0
                     ),
-                    "updatedAt" = NOW()
-                WHERE sp.id = $1
-                RETURNING sp."likeCount"
-            )
-            SELECT
-                (SELECT COUNT(*) > 0 FROM liked) AS liked,
-                (SELECT "likeCount" FROM counted) AS "likeCount",
-                (
-                    SELECT author_u."discordId"
-                    FROM "SharedPost" author_sp
-                    INNER JOIN "User" author_u
-                        ON author_u.id = author_sp."userId"
-                    WHERE author_sp.id = $1
-                ) AS "authorDiscordId",
-                (
-                    SELECT sp."itemType"::text
-                    FROM "SharedPost" sp
-                    WHERE sp.id = $1
-                ) AS "itemType",
-                (
-                    SELECT sp."itemId"
-                    FROM "SharedPost" sp
-                    WHERE sp.id = $1
-                ) AS "itemId",
-                (
-                    SELECT COALESCE(au."displayName", au."username")
-                    FROM "User" au
-                    WHERE au."discordId" = $2
-                ) AS "likerUsername"
-            `,
-            [
-                postId,
-                discordId,
-            ]
+                    authorDiscordId:
+                        postRow.authorDiscordId,
+                    itemType:
+                        postRow.itemType,
+                };
+            }
         );
 
-    const row =
-        result.rows[0];
-
-    if (!row) {
+    if (!outcome) {
         return null;
     }
 
-    const liked = Boolean(row.liked);
+    const {
+        liked,
+        likeCount,
+    } = outcome;
 
     if (liked) {
         await awardForLike(
-            String(row.authorDiscordId ?? ""),
+            String(outcome.authorDiscordId ?? ""),
             discordId,
             postId
         );
@@ -489,18 +564,38 @@ export async function toggleSharedPostLike(
          * notices for the same pair.
          */
         const authorDiscordId =
-            String(row.authorDiscordId ?? "");
+            String(outcome.authorDiscordId ?? "");
 
         if (authorDiscordId && authorDiscordId !== discordId) {
             const kind =
-                row.itemType === "PALETTE"
+                outcome.itemType === "PALETTE"
                     ? "palette"
-                    : row.itemType === "ASSET"
+                    : outcome.itemType === "ASSET"
                         ? "asset set"
                         : "aesthetic";
 
+            const likerResult =
+                await query<{
+                    likerUsername: string | null;
+                }>(
+                    `
+                    SELECT COALESCE(
+                        "displayName",
+                        "username"
+                    ) AS "likerUsername"
+                    FROM "User"
+                    WHERE "discordId" = $1
+                    LIMIT 1
+                    `,
+                    [
+                        discordId,
+                    ]
+                );
+
             const liker =
-                String(row.likerUsername ?? "").trim() ||
+                String(
+                    likerResult.rows[0]?.likerUsername ?? ""
+                ).trim() ||
                 "Someone";
 
             await createNotificationForDiscordUser(
@@ -520,7 +615,7 @@ export async function toggleSharedPostLike(
 
     return {
         liked,
-        likeCount: Number(row.likeCount ?? 0),
+        likeCount,
     };
 }
 
@@ -646,80 +741,122 @@ export async function addSharedPostComment(
         );
     }
 
-    const result =
-        await query<
-            SharedPostComment & {
-                authorDiscordId: string | null;
-            }
-        >(
-            `
-            WITH actor AS (
-                SELECT id
-                FROM "User"
-                WHERE "discordId" = $2
-                LIMIT 1
-            ),
-            inserted AS (
-                INSERT INTO "SharedPostComment" (
-                    id,
-                    "postId",
-                    "userId",
-                    body,
-                    "createdAt"
-                )
-                SELECT
-                    gen_random_uuid()::text,
-                    $1,
-                    actor.id,
-                    $3,
-                    NOW()
-                FROM actor
-                WHERE EXISTS (
-                    SELECT 1
-                    FROM "SharedPost"
-                    WHERE id = $1
-                )
-                RETURNING id, "postId", "userId", body, "createdAt"
-            ),
-            counted AS (
-                UPDATE "SharedPost" sp
-                SET
-                    "commentCount" = (
-                        SELECT COUNT(*)::int
-                        FROM "SharedPostComment"
-                        WHERE "postId" = $1
-                    ),
-                    "updatedAt" = NOW()
-                WHERE sp.id = $1
-                RETURNING sp.id
-            )
-            SELECT
-                spc.id,
-                spc."postId",
-                spc.body,
-                spc."createdAt",
-                u.id AS "userId",
-                u.username,
-                u."displayName",
-                u."avatarHash",
-                author_u."discordId" AS "authorDiscordId"
-            FROM inserted spc
-            INNER JOIN "User" u
-                ON u.id = spc."userId"
-            LEFT JOIN "SharedPost" author_sp
-                ON author_sp.id = spc."postId"
-            LEFT JOIN "User" author_u
-                ON author_u.id = author_sp."userId"
-            LIMIT 1
-            `,
-            [
-                postId,
-                discordId,
-                trimmed,
-            ]
-        );
+    /*
+     * Same reason as toggleSharedPostLike: the cached "commentCount" is
+     * recomputed in its own statement so that the COUNT actually sees the
+     * comment that was just inserted. Inside one statement the recount would
+     * read the pre-insert snapshot and the stored count would trail by one.
+     */
+    const row =
+        await withTransaction(
+            async (client) => {
+                const post =
+                    await client.query<{
+                        "id": string;
+                        "authorDiscordId": string | null;
+                    }>(
+                        `
+                        SELECT
+                            sp.id,
+                            au."discordId" AS "authorDiscordId"
+                        FROM "SharedPost" sp
+                        LEFT JOIN "User" au
+                            ON au.id = sp."userId"
+                        WHERE sp.id = $1
+                        FOR UPDATE OF sp
+                        `,
+                        [
+                            postId,
+                        ]
+                    );
 
-    const row = result.rows[0];
+                const postRow =
+                    post.rows[0];
+
+                if (!postRow) {
+                    return null;
+                }
+
+                const inserted =
+                    await client.query<
+                        SharedPostComment & {
+                            authorDiscordId: string | null;
+                        }
+                    >(
+                        `
+                        WITH actor AS (
+                            SELECT id
+                            FROM "User"
+                            WHERE "discordId" = $2
+                            LIMIT 1
+                        ),
+                        inserted AS (
+                            INSERT INTO "SharedPostComment" (
+                                id,
+                                "postId",
+                                "userId",
+                                body,
+                                "createdAt"
+                            )
+                            SELECT
+                                gen_random_uuid()::text,
+                                $1,
+                                actor.id,
+                                $3,
+                                NOW()
+                            FROM actor
+                            RETURNING id, "postId", "userId", body, "createdAt"
+                        )
+                        SELECT
+                            spc.id,
+                            spc."postId",
+                            spc.body,
+                            spc."createdAt",
+                            u.id AS "userId",
+                            u.username,
+                            u."displayName",
+                            u."avatarHash",
+                            $4 AS "authorDiscordId"
+                        FROM inserted spc
+                        INNER JOIN "User" u
+                            ON u.id = spc."userId"
+                        LIMIT 1
+                        `,
+                        [
+                            postId,
+                            discordId,
+                            trimmed,
+                            postRow.authorDiscordId,
+                        ]
+                    );
+
+                const commentRow =
+                    inserted.rows[0];
+
+                if (!commentRow) {
+                    return null;
+                }
+
+                await client.query(
+                    `
+                    UPDATE "SharedPost"
+                    SET
+                        "commentCount" = (
+                            SELECT COUNT(*)::int
+                            FROM "SharedPostComment"
+                            WHERE "postId" = $1
+                        ),
+                        "updatedAt" = NOW()
+                    WHERE id = $1
+                    `,
+                    [
+                        postId,
+                    ]
+                );
+
+                return commentRow;
+            }
+        );
 
     if (!row) {
         return null;
