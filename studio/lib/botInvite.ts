@@ -20,7 +20,12 @@ import {
  *   Connect           1048576
  *   Speak             2097152
  *   Change Nickname  67108864
- *   Manage Nicknames 134217728
+ *
+ * Change Nickname is here because it is the only permission the per-server
+ * bot identity needs: `PATCH /guilds/{id}/members/@me` requires it for `nick`
+ * and requires nothing for the avatar. MANAGE_NICKNAMES is deliberately not
+ * requested — it edits other members' nicknames, which the bot never does,
+ * and moderation-flavoured bits get invites declined.
  */
 const BOT_PERMISSIONS =
     64 +
@@ -32,8 +37,7 @@ const BOT_PERMISSIONS =
     262144 +
     1048576 +
     2097152 +
-    67108864 +
-    134217728;
+    67108864;
 
 function readSecret(name: string): string | undefined {
     const bindings =
