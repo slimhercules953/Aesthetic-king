@@ -485,3 +485,75 @@ parser lowercases `kind` and once compared it against the camelCase
 literal, so every profile-set seed 400'd in the browser while the
 composer tests stayed green.
 
+## Creator profiles & public search
+
+Phase 7's first slice: a public page per creator, and a search box on
+Discover. Both take a string straight out of the URL and use it to select
+*other people's* content, which is a new kind of exposure for the Studio.
+
+**A creator page is a projection, not a new surface.**
+`/dashboard/u/[discordId]` renders `getCreatorProfile()` +
+`getCreatorTopTags()` + `getFeedPostsByAuthorDiscordId()`, and every one of
+those reads `SharedPost`. Nothing from a private library — unshared
+aesthetics, palettes, profiles, collections — is reachable through
+`lib/creator.ts`. That is the whole privacy argument for the page: it shows
+what is already visible to any signed-in user in the feed, grouped by
+author. A Discord user who has never signed into the Studio has no `User`
+row, so the page 404s rather than rendering an empty profile.
+
+**`lib/creatorHref.ts` exists so `FeedCard` can link authors.**
+The ID validation and the href builder have to be importable from a client
+component, but `lib/creator.ts` talks to the database — importing from it
+would drag `pg` into the browser bundle. Same reason
+`lib/completionColors.ts` exists. `normalizeDiscordId()` is a
+`/^\d{5,25}$/` test: snowflakes are digits, and the lower bound rejects
+junk without trying to bound the top, because snowflake values grow with
+time and a hard upper digit count would eventually reject real IDs.
+`creatorProfileHref()` returns `null` for anything else, so a malformed
+author ID renders plain text instead of a link to a 404.
+
+**Public search is a separate module from `lib/search.ts` on purpose.**
+`searchStudio()` answers "what have *I* saved" and its docstring says it
+deliberately does not scan the feed. `lib/feedSearch.ts` answers "what has
+the community published", where every row belongs to somebody else. It
+reuses `FEED_SELECT_SQL` (exported from `sharedFeed.ts`) so the like-this-
+viewer-has-already-liked subquery is defined once.
+
+The match lives in its own exported fragment, `FEED_SEARCH_MATCH_SQL`,
+because the obvious version of it is wrong. The item joins are `LEFT JOIN`s,
+so writing `sa.id IS NOT NULL OR caption ILIKE $2` makes **every** aesthetic
+and palette post match **every** term. Each branch therefore carries its own
+`sp."itemType" = '…'` guard. A side benefit: a post whose underlying item
+has since been deleted matches nothing and drops out of search, instead of
+turning up as a card with no media.
+
+Two other rules worth keeping:
+
+- The term is always a bound parameter, never concatenated. `escapeLike()`
+  escapes `\`, `%` and `_` so a search for `100%` means `100%` rather than
+  silently broadening.
+- Terms shorter than two characters return `[]` without querying. A
+  one-letter `ILIKE` would scan the feed and return noise.
+
+`searchFeedCreators()` only returns accounts with at least one post
+(`INNER JOIN "SharedPost"`). An account that has never published has no
+public surface, so listing it would leak the existence of a Studio account
+through a search box.
+
+**Discover's search is a plain GET form.** The page already holds all the
+state in its URL (`type`, `sort`, `tag`), so a `<form method="get">` with
+hidden inputs for the current filters is the cheapest thing that keeps
+results shareable and reload-safe — no client component, no fetch, no new
+state to desynchronise.
+
+### Testing it
+
+`node scripts/testCreatorProfiles.js` transpiles the three real modules and
+asserts both halves. Offline: that a non-snowflake never reaches SQL, that
+the term appears only in the parameter list, that both match branches are
+type-guarded, that every `$n` placeholder has a parameter, and that filters
+and sort produce the expected SQL. Against the database (skipped, not
+failed, when none is reachable): the profile's counts and tag aggregation,
+creator lookup by name and by tag, and — the check that matters most — that
+a term matching only internal IDs leaks no posts.
+

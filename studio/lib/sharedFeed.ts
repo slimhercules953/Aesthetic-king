@@ -48,6 +48,12 @@ export type SharedPostComment = {
     createdAt: Date;
 
     userId: string;
+    /**
+     * Needed so a comment's author can link to their public profile.
+     * The internal `userId` is a cuid and is deliberately not used in
+     * links — the snowflake is what every public surface is addressed by.
+     */
+    discordId: string;
     username: string | null;
     displayName: string | null;
     avatarHash: string | null;
@@ -161,7 +167,7 @@ export async function shareItemToFeed(
     return post;
 }
 
-const FEED_SELECT = `
+export const FEED_SELECT_SQL = `
     SELECT
         sp.id,
         sp."itemType",
@@ -251,7 +257,7 @@ export async function getFeedPosts(
 
     const result =
         await query<SharedPostSummary>(
-            `${FEED_SELECT}
+            `${FEED_SELECT_SQL}
             WHERE 1=1
             ${filterSql}
             ${orderSql}
@@ -270,7 +276,7 @@ export async function getFeedPostById(
 ): Promise<SharedPostSummary | null> {
     const result =
         await query<SharedPostSummary>(
-            `${FEED_SELECT}
+            `${FEED_SELECT_SQL}
             WHERE sp.id = $2
             LIMIT 1
             `,
@@ -329,13 +335,21 @@ export async function hasSharedItem(
     );
 }
 
-export async function getFeedPostsByAuthorDiscordId(    authorDiscordId: string,
+/**
+ * Everything one account has published, newest first.
+ *
+ * This is the creator profile page's data source. It is not filtered by
+ * the viewer: published posts are public within the Studio by design,
+ * which is the whole point of Discover.
+ */
+export async function getFeedPostsByAuthorDiscordId(
+    authorDiscordId: string,
     viewerDiscordId: string | null,
     limit = 30
 ): Promise<SharedPostSummary[]> {
     const result =
         await query<SharedPostSummary>(
-            `${FEED_SELECT}
+            `${FEED_SELECT_SQL}
             WHERE u."discordId" = $2
             ORDER BY sp."createdAt" DESC
             LIMIT $3
@@ -631,6 +645,7 @@ export async function getSharedPostComments(
                 spc.body,
                 spc."createdAt",
                 u.id AS "userId",
+                u."discordId",
                 u.username,
                 u."displayName",
                 u."avatarHash"
@@ -671,6 +686,7 @@ export async function getSharedPostCommentsByPostIds(
                 ranked.body,
                 ranked."createdAt",
                 ranked."userId",
+                ranked."discordId",
                 ranked.username,
                 ranked."displayName",
                 ranked."avatarHash"
@@ -681,6 +697,7 @@ export async function getSharedPostCommentsByPostIds(
                     spc.body,
                     spc."createdAt",
                     u.id AS "userId",
+                    u."discordId",
                     u.username,
                     u."displayName",
                     u."avatarHash",
@@ -813,6 +830,7 @@ export async function addSharedPostComment(
                             spc.body,
                             spc."createdAt",
                             u.id AS "userId",
+                            u."discordId",
                             u.username,
                             u."displayName",
                             u."avatarHash",
@@ -874,6 +892,7 @@ export async function addSharedPostComment(
         body: row.body,
         createdAt: row.createdAt,
         userId: row.userId,
+        discordId: row.discordId,
         username: row.username,
         displayName: row.displayName,
         avatarHash: row.avatarHash,

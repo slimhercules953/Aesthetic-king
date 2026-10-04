@@ -20,10 +20,15 @@ import type {
     FeedPostMedia,
 } from "../../lib/feedItems";
 
+import {
+    creatorProfileHref,
+} from "../../lib/creatorHref";
+
 export type FeedCommentData = {
     id: string;
     body: string;
     createdAt: Date | string;
+    discordId?: string | null;
     username: string | null;
     displayName: string | null;
     avatarHash: string | null;
@@ -199,6 +204,10 @@ export default function FeedCard({
         post.authorUsername ||
         "someone";
 
+    const authorHref = creatorProfileHref(
+        post.authorDiscordId
+    );
+
     async function toggleLike() {
         if (likeBusy) {
             return;
@@ -361,43 +370,65 @@ export default function FeedCard({
     return (
         <article className="overflow-hidden rounded-3xl border border-white/[0.06] bg-[#101015]">
             <div className="flex items-center gap-3 px-5 py-4">
-                {discordAvatarUrl(
-                    post.authorDiscordId,
-                    post.authorAvatarHash
-                ) ? (
-                    <img
-                        src={
-                            discordAvatarUrl(
-                                post.authorDiscordId,
-                                post.authorAvatarHash
-                            )!
-                        }
-                        alt={authorName}
-                        className="h-10 w-10 rounded-full border border-white/[0.08] object-cover"
-                    />
-                ) : (
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-sm font-semibold">
-                        {authorName
-                            .charAt(0)
-                            .toUpperCase()}
-                    </div>
-                )}
+                {(() => {
+                    /*
+                     * The avatar and name are one link to the creator page.
+                     * When the author id is not a usable snowflake the group
+                     * degrades to a plain div rather than a dead link.
+                     */
+                    const avatar = discordAvatarUrl(
+                        post.authorDiscordId,
+                        post.authorAvatarHash
+                    );
 
-                <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-zinc-200">
-                        {authorName}
-                    </p>
+                    const inner = (
+                        <>
+                            {avatar ? (
+                                <img
+                                    src={avatar}
+                                    alt={authorName}
+                                    className="h-10 w-10 rounded-full border border-white/[0.08] object-cover"
+                                />
+                            ) : (
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-sm font-semibold">
+                                    {authorName
+                                        .charAt(0)
+                                        .toUpperCase()}
+                                </div>
+                            )}
 
-                    <p className="text-xs text-zinc-600">
-                        {timeAgo(post.createdAt)}
-                        {" • "}
-                        {post.itemType === "AESTHETIC"
-                            ? "full profile"
-                            : post.itemType === "PALETTE"
-                            ? "palette"
-                            : "profile set"}
-                    </p>
-                </div>
+                            <div className="min-w-0 flex-1 text-left">
+                                <p className="truncate text-sm font-semibold text-zinc-200 group-hover/name:text-violet-300">
+                                    {authorName}
+                                </p>
+
+                                <p className="text-xs text-zinc-600">
+                                    {timeAgo(post.createdAt)}
+                                    {" • "}
+                                    {post.itemType === "AESTHETIC"
+                                        ? "full profile"
+                                        : post.itemType === "PALETTE"
+                                        ? "palette"
+                                        : "profile set"}
+                                </p>
+                            </div>
+                        </>
+                    );
+
+                    return authorHref ? (
+                        <a
+                            href={authorHref}
+                            className="group/name flex min-w-0 flex-1 items-center gap-3"
+                            title={`See ${authorName}'s profile`}
+                        >
+                            {inner}
+                        </a>
+                    ) : (
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                            {inner}
+                        </div>
+                    );
+                })()}
 
                 <div className="relative">
                     <button
@@ -695,28 +726,44 @@ export default function FeedCard({
                     ) : (
                         <div className="space-y-3">
                             {comments.map(
-                                (comment) => (
+                                (comment) => {
+                                    const commentName =
+                                        comment.displayName ||
+                                        comment.username ||
+                                        "someone";
+
+                                    const commentHref =
+                                        creatorProfileHref(
+                                            comment.discordId
+                                        );
+
+                                    return (
                                     <div
                                         key={comment.id}
                                         className="flex items-start gap-3"
                                     >
                                         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-[11px] font-semibold text-zinc-300">
-                                            {(comment.displayName ||
-                                                comment.username ||
-                                                "?").charAt(0).toUpperCase()}
+                                            {commentName.charAt(0).toUpperCase()}
                                         </div>
-
+ 
                                         <div className="min-w-0 flex-1">
                                             <p className="text-sm leading-6 text-zinc-300">
-                                                <span className="mr-2 font-semibold text-zinc-100">
-                                                    {comment.displayName ||
-                                                        comment.username ||
-                                                        "someone"}
-                                                </span>
-
+                                                {commentHref ? (
+                                                    <a
+                                                        href={commentHref}
+                                                        className="mr-2 font-semibold text-zinc-100 hover:text-violet-300 hover:underline"
+                                                    >
+                                                        {commentName}
+                                                    </a>
+                                                ) : (
+                                                    <span className="mr-2 font-semibold text-zinc-100">
+                                                        {commentName}
+                                                    </span>
+                                                )}
+ 
                                                 {comment.body}
                                             </p>
-
+ 
                                             <p className="text-[11px] text-zinc-600">
                                                 {timeAgo(
                                                     comment.createdAt
@@ -724,7 +771,8 @@ export default function FeedCard({
                                             </p>
                                         </div>
                                     </div>
-                                )
+                                    );
+                                }
                             )}
                         </div>
                     )}
