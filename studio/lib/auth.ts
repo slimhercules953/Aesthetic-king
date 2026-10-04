@@ -498,32 +498,134 @@ export async function getDiscordUser(
     return response.json();
 }
 
+/**
+ * How long a fetched guild list stays usable.
+ *
+ * One Server Studio page view asks for the caller's guilds three times (the
+ * page itself, the appearance route and the bot-identity route), and every
+ * other Studio tab asks again on each API call. Discord rate-limits that
+ * burst on `/users/@me/guilds` and answers with a 429, which the access guard
+ * reports as "could not verify your permissions". Thirty seconds is short
+ * enough that joining or losing a server shows up on the next visit to the
+ * list, and long enough to absorb a page's worth of requests.
+ */
+const GUILD_CACHE_TTL_MS =
+    30 * 1000;
+
+const guildCache =
+    new Map<
+        string,
+        { value: DiscordGuild[]; expiresAt: number }
+    >();
+
+/**
+ * Requests already on their way to Discord, keyed the same way as the cache.
+ *
+ * The three calls in a page view start at almost the same moment, so a plain
+ * TTL cache would still let all of them miss. Reusing the in-flight promise
+ * collapses the burst into a single HTTP request.
+ */
+const guildRequests =
+    new Map<string, Promise<DiscordGuild[]>>();
+
+/**
+ * Non-reversible cache key for an access token.
+ *
+ * The token itself must not be held in memory longer than the request that
+ * needs it, and a cheap hash would risk collisions that leak one account's
+ * server list to another, so this uses SHA-256.
+ */
+async function guildCacheKey(
+    accessToken: string
+): Promise<string> {
+    const digest =
+        await crypto.subtle.digest(
+            "SHA-256",
+            new TextEncoder().encode(accessToken)
+        );
+
+    return Array.from(new Uint8Array(digest))
+        .map((byte) =>
+            byte.toString(16).padStart(2, "0")
+        )
+        .join("");
+}
+
+function pruneGuildCache(): void {
+    const now = Date.now();
+
+    for (const [key, entry] of guildCache) {
+        if (entry.expiresAt <= now) {
+            guildCache.delete(key);
+        }
+    }
+
+    // Tokens rotate on refresh, so entries are never overwritten in place.
+    if (guildCache.size > 128) {
+        guildCache.clear();
+    }
+}
+
 export async function getDiscordGuilds(
     accessToken: string
 ): Promise<DiscordGuild[]> {
-    const response =
-        await fetch(
-            `${DISCORD_API_BASE}/users/@me/guilds`,
-            {
-                headers: {
-                    Authorization:
-                        `Bearer ${accessToken}`,
-                },
-            }
-        );
+    const key = await guildCacheKey(accessToken);
 
-    if (!response.ok) {
-        const text =
-            await response.text();
+    const cached = guildCache.get(key);
 
-        console.error(
-            `Discord guild request failed: ${response.status} ${response.statusText} - ${text}`
-        );
-
-        throw new Error(
-            "Discord did not return your servers. Please sign in again."
-        );
+    if (cached && cached.expiresAt > Date.now()) {
+        return cached.value;
     }
 
-    return response.json();
+    const pending = guildRequests.get(key);
+
+    if (pending) {
+        return pending;
+    }
+
+    const request = (async () => {
+        const response =
+            await fetch(
+                `${DISCORD_API_BASE}/users/@me/guilds`,
+                {
+                    headers: {
+                        Authorization:
+                            `Bearer ${accessToken}`,
+                    },
+                }
+            );
+
+        if (!response.ok) {
+            const text =
+                await response.text();
+
+            console.error(
+                `Discord guild request failed: ${response.status} ${response.statusText} - ${text}`
+            );
+
+            throw new Error(
+                "Discord did not return your servers. Please sign in again."
+            );
+        }
+
+        return response.json() as Promise<DiscordGuild[]>;
+    })();
+
+    guildRequests.set(key, request);
+
+    try {
+        const guilds = await request;
+
+        pruneGuildCache();
+
+        guildCache.set(key, {
+            value: guilds,
+            expiresAt: Date.now() + GUILD_CACHE_TTL_MS,
+        });
+
+        return guilds;
+    } finally {
+        // Never cache a failure: the next caller should be able to retry.
+        guildRequests.delete(key);
+    }
 }
