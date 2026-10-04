@@ -60,6 +60,7 @@ Node.js + discord.js v14. Runs from `src/index.js`.
 | `/status` | Discord status ideas from aesthetic + mood |
 | `/username` | Aesthetic username ideas |
 | `/bio` | Aesthetic Discord bios |
+| `/color` | Members claim a coloured name role for themselves — free, opt-in per server (see below) |
 | `/premium` | Read-only Premium plan, Crown balance and active unlocks, with a link to Studio |
 | `/ping` | Diagnostic (always available, never Pack- or config-affected) |
 
@@ -77,6 +78,22 @@ Servers are configured from the Studio (see below), and the bot reads all of it 
 - **Appearance** — embed color, footer text, and which parts of a reply are shown.
 - **Access** — allow/deny rules by role or channel.
 - **Analytics** — usage over the last 30 days.
+
+### Member Color Roles
+
+`/color` is the one command that writes to the member list, so it is off until a server opts in, and it is deliberately built so that no path lets a member hand themselves privileges.
+
+- `/color set <color> [name]` — claim a colour (`#C084FC` or a colour name). Free for everyone; no Premium gate.
+- `/color remove` / `/color show` — take it back, or see what you hold and what is available. `remove` works even after a server disables the feature, because taking a colour back should never be blocked.
+- `/color palette` — the server's approved colours, when the server is in palette mode.
+- `/color config enable|disable|mode|palette-add|palette-remove` — owner/admin only (`ManageGuild`), checked in-handler rather than with `default_member_permissions`, which Discord only supports per-command and would have hidden the member half of the command.
+
+Two invariants are re-checked against live Discord state at the moment of assignment, not just when the role was made:
+
+1. **A receipt must exist.** A colour role is only self-assignable if a `GuildCosmeticRole` row records it as such — created by `/color`, by the Studio's Appearance tab, or explicitly approved into the palette. The bot never adopts a role it did not authorise, so an owner's pre-existing `Admin` role cannot be claimed by typing its hex.
+2. **The role must still be harmless.** Zero permissions, not managed, not `@everyone`/`@here`. A receipt is not a permanent guarantee — if anyone later grants the role permissions, it stops being claimable.
+
+Roles are shared per hex (everyone who picks `#C084FC` shares one `#C084FC` role) to stay under Discord's 250-role cap, and `#000000` is refused rather than mapped, because Discord reserves colour `0` for "this role has no colour".
 
 ### Pack Resolution
 

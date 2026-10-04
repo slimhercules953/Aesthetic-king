@@ -7,6 +7,7 @@ export type ServerCommandDefinition = {
 export const SERVER_MANAGEABLE_COMMANDS: ServerCommandDefinition[] = [
     { name: "aesthetic", label: "/aesthetic", description: "Generate a complete coordinated aesthetic." },
     { name: "bio", label: "/bio", description: "Generate aesthetic Discord profile bios." },
+    { name: "color", label: "/color", description: "Let members give themselves a colored name role. Also switched on with /color config enable." },
     { name: "palette", label: "/palette", description: "Generate coordinated color palettes." },
     { name: "profile", label: "/profile", description: "Generate coordinated Discord profile concepts." },
     { name: "status", label: "/status", description: "Generate aesthetic Discord status ideas." },

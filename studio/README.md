@@ -207,6 +207,13 @@ not exist; an API client gets 401/403/502 so it can tell the difference.
   Validation, hex↔integer conversion, a WCAG readability warning and the
   `GuildCosmeticRole` receipt table. The Discord write itself lives in
   `discordBot.ts`, because that module owns the bot-token REST client.
+  Those receipts are also what the bot's `/color` command will hand out: a
+  colour role is only claimable by members if a receipt exists for it, so the
+  Appearance tab and `/color` share one table rather than keeping separate
+  lists. Rows written here default to `source = "STUDIO"` and
+  `selfAssignable = false` — a Studio role is claimable in the bot's FREE mode
+  but is not offered in PALETTE mode until an owner marks it approved with
+  `/color palette-add`, which is what keeps a curated palette curated.
 - `lib/guildSettings.ts` — `getGuildSettingsByDiscordId()` and a single
   `updateGuildSettings(guildId, patch)` that writes any combination of the
   patchable columns in one upsert. The settings API validates every field in

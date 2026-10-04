@@ -344,6 +344,15 @@ model GuildSettings {
   showGeneratedImages Boolean  @default(true)
   showRerollButtons  Boolean   @default(true)
 
+  /// Member colour roles (`/color`). Off until the owner turns it on, so a
+  /// bot that gains Manage Roles on re-invite does not start handing out
+  /// colours nobody asked for.
+  colorRolesEnabled Boolean @default(false)
+  /// `FREE` — members type any hex. `PALETTE` — only the colours the owner
+  /// has marked self-assignable. PALETTE is the option for servers that want
+  /// a house look; FREE is for casual ones.
+  colorRoleMode     String  @default("FREE")
+
   /// Setup checklist progress. Kept separate from the values above on
   /// purpose: a checklist records that an owner *did* configure
   /// something, so clearing the value later must not re-open the step.
@@ -425,12 +434,16 @@ model GuildAccessRule {
   @@index([guildId])
 }
 
-/// Cosmetic roles created from Server Studio > Appearance > Role maker.
+/// Cosmetic roles created by the role maker in Server Studio > Appearance, or
+/// on the fly by a member using `/color`.
 ///
 /// The role itself lives in Discord; this row is the receipt. It exists so
 /// the dashboard can tell an owner "these are the roles this tool made"
-/// instead of dumping the whole role list on them, and so a renamed or
-/// deleted role is still traceable back to whoever created it. The
+/// instead of dumping the whole role list on them, so a renamed or deleted
+/// role is still traceable back to whoever created it, and — critically — so
+/// that `/color` only ever hands out roles it knows it made. Without that
+/// boundary a colour picker would be a privilege-escalation tool.
+///
 /// `discordRoleId` is unique because a role can only have been created once.
 model GuildCosmeticRole {
   id      String @id @default(cuid())
@@ -441,6 +454,15 @@ model GuildCosmeticRole {
   name          String
   color         String
   createdBy     String?
+
+  /// How the role came to exist: made by an owner in the dashboard, or made
+  /// for a member who typed a hex into `/color`.
+  source String @default("STUDIO")
+
+  /// Offered by `/color` in PALETTE mode. Only an owner sets this, which is
+  /// what makes a curated palette curated — a colour a member invented in
+  /// free mode is not thereby approved for everyone else.
+  selfAssignable Boolean @default(false)
 
   createdAt DateTime @default(now())
 
