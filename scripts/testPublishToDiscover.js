@@ -1531,11 +1531,17 @@ async function partThree() {
         }
 
         // Prove the index serves the sorted query rather than merely existing:
-        // with sequential scans disabled the planner must reach for it and,
-        // because itemType is the leading key, return rows already ordered so
-        // no Sort node appears. A dev table is too small for the planner to
-        // choose an index scan on cost alone, hence the override.
+        // with sequential and bitmap scans disabled the planner must reach for
+        // a plain index scan and, because itemType is the leading key of
+        // SharedPost_itemType_createdAt_idx, return rows already ordered so no
+        // Sort node appears. A dev table is too small for the planner to choose
+        // an index scan on cost alone, hence the overrides. Bitmap scans are
+        // disabled too: on a near-empty table the planner happily picks a bitmap
+        // scan on the likeCount index and sorts the couple of rows afterwards,
+        // which is a reasonable choice for that table size but says nothing
+        // about the index under test.
         await client.query("SET enable_seqscan = off");
+        await client.query("SET enable_bitmapscan = off");
         try {
             const plan = await client.query(
                 'EXPLAIN SELECT sp.id FROM "SharedPost" sp WHERE sp."itemType" = $1::"SharedItemType" ORDER BY sp."createdAt" DESC LIMIT 18',

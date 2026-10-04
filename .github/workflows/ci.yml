@@ -32,10 +32,12 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aesthetic_king_test
 
       # src/config/env.js refuses to load without these. The suites never call
-      # Discord, so placeholder values are enough — but they must exist.
+      # Discord, so placeholder values are enough — but they must exist. They
+      # are quoted because an unquoted snowflake is read as a float and arrives
+      # as "1.23456789012346E+17".
       TOKEN: ci-placeholder-token
-      CLIENT_ID: 123456789012345678
-      DEV_GUILD_ID: 123456789012345678
+      CLIENT_ID: "123456789012345678"
+      DEV_GUILD_ID: "123456789012345678"
 
     steps:
       - uses: actions/checkout@v4
