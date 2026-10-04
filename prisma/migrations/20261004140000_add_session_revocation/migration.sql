@@ -1,0 +1,14 @@
+-- Server-side session revocation.
+--
+-- The studio session cookie is a self-signed HMAC token, so logging out
+-- only ever deleted the cookie: a token copied off a machine stayed
+-- usable for the rest of its 7-day lifetime. Logout bumps this counter,
+-- and any token stamped with a lower value is rejected.
+--
+-- A counter rather than a timestamp, because comparing an app-generated
+-- issued-at against the database clock would let host clock skew either
+-- revoke a fresh session or spare a stolen one.
+--
+-- Nullable with no default, so existing sessions keep working across the
+-- deploy and are treated as epoch 0.
+ALTER TABLE "User" ADD COLUMN "sessionEpoch" BIGINT;

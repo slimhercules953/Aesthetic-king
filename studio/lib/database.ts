@@ -1,5 +1,12 @@
 import { env } from "cloudflare:workers";
-import { Client, Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
+import {
+  Client,
+  Pool,
+  type PoolConfig,
+  PoolClient,
+  QueryResult,
+  QueryResultRow,
+} from "pg";
 
 /**
  * A single pooled client per isolate.
@@ -75,11 +82,95 @@ function isLocalHyperdrive(connectionString: string): boolean {
   return /\.hyperdrive\.local\b/i.test(connectionString);
 }
 
+/**
+ * True for loopback and the private ranges, i.e. a database you could
+ * only have reached from this machine or its LAN.
+ *
+ * `lib/auth.ts` has the same predicate for the *browser's* Host header.
+ * This one is for the database host, and it is deliberately separate:
+ * the two are answering different questions and must not be allowed to
+ * drift into coupling each other.
+ */
+function isPrivateDatabaseHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+
+  if (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".local") ||
+    host.endsWith(".lan") ||
+    host === "::1" ||
+    host === ""
+  ) {
+    return true;
+  }
+
+  if (/^127\./.test(host)) return true;
+  if (/^10\./.test(host)) return true;
+  if (/^192\.168\./.test(host)) return true;
+  return /^172\.(1[6-9]|2\d|3[01])\./.test(host);
+}
+
+/**
+ * TLS options for a connection string.
+ *
+ * Without `ssl`, `pg` connects in plaintext, so in production the
+ * Hyperdrive credentials and every row that follows cross the network
+ * unencrypted — including the already-encrypted Discord tokens, whose
+ * ciphertext would at least be moving in the clear.
+ *
+ * Local development is exempt. The local Hyperdrive emulator and a
+ * plain `localhost` PostgreSQL listen for plaintext only, so forcing TLS
+ * there would break `npm run dev` outright. Anything that is *not* a
+ * private host is treated as a real network hop and must prove its
+ * certificate, which is what stops a machine-in-the-middle from
+ * impersonating the database.
+ *
+ * A connection string that already carries `sslmode` is left alone so an
+ * operator can override this (e.g. `sslmode=require` through a private
+ * tunnel, or `sslmode=disable` deliberately). `pg` derives its own `ssl`
+ * from `sslmode`, so the only way to honour it is to not pass an `ssl`
+ * key at all — passing `ssl: undefined` would overwrite the parsed value
+ * and silently turn TLS off.
+ */
+function sslOptionsFor(connectionString: string): PoolConfig["ssl"] | null {
+  let host: string;
+  let hasSslMode: boolean;
+
+  try {
+    const url = new URL(connectionString);
+    host = url.hostname;
+    hasSslMode = /[?&]sslmode=/i.test(url.search);
+  } catch {
+    // Not a URL, so it is a libpq keyword/value string. Fall back to a
+    // text scan; an unparseable host is not provably private.
+    if (/sslmode\s*=/i.test(connectionString)) return null;
+    return /(^|\s)host\s*=\s*(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[::1\])/i.test(
+      connectionString,
+    )
+      ? null
+      : { rejectUnauthorized: true };
+  }
+
+  if (hasSslMode) return null;
+
+  // `rejectUnauthorized` is what actually verifies the certificate; `pg`
+  // treats any truthy `ssl` object as "encrypt", and only skips hostname
+  // and CA checks when this is false.
+  return isPrivateDatabaseHost(host) ? null : { rejectUnauthorized: true };
+}
+
 function createPool(): Pool {
   const connectionString = env.HYPERDRIVE.connectionString;
 
+  // Encrypt unless the database is on this machine / LAN. See
+  // `sslOptionsFor`.
+  const ssl = sslOptionsFor(connectionString);
+
   const pool = new Pool({
     connectionString,
+
+    ...(ssl ? { ssl } : null),
 
     // Per isolate. Hyperdrive caps the total number of backends across
     // all isolates, so this is a ceiling on one isolate's share of the

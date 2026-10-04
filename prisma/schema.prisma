@@ -18,6 +18,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Every studio session token stamped with a lower value is rejected.
+  // Logout increments it; null means "never revoked".
+  sessionEpoch BigInt?
+
   savedAesthetics SavedAesthetic[]
   profiles        Profile[]
   savedPalettes   SavedPalette[]
