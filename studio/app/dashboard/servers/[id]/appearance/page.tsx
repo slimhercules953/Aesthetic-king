@@ -12,6 +12,7 @@ import {
 
 import ServerAppearanceManager from "../../../../../components/servers/ServerAppearanceManager";
 import ServerBotIdentityManager from "../../../../../components/servers/ServerBotIdentityManager";
+import ServerRoleMaker from "../../../../../components/servers/ServerRoleMaker";
 import ServerStudioNav from "../../../../../components/servers/ServerStudioNav";
 
 import {
@@ -132,12 +133,17 @@ export default async function AppearancePage({
                     apply to the next command, not to
                     messages already sent. You can also give
                     the bot a nickname and profile picture
-                    that only apply here.
+                    that only apply here, and turn a hex code
+                    into a coloured role name.
                 </p>
             </div>
 
             <div className="mt-6 space-y-6">
                 <ServerAppearanceManager
+                    guildId={guild.id}
+                />
+
+                <ServerRoleMaker
                     guildId={guild.id}
                 />
 

@@ -318,6 +318,7 @@ model Guild {
   commandSettings GuildCommandSetting[]
   aestheticPacks  AestheticPack[]
   accessRules     GuildAccessRule[]
+  cosmeticRoles   GuildCosmeticRole[]
 }
 
 model GuildSettings {
@@ -421,6 +422,29 @@ model GuildAccessRule {
   updatedAt DateTime @updatedAt
 
   @@unique([guildId, kind, targetId])
+  @@index([guildId])
+}
+
+/// Cosmetic roles created from Server Studio > Appearance > Role maker.
+///
+/// The role itself lives in Discord; this row is the receipt. It exists so
+/// the dashboard can tell an owner "these are the roles this tool made"
+/// instead of dumping the whole role list on them, and so a renamed or
+/// deleted role is still traceable back to whoever created it. The
+/// `discordRoleId` is unique because a role can only have been created once.
+model GuildCosmeticRole {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  discordRoleId String
+  name          String
+  color         String
+  createdBy     String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([guildId, discordRoleId])
   @@index([guildId])
 }
 

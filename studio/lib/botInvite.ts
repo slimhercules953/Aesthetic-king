@@ -20,12 +20,26 @@ import {
  *   Connect           1048576
  *   Speak             2097152
  *   Change Nickname  67108864
+ *   Manage Roles     268435456
  *
  * Change Nickname is here because it is the only permission the per-server
  * bot identity needs: `PATCH /guilds/{id}/members/@me` requires it for `nick`
  * and requires nothing for the avatar. MANAGE_NICKNAMES is deliberately not
  * requested — it edits other members' nicknames, which the bot never does,
  * and moderation-flavored bits get invites declined.
+ *
+ * Manage Roles is the one exception to avoiding moderation-flavored bits, and
+ * it is worth the cost because the alternative is not having the feature:
+ * Server Studio > Appearance > Role maker turns a hex code into a coloured
+ * role name. That is the only thing the bot does with it, and the role it
+ * creates is hard-coded to zero permissions, no hoisting and no mentioning —
+ * so the permission buys an owner decoration, not a second moderator. It is
+ * also strictly weaker than MANAGE_NICKNAMES or MANAGE_CHANNELS, since a bot
+ * can only ever touch roles below its own top role.
+ *
+ * Adding it changes the consent screen for existing installs: an owner has to
+ * re-run the invite once for the new bit to take effect. Until they do, the
+ * Role maker says so instead of failing.
  */
 const BOT_PERMISSIONS =
     64 +
@@ -37,7 +51,8 @@ const BOT_PERMISSIONS =
     262144 +
     1048576 +
     2097152 +
-    67108864;
+    67108864 +
+    268435456;
 
 function readSecret(name: string): string | undefined {
     const bindings =

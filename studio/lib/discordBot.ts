@@ -13,6 +13,8 @@ export type BotGuildRole = {
     managed: boolean;
     /** Role flags; 1 = mentionable is irrelevant here, 16 = managed by integration. */
     flags: number;
+    /** Permission bitfield as a decimal string; Discord sends bigints as strings. */
+    permissions: string;
 };
 
 export type BotGuildChannel = {
@@ -151,6 +153,10 @@ function parseRoles(raw: unknown): BotGuildRole[] {
             position: asNumber(role.position),
             managed: role.managed === true,
             flags: asNumber(role.flags),
+            permissions:
+                typeof role.permissions === "string"
+                    ? role.permissions
+                    : String(asNumber(role.permissions)),
         }))
         .sort(
             (a, b) => b.position - a.position
@@ -724,6 +730,267 @@ export async function updateBotGuildIdentity(
     } catch (error) {
         console.error(
             `Discord bot identity update errored for ${guildId}:`,
+            error instanceof Error ? error.message : error
+        );
+
+        return {
+            ok: false,
+            error:
+                "Could not reach Discord. Try again in a moment.",
+        };
+    }
+}
+
+/* ------------------------------------------------------------------ *
+ * Roles
+ *
+ * The Access tab only ever reads roles. This is the one place the Studio
+ * writes one, and it is deliberately narrow: `guildRoles.ts` validates the
+ * name and color, and this function is the only caller, so the shape sent to
+ * Discord cannot be widened from a route.
+ * ------------------------------------------------------------------ */
+
+const MANAGE_ROLES = BigInt(1) << BigInt(28);
+
+/**
+ * Whether the bot may create roles in a guild, as far as we can tell.
+ *
+ * `null` means "unknown" — no token, or the bot is not in the guild.
+ *
+ * Discord has no endpoint that says "does this bot have permission X"; the
+ * only way to ask is to try. So this derives the answer the way Discord does:
+ * read the bot's own member record, union the bitfields of the roles it
+ * holds, and test bit 28. That is good enough to tell an owner "you still
+ * need to re-invite with Manage Roles" before they press the button, but it
+ * is not authoritative — hierarchy, channel overrides and admin changes can
+ * all still make the real call fail, which is why the create path reports
+ * 403 in its own words too.
+ */
+export async function canBotManageRoles(
+    guildId: string
+): Promise<boolean | null> {
+    const token = getBotToken();
+
+    if (!token || !guildId) {
+        return null;
+    }
+
+    const self = await getBotSelf(token).catch(
+        () => null
+    );
+
+    if (!self) {
+        return null;
+    }
+
+    const [memberRaw, snapshot] = await Promise.all([
+        fetchJson(
+            `/guilds/${guildId}/members/${self.userId}`,
+            token
+        ).catch(() => null),
+
+        getGuildSnapshot(guildId),
+    ]);
+
+    if (!memberRaw || typeof memberRaw !== "object" || snapshot === null) {
+        return null;
+    }
+
+    const roleIds = (
+        memberRaw as Record<string, unknown>
+    ).roles;
+
+    if (!Array.isArray(roleIds)) {
+        return false;
+    }
+
+    const held = new Set(
+        roleIds.filter(
+            (id): id is string =>
+                typeof id === "string"
+        )
+    );
+
+    let permissions = BigInt(0);
+
+    for (const role of snapshot.roles) {
+        if (!held.has(role.id)) {
+            continue;
+        }
+
+        try {
+            permissions |= BigInt(role.permissions);
+        } catch {
+            // A malformed bitfield is Discord's problem, not ours; ignore it.
+        }
+    }
+
+    return (permissions & MANAGE_ROLES) !== BigInt(0);
+}
+
+export type CreatedGuildRole = {
+    id: string;
+    position: number;
+};
+
+export type CreateGuildRoleResult =
+    | { ok: true; role: CreatedGuildRole }
+    | { ok: false; error: string };
+
+/**
+ * Creates a role in a guild.
+ *
+ * `permissions` is hard-coded to `"0"` and hoisting/mentioning are forced off:
+ * this makes a label, not a privilege, and no caller can ask for more.
+ *
+ * Like `updateBotGuildIdentity` this reports failure in words rather than
+ * degrading to `null` — the owner pressed a button.
+ *
+ * There is no role-hierarchy pre-check because a newly created role lands at
+ * the bottom of Discord's list, always below the bot's own top role, so
+ * MANAGE_ROLES on its own is sufficient.
+ */
+export async function createGuildRole(
+    guildId: string,
+    body: {
+        name: string;
+        color: number;
+    }
+): Promise<CreateGuildRoleResult> {
+    const token = getBotToken();
+
+    if (!token) {
+        return {
+            ok: false,
+            error:
+                "This deployment has no bot token configured.",
+        };
+    }
+
+    try {
+        const response = await fetch(
+            `${DISCORD_API_BASE}/guilds/${guildId}/roles`,
+            {
+                method: "POST",
+
+                headers: {
+                    Authorization: `Bot ${token}`,
+                    "Content-Type": "application/json",
+                },
+
+                body: JSON.stringify({
+                    name: body.name,
+                    color: body.color,
+                    hoist: false,
+                    mentionable: false,
+                    permissions: "0",
+                }),
+
+                cache: "no-store",
+            }
+        );
+
+        if (response.ok) {
+            const created = await response
+                .json()
+                .catch(() => null) as
+                | Record<string, unknown>
+                | null;
+
+            const id =
+                created &&
+                typeof created.id === "string"
+                    ? created.id
+                    : null;
+
+            if (!id) {
+                return {
+                    ok: false,
+                    error:
+                        "Discord created the role but did not report it back. Reload to check whether it appeared.",
+                };
+            }
+
+            invalidateGuildSnapshot(guildId);
+
+            return {
+                ok: true,
+                role: {
+                    id,
+                    position: asNumber(
+                        created?.position
+                    ),
+                },
+            };
+        }
+
+        /*
+         * Discord explains a rejection in the JSON body, and a numeric error
+         * code lets us answer the two cases an owner can actually act on.
+         */
+        const detail = await response
+            .json()
+            .catch(() => null) as
+            | Record<string, unknown>
+            | null;
+
+        const code =
+            detail && typeof detail.code === "number"
+                ? detail.code
+                : null;
+
+        if (code === 30005) {
+            return {
+                ok: false,
+                error:
+                    "This server has reached Discord's role limit. Delete an unused role and try again.",
+            };
+        }
+
+        if (response.status === 403) {
+            return {
+                ok: false,
+                error:
+                    "Aesthetic King needs the Manage Roles permission in this server. Re-invite it to grant that.",
+            };
+        }
+
+        if (response.status === 404) {
+            return {
+                ok: false,
+                error:
+                    "Aesthetic King is not in this server anymore.",
+            };
+        }
+
+        if (response.status === 429) {
+            return {
+                ok: false,
+                error:
+                    "That was a bit quick. Wait a few seconds and try again.",
+            };
+        }
+
+        const message =
+            detail &&
+            typeof detail.message === "string"
+                ? detail.message
+                : null;
+
+        console.error(
+            `Discord role creation failed for ${guildId}: ${response.status}`,
+            detail ?? ""
+        );
+
+        return {
+            ok: false,
+            error:
+                message ??
+                "Discord rejected that role.",
+        };
+    } catch (error) {
+        console.error(
+            `Discord role creation errored for ${guildId}:`,
             error instanceof Error ? error.message : error
         );
 
