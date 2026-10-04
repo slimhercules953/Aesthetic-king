@@ -35,7 +35,74 @@ model User {
   sharedLikes   SharedPostLike[]
   sharedComment SharedPostComment[]
 
+  notifications Notification[]
+
   discordOAuth DiscordOAuthCredential?
+}
+
+/// Something the user asked to be told about. Rows are written by the
+/// event sources (feed likes, entitlement grants, profile edits, votes)
+/// and read by the bell in the topbar.
+///
+/// `dedupeKey` is what stops a re-run of the same event from producing a
+/// second row — a webhook delivered twice, or a profile saved twice in a
+/// minute. It is nullable because some notices are genuinely one-off and
+/// have nothing to dedupe on.
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type NotificationType
+
+  title String
+  body  String?
+
+  /// Where the bell sends the user when they open the notice.
+  href String?
+
+  /// Optional icon hint so the UI can pick a glyph without switching on
+  /// `type` in three places.
+  icon String?
+
+  readAt DateTime?
+
+  /// Set once a recurring notice has been emitted, e.g. the seven-day
+  /// Premium expiry warning. Lets a periodic sweep be run repeatedly
+  /// without spamming.
+  dedupeKey String? @unique
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, readAt, createdAt])
+  @@index([userId, createdAt])
+}
+
+enum NotificationType {
+  /// Someone liked a profile or aesthetic the user shared.
+  LIKE
+
+  /// A profile the user built was edited — by them or by the bot
+  /// applying a new default.
+  PROFILE_UPDATED
+
+  /// Premium was granted.
+  PREMIUM_GRANTED
+
+  /// Premium was revoked or refunded.
+  PREMIUM_REVOKED
+
+  /// Premium ends within the warning window.
+  PREMIUM_EXPIRING
+
+  /// A new changelog / patch note was published.
+  BOT_UPDATE
+
+  /// Thank-you for a top.gg vote.
+  VOTE
+
+  /// A server the user manages hit a usage limit or lost the bot.
+  SERVER
 }
 
 model DiscordOAuthCredential {
@@ -232,6 +299,17 @@ model GuildSettings {
   showPackBadge      Boolean   @default(true)
   showGeneratedImages Boolean  @default(true)
   showRerollButtons  Boolean   @default(true)
+
+  /// Setup checklist progress. Kept separate from the values above on
+  /// purpose: a checklist records that an owner *did* configure
+  /// something, so clearing the value later must not re-open the step.
+  /// Without these the progress bar silently un-checks itself.
+  setupGenerationDone Boolean @default(false)
+  setupPackDone       Boolean @default(false)
+  setupAestheticDone  Boolean @default(false)
+  setupMoodDone       Boolean @default(false)
+  setupAccessDone     Boolean @default(false)
+  setupAppearanceDone Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

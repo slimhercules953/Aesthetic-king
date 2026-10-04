@@ -65,6 +65,33 @@ function formatDateTime(
 }
 
 /**
+ * Human explanation for the number a plan shows against a feature.
+ *
+ * Without this the table reads as bare digits next to a checkmark
+ * and nobody can tell a daily cap from a permanent one.
+ */
+function planHint(
+    feature: (typeof FEATURE_IDS)[number]
+): string | null {
+    const config = FEATURES[feature];
+
+    if (config.kind === "gated") {
+        return config.crownCost
+            ? `Unlockable with ${config.crownCost} Crowns.`
+            : null;
+    }
+
+    switch (config.resetPeriod) {
+        case "weekly":
+            return "Uses reset every week.";
+        case "monthly":
+            return "Uses reset every month.";
+        default:
+            return "Total you can have at once — it does not reset.";
+    }
+}
+
+/**
  * Renders a plan's allowance for one feature.
  *
  * "Unlimited" is never claimed — every Premium number in the
@@ -315,6 +342,16 @@ export default async function PremiumBillingPage() {
                     What changes
                 </h2>
 
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-500">
+                    A checkmark means the feature is available on that
+                    plan. A number is the maximum you can use or own
+                    &mdash; and the line under each feature says whether
+                    that number resets daily, weekly, monthly, or never
+                    resets at all. A crown marks something locked that
+                    you can unlock per-use with Crowns instead of
+                    upgrading.
+                </p>
+
                 <div className="mt-6 overflow-x-auto">
                     <table className="w-full min-w-[560px] text-left text-sm">
                         <thead className="text-xs uppercase tracking-wider text-zinc-500">
@@ -371,6 +408,20 @@ export default async function PremiumBillingPage() {
                                                             ].description
                                                         }
                                                     </p>
+
+                                                    {
+                                                        planHint(
+                                                            feature
+                                                        ) && (
+                                                            <p className="mt-0.5 text-[11px] text-zinc-700">
+                                                                {
+                                                                    planHint(
+                                                                        feature
+                                                                    )
+                                                                }
+                                                            </p>
+                                                        )
+                                                    }
                                                 </td>
 
                                                 <td className="px-4 py-3">

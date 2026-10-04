@@ -26,6 +26,7 @@ import {
 
 import {
     getBuilderSets,
+    getUsableBuilderSetById,
     type ProfileSetOption,
 } from "./profileSets";
 
@@ -50,6 +51,13 @@ export type ProfileWorkspaceData = {
     fallbackUsername: string | null;
     advancedUnlocked: boolean;
     canCreate: boolean;
+
+    /**
+     * A set the user was sent in with (`/dashboard/assets/[id]` →
+     * "Use in Aesthetic"), or null. Resolved server-side against the full
+     * usable library so a set outside the Builder's grid still renders.
+     */
+    initialSet: ProfileSetOption | null;
 
     completion: CompletionAccess;
 };
@@ -91,6 +99,7 @@ export async function loadProfileWorkspace(
     options: {
         profileId?: string | null;
         forceNew?: boolean;
+        initialSetId?: string | null;
     } = {}
 ): Promise<ProfileWorkspaceData> {
     const session =
@@ -99,6 +108,7 @@ export async function loadProfileWorkspace(
     const {
         profileId = null,
         forceNew = false,
+        initialSetId = null,
     } = options;
 
     const [
@@ -158,6 +168,17 @@ export async function loadProfileWorkspace(
     const completionAccess =
         access.COMPLETE_PROFILE_LIMIT;
 
+    /*
+     * Resolved against the whole usable library rather than the Builder's
+     * grid, so a set from anywhere in /dashboard/assets still opens with
+     * art. The Builder applies it once and clears the query string, so a
+     * later visit to the plain profile URL cannot re-overwrite the draft.
+     */
+    const initialSet = getUsableBuilderSetById(
+        initialSetId,
+        premiumUnlocked
+    );
+
     return {
         profile,
         profiles,
@@ -177,6 +198,8 @@ export async function loadProfileWorkspace(
                 existingCount,
                 advancedUnlocked
             ),
+
+        initialSet,
 
         completion: {
             allowed:

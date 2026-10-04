@@ -86,6 +86,37 @@ export function getCompletableSets(
 }
 
 /**
+ * Resolves one set by id, but only when the user is allowed to use it.
+ *
+ * `/dashboard/assets/[id]` links straight into the Builder with `?set=`,
+ * and the Builder only receives the first `BUILDER_SET_LIMIT` sets. A set
+ * further down the catalog would otherwise resolve to nothing and the
+ * preview would silently fall back to the palette, so this checks the full
+ * usable library and hands back the row the Builder needs to render it.
+ */
+export function getUsableBuilderSetById(
+    setId: string | null,
+    premiumUnlocked: boolean
+): ProfileSetOption | null {
+    if (!setId) {
+        return null;
+    }
+
+    const usable = getCompletableSets(
+        premiumUnlocked
+    ).some(
+        (set) =>
+            set.id === setId
+    );
+
+    if (!usable) {
+        return null;
+    }
+
+    return getBuilderSetById(setId);
+}
+
+/**
  * Resolves one set's images, or null when the set is unknown, disabled
  * or R2 is unconfigured.
  *

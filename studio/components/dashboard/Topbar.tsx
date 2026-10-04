@@ -1,15 +1,16 @@
 "use client";
 
 import {
-    Bell,
     Crown,
     Menu,
-    Search,
 } from "lucide-react";
 
 import {
     useState,
 } from "react";
+
+import GlobalSearch from "./GlobalSearch";
+import NotificationBell from "./NotificationBell";
 
 type TopbarProps = {
     username: string;
@@ -47,6 +48,10 @@ const mobileNavigation = [
         href: "/dashboard/collections",
     },
     {
+        label: "Profile Builder",
+        href: "/dashboard/profile",
+    },
+    {
         label: "My Servers",
         href: "/dashboard/servers",
     },
@@ -81,30 +86,12 @@ export default function Topbar({
                     />
                 </button>
 
-                <div className="hidden max-w-md flex-1 md:block">
-                    <div className="relative">
-                        <Search
-                            size={17}
-                            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600"
-                        />
-
-                        <input
-                            type="text"
-                            placeholder="Search Studio..."
-                            className="h-11 w-full rounded-xl border border-white/[0.06] bg-white/[0.025] pl-10 pr-4 text-sm text-zinc-200 outline-none transition placeholder:text-zinc-600 focus:border-violet-500/40 focus:bg-white/[0.04]"
-                        />
-                    </div>
+                <div className="max-w-md flex-1">
+                    <GlobalSearch />
                 </div>
 
                 <div className="ml-auto flex items-center gap-2">
-                    <button
-                        type="button"
-                        className="relative rounded-xl border border-white/[0.06] bg-white/[0.025] p-2.5 text-zinc-500 transition hover:bg-white/[0.05] hover:text-zinc-200"
-                    >
-                        <Bell
-                            size={18}
-                        />
-                    </button>
+                    <NotificationBell />
 
                     <a
                         href="/dashboard/premium"
@@ -117,11 +104,23 @@ export default function Topbar({
                         Upgrade
                     </a>
 
-                    <div className="ml-1 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-sm font-semibold shadow-lg shadow-violet-500/10">
+                    {/*
+                     * On desktop the sidebar already owns the account card
+                     * and its menu, so an avatar circle up here was a
+                     * second, non-functional copy of the same identity.
+                     * Below `lg` the sidebar is hidden, so this remains as
+                     * the only account entry point and links to settings.
+                     */}
+                    <a
+                        href="/dashboard/settings"
+                        title={username}
+                        aria-label={`Account settings for ${username}`}
+                        className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-sm font-semibold shadow-lg shadow-violet-500/10 transition hover:ring-2 hover:ring-violet-400/40 lg:hidden"
+                    >
                         {username
                             .charAt(0)
                             .toUpperCase()}
-                    </div>
+                    </a>
                 </div>
             </header>
 

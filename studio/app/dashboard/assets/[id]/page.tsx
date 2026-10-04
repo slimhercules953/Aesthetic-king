@@ -385,7 +385,7 @@ export default async function AssetDetailPage({
                     </h2>
 
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-                        Favorite this set, organize it into collections, or eventually use it directly inside the Aesthetic Studio.
+                        Favorite this set, organize it into collections, or open the Profile Builder with it already applied.
                     </p>
 
                     <div className="mt-5 flex flex-wrap gap-3">
@@ -412,13 +412,12 @@ export default async function AssetDetailPage({
                             }
                         />
 
-                        <button
-                            type="button"
-                            disabled
-                            className="rounded-xl border border-white/[0.06] px-4 py-2.5 text-sm text-zinc-600"
+                        <a
+                            href={`/dashboard/profile?set=${encodeURIComponent(set.id)}`}
+                            className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-2.5 text-sm font-medium text-violet-300 transition hover:border-violet-400/50 hover:bg-violet-500/15"
                         >
                             Use in Aesthetic
-                        </button>
+                        </a>
                     </div>
                 </div>
             )}

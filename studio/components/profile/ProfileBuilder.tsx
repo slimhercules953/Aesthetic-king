@@ -35,6 +35,15 @@ import {
     BUILDER_SET_LIMIT,
 } from "../../lib/profileSetOptions";
 
+/*
+ * Client-safe on purpose: `completionColors.ts` was split out of the
+ * composer precisely so the palette can be seeded without pulling
+ * server-only code into the browser bundle.
+ */
+import {
+    CATALOG_COLOR_HEX,
+} from "../../lib/completionColors";
+
 import type {
     Profile,
 } from "../../lib/profiles";
@@ -60,6 +69,12 @@ type ProfileBuilderProps = {
     profiles: Profile[];
 
     sets: ProfileSetOption[];
+
+    /**
+     * A set the user arrived with, from `/dashboard/assets/[id]` →
+     * "Use in Aesthetic". Applied to the draft once, on mount.
+     */
+    initialSet?: ProfileSetOption | null;
 
     fallbackUsername: string | null;
 
@@ -132,6 +147,7 @@ export default function ProfileBuilder({
     profile,
     profiles,
     sets,
+    initialSet = null,
     fallbackUsername,
     advancedUnlocked,
     maxProfiles,
@@ -171,6 +187,71 @@ export default function ProfileBuilder({
     const saveTimer =
         useRef<number | null>(null);
 
+    /*
+     * Applies the set the user arrived with from an asset page.
+     *
+     * Runs once, on mount. "Use in Aesthetic" means "put this set on my
+     * profile", so the set is applied even when the profile already has
+     * one; the palette is only seeded when the profile has none of its
+     * own, so hand-picked colours survive.
+     *
+     * `replaceState` drops the query string afterwards so a refresh (or a
+     * second mount from Fast Refresh) cannot re-apply it and quietly undo
+     * a set the user picks in this session.
+     */
+    const appliedInitialSet = useRef(false);
+
+    useEffect(() => {
+        if (appliedInitialSet.current) {
+            return;
+        }
+
+        appliedInitialSet.current = true;
+
+        if (!initialSet) {
+            return;
+        }
+
+        setDraft((current) => {
+            /*
+             * The catalog tags sets with colour *names* ("black", "gold"),
+             * not hex, so the names are translated through the same table
+             * "Complete My Profile" uses. Anything already in hex passes
+             * through untouched.
+             */
+            const palette = initialSet.colors
+                .map(
+                    (color) =>
+                        normalizeHex(color) ??
+                        CATALOG_COLOR_HEX[
+                            color.toLowerCase()
+                        ] ??
+                        null
+                )
+                .filter((color) => color !== null)
+                .slice(0, PROFILE_LIMITS.palette);
+
+            return {
+                ...current,
+                profileSetId: initialSet.id,
+                palette:
+                    current.palette.length > 0
+                        ? current.palette
+                        : palette,
+                accentColor:
+                    current.accentColor ??
+                    palette[0] ??
+                    null,
+            };
+        });
+
+        window.history.replaceState(
+            {},
+            "",
+            window.location.pathname
+        );
+    }, [initialSet]);
+
     useEffect(
         () => () => {
             if (saveTimer.current) {
@@ -202,11 +283,23 @@ export default function ProfileBuilder({
         [draft, fallbackUsername]
     );
 
+    /*
+     * Falls back to `initialSet` because a set arrived at via
+     * "Use in Aesthetic" can sit past `BUILDER_SET_LIMIT` and so is absent
+     * from the grid. Without this the draft would carry a valid set id
+     * while the preview drew the palette instead.
+     */
     const selectedSet =
         sets.find(
             (set) =>
                 set.id === draft.profileSetId
-        ) ?? null;
+        ) ??
+        (
+            initialSet &&
+            initialSet.id === draft.profileSetId
+                ? initialSet
+                : null
+        );
 
     const completeness = useMemo(
         () => checkCompleteness(draft),
@@ -552,6 +645,56 @@ export default function ProfileBuilder({
         setNewColor("");
     }
 
+    /**
+     * Replaces an existing palette entry in place.
+     *
+     * Keying the swatches by colour value means a recolour that lands on a
+     * colour already in the palette would produce two identical keys and a
+     * duplicate entry, so the list is de-duplicated after the swap.
+     */
+    function replaceColor(
+        index: number,
+        value: string
+    ) {
+        const hex = normalizeHex(value);
+
+        if (!hex) {
+            return;
+        }
+
+        const next = draft.palette.map(
+            (entry, position) =>
+                position === index
+                    ? hex
+                    : entry
+        );
+
+        const unique = next.filter(
+            (entry, position) =>
+                next.indexOf(entry) === position
+        );
+
+        if (
+            unique.length === draft.palette.length &&
+            unique.every(
+                (entry, position) =>
+                    entry === draft.palette[position]
+            )
+        ) {
+            return;
+        }
+
+        update({ palette: unique });
+    }
+
+    function removeColor(value: string) {
+        update({
+            palette: draft.palette.filter(
+                (entry) => entry !== value
+            ),
+        });
+    }
+
     const atLimit =
         !advancedUnlocked &&
         profiles.length >= maxProfiles &&
@@ -859,36 +1002,59 @@ export default function ProfileBuilder({
                         Palette
                     </h2>
 
+                    <p className="mt-1.5 text-xs text-zinc-600">
+                        Click a colour to change it.
+                    </p>
+
                     <div className="mt-4 flex flex-wrap gap-2">
                         {draft.palette.map(
-                            (color) => (
+                            (color, index) => (
                                 <div
-                                    key={color}
-                                    className="group relative h-12 w-12 overflow-hidden rounded-xl border border-white/[0.08]"
-                                    style={{
-                                        backgroundColor:
-                                            color,
-                                    }}
+                                    key={`${color}-${index}`}
+                                    className="relative h-12 w-12"
                                 >
+                                    <div
+                                        className="h-12 w-12 overflow-hidden rounded-xl border border-white/[0.08] transition hover:ring-2 hover:ring-violet-400/40"
+                                        style={{
+                                            backgroundColor:
+                                                color,
+                                        }}
+                                    >
+                                        {/*
+                                         * A transparent native colour input
+                                         * laid over the swatch, so clicking
+                                         * the colour itself opens the OS
+                                         * picker. Previously a swatch could
+                                         * only be removed and re-added.
+                                         */}
+                                        <input
+                                            type="color"
+                                            aria-label={`Change colour ${color}`}
+                                            title={`${color} — click to change`}
+                                            value={color}
+                                            onChange={(e) =>
+                                                replaceColor(
+                                                    index,
+                                                    e.target.value
+                                                )
+                                            }
+                                            className="h-full w-full cursor-pointer opacity-0"
+                                        />
+                                    </div>
+
                                     <button
                                         type="button"
                                         title={`Remove ${color}`}
+                                        aria-label={`Remove ${color}`}
                                         onClick={() =>
-                                            update({
-                                                palette:
-                                                    draft.palette.filter(
-                                                        (
-                                                            entry
-                                                        ) =>
-                                                            entry !==
-                                                            color
-                                                    ),
-                                            })
+                                            removeColor(
+                                                color
+                                            )
                                         }
-                                        className="absolute inset-0 hidden items-center justify-center bg-black/60 text-zinc-100 group-hover:flex"
+                                        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-[#101015] text-zinc-400 transition hover:border-rose-500/40 hover:bg-rose-500/20 hover:text-rose-200"
                                     >
                                         <X
-                                            size={14}
+                                            size={11}
                                         />
                                     </button>
                                 </div>

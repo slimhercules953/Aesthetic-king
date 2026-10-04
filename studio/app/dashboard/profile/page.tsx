@@ -6,9 +6,35 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function ProfilePage() {
+type PageProps = {
+    searchParams: Promise<{
+        set?: string | string[];
+    }>;
+};
+
+/**
+ * `?set=` can arrive repeated (`?set=a&set=b`), and only the first one is
+ * meaningful — the Builder takes a single set.
+ */
+function firstParam(
+    value: string | string[] | undefined
+): string | null {
+    if (Array.isArray(value)) {
+        return value[0] ?? null;
+    }
+
+    return value ?? null;
+}
+
+export default async function ProfilePage({
+    searchParams,
+}: PageProps) {
+    const { set } = await searchParams;
+
     const data =
-        await loadProfileWorkspace();
+        await loadProfileWorkspace({
+            initialSetId: firstParam(set),
+        });
 
     return (
         <ProfileWorkspace
@@ -22,6 +48,7 @@ export default async function ProfilePage() {
                 data.advancedUnlocked
             }
             canCreate={data.canCreate}
+            initialSet={data.initialSet}
             completion={data.completion}
         />
     );

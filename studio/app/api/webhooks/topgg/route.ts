@@ -11,6 +11,10 @@ import {
     awardForTopggVote,
 } from "../../../../lib/crownEarning";
 
+import {
+    createNotificationForDiscordUser,
+} from "../../../../lib/notifications";
+
 /*
  * Top.gg vote webhook.
  *
@@ -112,6 +116,23 @@ export async function POST(
     }
 
     await awardForTopggVote(voter);
+
+    /*
+     * The thank-you goes out on every counted vote, keyed by voter and
+     * UTC day so Top.gg's retries cannot stack identical notices.
+     */
+    const voteDay = new Date()
+        .toISOString()
+        .slice(0, 10);
+
+    await createNotificationForDiscordUser(voter, {
+        type: "VOTE",
+        title: "Thanks for voting for Aesthetic King!",
+        body: "Your vote helps more servers find the bot. Daily vote rewards are on the way.",
+        href: "/dashboard",
+        icon: "Sparkles",
+        dedupeKey: `topgg-vote:${voter}:${voteDay}`,
+    });
 
     return NextResponse.json({ ok: true });
 }

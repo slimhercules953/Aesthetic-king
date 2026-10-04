@@ -19,6 +19,19 @@ export type GuildSettings = {
     generationChannelId:
     string | null;
 
+    /*
+     * Setup progress is stored separately from the values it describes.
+     * Deriving a tick from "the column is non-null" meant that removing a
+     * default aesthetic or mood re-opened a step the admin had already
+     * finished, so the checklist was stamped once and kept.
+     */
+    setupGenerationDone: boolean;
+    setupPackDone: boolean;
+    setupAestheticDone: boolean;
+    setupMoodDone: boolean;
+    setupAccessDone: boolean;
+    setupAppearanceDone: boolean;
+
     createdAt: Date;
     updatedAt: Date;
 };
@@ -38,6 +51,13 @@ export type GuildSettingsPatch = {
 
     defaultMoodId?:
     string | null;
+
+    setupGenerationDone?: boolean;
+    setupPackDone?: boolean;
+    setupAestheticDone?: boolean;
+    setupMoodDone?: boolean;
+    setupAccessDone?: boolean;
+    setupAppearanceDone?: boolean;
 };
 
 /**
@@ -58,10 +78,50 @@ const PATCHABLE_FIELDS = [
         key: "defaultMoodId",
         column: '"defaultMoodId"',
     },
+    {
+        key: "setupGenerationDone",
+        column: '"setupGenerationDone"',
+    },
+    {
+        key: "setupPackDone",
+        column: '"setupPackDone"',
+    },
+    {
+        key: "setupAestheticDone",
+        column: '"setupAestheticDone"',
+    },
+    {
+        key: "setupMoodDone",
+        column: '"setupMoodDone"',
+    },
+    {
+        key: "setupAccessDone",
+        column: '"setupAccessDone"',
+    },
+    {
+        key: "setupAppearanceDone",
+        column: '"setupAppearanceDone"',
+    },
 ] as const satisfies ReadonlyArray<{
     key: keyof GuildSettingsPatch;
     column: string;
 }>;
+
+const SETTINGS_RETURNING = `
+    id,
+    "guildId",
+    "defaultAestheticId",
+    "defaultMoodId",
+    "generationChannelId",
+    "setupGenerationDone",
+    "setupPackDone",
+    "setupAestheticDone",
+    "setupMoodDone",
+    "setupAccessDone",
+    "setupAppearanceDone",
+    "createdAt",
+    "updatedAt"
+`;
 
 export async function getGuildSettingsByDiscordId(
     discordGuildId: string
@@ -81,6 +141,12 @@ export async function getGuildSettingsByDiscordId(
                     s."defaultAestheticId",
                     s."defaultMoodId",
                     s."generationChannelId",
+                    s."setupGenerationDone",
+                    s."setupPackDone",
+                    s."setupAestheticDone",
+                    s."setupMoodDone",
+                    s."setupAccessDone",
+                    s."setupAppearanceDone",
                     s."createdAt",
                     s."updatedAt"
 
@@ -188,13 +254,7 @@ export async function updateGuildSettings(
                     ${updates.join(", ")}
 
                 RETURNING
-                    id,
-                    "guildId",
-                    "defaultAestheticId",
-                    "defaultMoodId",
-                    "generationChannelId",
-                    "createdAt",
-                    "updatedAt"
+                    ${SETTINGS_RETURNING}
             `,
             values
         );
@@ -209,4 +269,55 @@ export async function updateGuildSettings(
     }
 
     return settings;
+}
+
+/**
+ * Which setup step a given settings column completes.
+ *
+ * Kept next to the patch type so a new step cannot be added to the
+ * checklist without also saying how it gets stamped.
+ */
+const STEP_TO_FLAG = {
+    generation: "setupGenerationDone",
+    pack: "setupPackDone",
+    aesthetic: "setupAestheticDone",
+    mood: "setupMoodDone",
+    access: "setupAccessDone",
+    appearance: "setupAppearanceDone",
+} as const satisfies Record<
+    string,
+    keyof GuildSettingsPatch
+>;
+
+export type SetupStep = keyof typeof STEP_TO_FLAG;
+
+/**
+ * Stamps one setup step as finished.
+ *
+ * Called when the step is completed rather than derived from the value,
+ * because clearing a default later is a configuration change, not a
+ * decision to undo the progress the admin already made.
+ */
+export async function markSetupStepDone(
+    discordGuildId: string,
+    step: SetupStep
+): Promise<void> {
+    const flag = STEP_TO_FLAG[step];
+
+    if (!flag) {
+        return;
+    }
+
+    try {
+        await updateGuildSettings(discordGuildId, {
+            [flag]: true,
+        });
+    } catch {
+        /*
+         * Setup progress is cosmetic. A guild that has genuinely not been
+         * installed yet has no settings row to stamp, and the caller's
+         * actual change has already succeeded — failing the request over
+         * a tick mark would be worse than a missing one.
+         */
+    }
 }

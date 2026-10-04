@@ -71,19 +71,35 @@ export default async function ServerPage({
             id
         );
 
+    /*
+     * A step stays ticked once it has been completed, even if the admin
+     * later clears the value. The `setup*Done` flags are stamped by the
+     * API when a step is first configured; the `Boolean(...)` fallback
+     * keeps a value that was set before those columns existed from
+     * reading as unfinished.
+     */
     const generationConfigured =
         Boolean(
             settings?.generationChannelId
+        ) ||
+        Boolean(
+            settings?.setupGenerationDone
         );
 
     const aestheticConfigured =
         Boolean(
             settings?.defaultAestheticId
+        ) ||
+        Boolean(
+            settings?.setupAestheticDone
         );
 
     const moodConfigured =
         Boolean(
             settings?.defaultMoodId
+        ) ||
+        Boolean(
+            settings?.setupMoodDone
         );
 
     const configuredCount =

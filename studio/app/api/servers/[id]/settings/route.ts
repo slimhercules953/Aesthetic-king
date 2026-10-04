@@ -212,6 +212,10 @@ export async function PATCH(
 
         patch.generationChannelId =
             generationChannelId || null;
+
+        if (generationChannelId) {
+            patch.setupGenerationDone = true;
+        }
     }
 
     if (
@@ -247,6 +251,10 @@ export async function PATCH(
 
         patch.defaultAestheticId =
             defaultAestheticId || null;
+
+        if (defaultAestheticId) {
+            patch.setupAestheticDone = true;
+        }
     }
 
     if (
@@ -282,6 +290,10 @@ export async function PATCH(
 
         patch.defaultMoodId =
             defaultMoodId || null;
+
+        if (defaultMoodId) {
+            patch.setupMoodDone = true;
+        }
     }
 
     if (

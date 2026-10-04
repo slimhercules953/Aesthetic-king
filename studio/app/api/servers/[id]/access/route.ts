@@ -22,6 +22,10 @@ import {
     replaceAccessRules,
 } from "../../../../../lib/guildAccessRules";
 
+import {
+    markSetupStepDone,
+} from "../../../../../lib/guildSettings";
+
 type RouteContext = {
     params: Promise<{
         id: string;
@@ -124,6 +128,8 @@ export async function POST(
 
         const rule = await addAccessRule(id, body);
 
+        await markSetupStepDone(id, "access");
+
         return NextResponse.json({ rule });
     } catch (error) {
         return handleRouteError(
@@ -156,6 +162,13 @@ export async function PUT(
             id,
             body.rules ?? []
         );
+
+        /*
+         * Saving the rule set counts as configuring access even when the
+         * list is empty — "open to everyone" is a decision, not the
+         * absence of one.
+         */
+        await markSetupStepDone(id, "access");
 
         return NextResponse.json({
             rules,

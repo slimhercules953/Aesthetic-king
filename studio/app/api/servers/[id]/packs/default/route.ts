@@ -25,6 +25,10 @@ import {
 } from "../../../../../../lib/guilds";
 
 import {
+    markSetupStepDone,
+} from "../../../../../../lib/guildSettings";
+
+import {
     SESSION_COOKIE_NAME,
     verifySessionToken,
 } from "../../../../../../lib/session";
@@ -168,6 +172,10 @@ export async function PATCH(
             body.packId ??
                 null
         );
+
+        if (body.packId) {
+            await markSetupStepDone(guildId, "pack");
+        }
 
         return NextResponse.json({
             success: true,

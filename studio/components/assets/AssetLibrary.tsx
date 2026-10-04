@@ -674,13 +674,6 @@ export default function AssetLibrary({
                                                 className="h-full w-full object-cover"
                                             />
                                         </div>
-
-                                        <span className="absolute right-4 top-4 rounded-full border border-white/10 bg-black/50 px-3 py-1 text-xs text-zinc-200 backdrop-blur">
-                                            Set{" "}
-                                            {
-                                                set.id
-                                            }
-                                        </span>
                                     </div>
 
                                     <div className="p-5 pt-6">

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 
 import ServerAppearanceManager from "../../../../../components/servers/ServerAppearanceManager";
+import ServerBotIdentityManager from "../../../../../components/servers/ServerBotIdentityManager";
 import ServerStudioNav from "../../../../../components/servers/ServerStudioNav";
 
 import {
@@ -120,12 +121,18 @@ export default async function AppearancePage({
                     server — embed colour, footer, and which
                     controls appear under a result. Changes
                     apply to the next command, not to
-                    messages already sent.
+                    messages already sent. You can also give
+                    the bot a nickname and profile picture
+                    that only apply here.
                 </p>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 space-y-6">
                 <ServerAppearanceManager
+                    guildId={guild.id}
+                />
+
+                <ServerBotIdentityManager
                     guildId={guild.id}
                 />
             </div>

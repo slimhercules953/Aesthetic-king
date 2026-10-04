@@ -16,6 +16,10 @@ import {
 } from "../../../lib/discordOAuth";
 
 import {
+    getBotInviteUrl,
+} from "../../../lib/botInvite";
+
+import {
     getInstalledGuildIds,
 } from "../../../lib/guilds";
 
@@ -177,6 +181,12 @@ export default async function ServersPage() {
                                     guild.id
                                 );
 
+                            const inviteUrl = installed
+                                ? null
+                                : getBotInviteUrl(
+                                    guild.id
+                                );
+
                             return (
                                 <article
                                     key={
@@ -239,14 +249,28 @@ export default async function ServersPage() {
                                                 Open Server Studio
                                             </a>
                                         ) : (
-                                            <button
-                                                type="button"
-                                                disabled
-                                                className="w-full cursor-not-allowed rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-sm font-medium text-zinc-500"
-                                            >
-                                                Add Aesthetic King
-                                                coming next
-                                            </button>
+                                            /*
+                                             * A real OAuth invite, pre-scoped
+                                             * to this guild, instead of the
+                                             * "coming next" placeholder that
+                                             * used to sit here.
+                                             */
+                                            inviteUrl ? (
+                                                <a
+                                                    href={inviteUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="block w-full rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-2.5 text-center text-sm font-medium text-violet-300 transition hover:border-violet-400/50 hover:bg-violet-500/15"
+                                                >
+                                                    Add Aesthetic King
+                                                </a>
+                                            ) : (
+                                                <p className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-center text-xs leading-5 text-zinc-500">
+                                                    Invites are not
+                                                    configured on this
+                                                    deployment yet.
+                                                </p>
+                                            )
                                         )}
                                     </div>
                                 </article>

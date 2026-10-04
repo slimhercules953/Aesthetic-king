@@ -20,6 +20,10 @@ import {
     updateGuildAppearance,
 } from "../../../../../lib/guildAppearance";
 
+import {
+    markSetupStepDone,
+} from "../../../../../lib/guildSettings";
+
 type RouteContext = {
     params: Promise<{
         id: string;
@@ -100,6 +104,8 @@ export async function PATCH(
                 id,
                 body ?? {}
             );
+
+        await markSetupStepDone(id, "appearance");
 
         return NextResponse.json({
             appearance,

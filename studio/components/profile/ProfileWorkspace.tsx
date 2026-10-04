@@ -26,6 +26,7 @@ type ProfileWorkspaceProps = {
     fallbackUsername: string | null;
     advancedUnlocked: boolean;
     canCreate: boolean;
+    initialSet: ProfileSetOption | null;
     completion: CompletionAccess;
 };
 
@@ -44,6 +45,7 @@ export default function ProfileWorkspace({
     fallbackUsername,
     advancedUnlocked,
     canCreate,
+    initialSet,
     completion,
 }: ProfileWorkspaceProps) {
     const active =
@@ -110,6 +112,7 @@ export default function ProfileWorkspace({
                     profile={profile}
                     profiles={profiles}
                     sets={sets}
+                    initialSet={initialSet}
                     fallbackUsername={
                         fallbackUsername
                     }

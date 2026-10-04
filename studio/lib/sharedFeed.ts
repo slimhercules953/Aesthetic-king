@@ -12,6 +12,10 @@ import {
     awardForPublish,
 } from "./crownEarning";
 
+import {
+    createNotificationForDiscordUser,
+} from "./notifications";
+
 export type SharedItemType =
     | "AESTHETIC"
     | "PALETTE"
@@ -386,6 +390,9 @@ export async function toggleSharedPostLike(
             liked: boolean;
             "likeCount": number;
             "authorDiscordId": string | null;
+            "itemType": string | null;
+            "itemId": string | null;
+            "likerUsername": string | null;
         }>(
             `
             WITH actor AS (
@@ -436,7 +443,22 @@ export async function toggleSharedPostLike(
                     INNER JOIN "User" author_u
                         ON author_u.id = author_sp."userId"
                     WHERE author_sp.id = $1
-                ) AS "authorDiscordId"
+                ) AS "authorDiscordId",
+                (
+                    SELECT sp."itemType"::text
+                    FROM "SharedPost" sp
+                    WHERE sp.id = $1
+                ) AS "itemType",
+                (
+                    SELECT sp."itemId"
+                    FROM "SharedPost" sp
+                    WHERE sp.id = $1
+                ) AS "itemId",
+                (
+                    SELECT COALESCE(au."displayName", au."username")
+                    FROM "User" au
+                    WHERE au."discordId" = $2
+                ) AS "likerUsername"
             `,
             [
                 postId,
@@ -459,6 +481,41 @@ export async function toggleSharedPostLike(
             discordId,
             postId
         );
+
+        /*
+         * The author gets a bell notice for the same event. Self-likes are
+         * skipped — nobody wants to be told they liked their own post — and
+         * the dedupe key means un-liking then re-liking does not stack
+         * notices for the same pair.
+         */
+        const authorDiscordId =
+            String(row.authorDiscordId ?? "");
+
+        if (authorDiscordId && authorDiscordId !== discordId) {
+            const kind =
+                row.itemType === "PALETTE"
+                    ? "palette"
+                    : row.itemType === "ASSET"
+                        ? "asset set"
+                        : "aesthetic";
+
+            const liker =
+                String(row.likerUsername ?? "").trim() ||
+                "Someone";
+
+            await createNotificationForDiscordUser(
+                authorDiscordId,
+                {
+                    type: "LIKE",
+                    title: `${liker} liked your ${kind}`,
+                    body: null,
+                    href: "/dashboard/discover",
+                    icon: "Heart",
+                    dedupeKey:
+                        `like:${postId}:${discordId}`,
+                }
+            );
+        }
     }
 
     return {

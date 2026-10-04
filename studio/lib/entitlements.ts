@@ -7,6 +7,10 @@ import type {
     Plan,
 } from "./features";
 
+import {
+    createNotificationForDiscordUser,
+} from "./notifications";
+
 export type EntitlementType =
     | "PREMIUM"
     | "SERVER_PREMIUM";
@@ -257,7 +261,7 @@ export async function grantEntitlement(
         externalEntitlementId?: string | null;
     }
 ): Promise<EntitlementRecord | null> {
-    return withTransaction(
+    const record = await withTransaction(
         async (client) => {
             const user =
                 await client.query<{
@@ -405,6 +409,37 @@ export async function grantEntitlement(
             );
         }
     );
+
+    /*
+     * Notifying here rather than at each call site means a grant made by
+     * the store, by staff, by the dev endpoint or by the grandfather pass
+     * all produce the same notice. Deduping on the entitlement id keeps a
+     * replayed webhook from sending it twice.
+     */
+    if (record) {
+        await createNotificationForDiscordUser(
+            discordId,
+            {
+                type:
+                    input.type === "SERVER_PREMIUM"
+                        ? "SERVER"
+                        : "PREMIUM_GRANTED",
+                title:
+                    input.type === "SERVER_PREMIUM"
+                        ? "Server Premium is active"
+                        : "Premium is now active",
+                body:
+                    input.type === "SERVER_PREMIUM"
+                        ? "Your server unlocked the Premium bot features."
+                        : "Thanks for supporting Aesthetic King. Your new limits are live on the billing page.",
+                href: "/dashboard/premium/billing",
+                icon: "Crown",
+                dedupeKey: `premium-granted:${record.id}`,
+            }
+        );
+    }
+
+    return record;
 }
 
 /**
@@ -437,7 +472,28 @@ export async function revokeEntitlement(
             ]
         );
 
-    return result.rowCount ?? 0;
+    const count = result.rowCount ?? 0;
+
+    if (count > 0) {
+        await createNotificationForDiscordUser(
+            discordId,
+            {
+                type: "PREMIUM_REVOKED",
+                title:
+                    type === "SERVER_PREMIUM"
+                        ? "Server Premium ended"
+                        : "Premium ended",
+                body:
+                    "The Premium features on this plan are no longer available. Nothing you created was deleted.",
+                href: "/dashboard/premium/billing",
+                icon: "Crown",
+                dedupeKey:
+                    `premium-revoked:${type}:${Date.now()}`,
+            }
+        );
+    }
+
+    return count;
 }
 
 /**
