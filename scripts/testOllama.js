@@ -1,8 +1,25 @@
+const logger = require("../src/utils/logger");
+
+/*
+ * Also a live diagnostic: it asks a running Ollama server to generate text.
+ * CI has no model loaded, so the check is only meaningful on a machine with
+ * Ollama installed. See scripts/testR2.js for why this skips rather than
+ * fails.
+ */
+require("dotenv").config();
+
+if (!process.env.OLLAMA_URL || !process.env.OLLAMA_MODEL) {
+    logger.warn(
+        "Skipping Ollama diagnostic — OLLAMA_URL/OLLAMA_MODEL not configured."
+    );
+
+    console.log("0 passed, 0 failed (skipped: no Ollama endpoint)");
+    process.exit(0);
+}
+
 const {
     generateText,
 } = require("../src/services/ai/ollamaProvider");
-
-const logger = require("../src/utils/logger");
 
 async function testOllama() {
     logger.info(

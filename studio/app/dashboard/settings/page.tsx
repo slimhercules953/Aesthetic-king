@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../lib/pageMetadata";
+
+import {
     cookies,
 } from "next/headers";
 
@@ -105,6 +109,12 @@ function CountCard({
         </a>
     );
 }
+
+export const metadata =
+    dashboardMetadata(
+        "Settings",
+        "Your account, what Aesthetic King stores about you, and how to delete it."
+    );
 
 export default async function SettingsPage() {
     const cookieStore =

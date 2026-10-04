@@ -279,6 +279,7 @@ export default function AssetLibrary({
                     </form>
 
                     <select
+                        aria-label="Sort assets by"
                         value={
                             query.sort
                         }

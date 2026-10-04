@@ -17,17 +17,6 @@ const {
     "../../services/interactions/interactionStateService"
 );
 
-function formatName(value) {
-    if (!value) {
-        return "Any";
-    }
-
-    return (
-        value.charAt(0).toUpperCase() +
-        value.slice(1)
-    );
-}
-
 function buildStatusList(statuses) {
     return statuses
         .map(
@@ -163,6 +152,12 @@ async function sendExpiredResponse(
 }
 
 module.exports = {
+    /*
+     * A reroll is a fresh AI call, so it shares the member's generation
+     * bucket with the command that made the embed.
+     */
+    rateLimitScope: "generation",
+
     customId:
         "status:reroll",
 

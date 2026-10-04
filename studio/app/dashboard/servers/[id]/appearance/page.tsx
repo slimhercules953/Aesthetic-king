@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../../../lib/pageMetadata";
+
+import {
     ArrowLeft,
     Bot,
     Crown,
@@ -23,6 +27,11 @@ type PageProps = {
         id: string;
     }>;
 };
+
+export const metadata =
+    dashboardMetadata(
+        "Server Appearance"
+    );
 
 export default async function AppearancePage({
     params,

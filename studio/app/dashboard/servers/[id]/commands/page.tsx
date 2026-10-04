@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../../../lib/pageMetadata";
+
+import {
     ArrowLeft,
     Bot,
     Command,
@@ -26,6 +30,11 @@ type PageProps = {
         id: string;
     }>;
 };
+
+export const metadata =
+    dashboardMetadata(
+        "Server Commands"
+    );
 
 export default async function CommandsPage({
     params,

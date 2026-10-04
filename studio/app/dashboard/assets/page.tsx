@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../lib/pageMetadata";
+
+import {
     Images,
     Sparkles,
 } from "lucide-react";
@@ -26,6 +30,12 @@ import {
     getAssetCatalogFilters,
     getAssetSets,
 } from "../../../lib/assetCatalog";
+
+export const metadata =
+    dashboardMetadata(
+        "Assets",
+        "Every banner, avatar and image you have uploaded or generated."
+    );
 
 export default async function AssetsPage() {
     const sets =

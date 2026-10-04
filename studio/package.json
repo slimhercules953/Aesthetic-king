@@ -34,6 +34,7 @@
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build",
+    "typecheck": "tsc --noEmit",
     "postbuild": "node scripts/check-build-secrets.mjs",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "deploy": "vinext-cloudflare deploy --config dist/server/wrangler.json",

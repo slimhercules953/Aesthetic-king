@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../../../lib/pageMetadata";
+
+import {
     ArrowLeft,
     BarChart3,
     Bot,
@@ -26,6 +30,11 @@ type PageProps = {
         id: string;
     }>;
 };
+
+export const metadata =
+    dashboardMetadata(
+        "Server Analytics"
+    );
 
 export default async function AnalyticsPage({
     params,

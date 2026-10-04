@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../../../lib/pageMetadata";
+
+import {
     ArrowLeft,
     Bot,
     Boxes,
@@ -27,6 +31,12 @@ type PageProps = {
         id: string;
     }>;
 };
+
+export const metadata =
+    dashboardMetadata(
+        "Server Packs",
+        "Curated aesthetic packs members can pull from in this server."
+    );
 
 export default async function PacksPage({
     params,

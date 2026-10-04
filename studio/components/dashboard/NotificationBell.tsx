@@ -379,6 +379,19 @@ export default function NotificationBell() {
                             Refreshing…
                         </p>
                     )}
+
+                    {/*
+                      * The dropdown is capped at MAX_LIST rows, so anything
+                      * older is simply not reachable from here. This footer is
+                      * the only route to the full page.
+                      */}
+                    <a
+                        href="/dashboard/notifications"
+                        onClick={() => setOpen(false)}
+                        className="block border-t border-white/[0.06] px-4 py-3 text-center text-xs font-medium text-zinc-500 transition hover:bg-white/[0.04] hover:text-violet-300"
+                    >
+                        View all notifications
+                    </a>
                 </div>
             )}
         </div>

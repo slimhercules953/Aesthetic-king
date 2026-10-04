@@ -1,9 +1,19 @@
+import {
+    dashboardMetadata,
+} from "../../../lib/pageMetadata";
+
 import CreateAestheticStudio from "../../../components/create/CreateAestheticStudio";
 
 import {
     getAssetCatalogFilters,
     getAssetSets,
 } from "../../../lib/assetCatalog";
+
+export const metadata =
+    dashboardMetadata(
+        "Create",
+        "Pick an aesthetic and a mood and generate a matching Discord profile."
+    );
 
 export default function CreatePage() {
     const filters =

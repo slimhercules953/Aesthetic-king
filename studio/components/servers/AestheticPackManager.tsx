@@ -978,6 +978,7 @@ export default function AestheticPackManager({
 
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <select
+                                    aria-label="Pack aesthetic"
                                     value={
                                         draft.aestheticId
                                     }
@@ -1017,6 +1018,7 @@ export default function AestheticPackManager({
                                 </select>
 
                                 <select
+                                    aria-label="Pack mood"
                                     value={
                                         draft.moodId
                                     }
@@ -1071,6 +1073,7 @@ export default function AestheticPackManager({
                                                 key={
                                                     index
                                                 }
+                                                aria-label={`Pack colour ${index + 1}`}
                                                 value={
                                                     color
                                                 }

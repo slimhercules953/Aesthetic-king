@@ -46,22 +46,6 @@ function check(name, condition, detail) {
     }
 }
 
-function expectThrows(name, fn, messagePart) {
-    let err = null;
-    try {
-        fn();
-    } catch (e) {
-        err = e;
-    }
-    if (!err) {
-        check(name, false, "no error was thrown");
-        return null;
-    }
-    const ok = !messagePart || String(err.message || "").includes(messagePart);
-    check(name, ok, ok ? undefined : "threw: " + String(err.message || err));
-    return err;
-}
-
 async function expectThrowsAsync(name, fn, messagePart) {
     let err = null;
     try {
@@ -1103,6 +1087,17 @@ async function partTwo() {
 
         const assetTerm = feedSearch.buildFeedSearchQuery("10", "900000000000000911", {});
         check("a catalogue set id is resolved into the asset-id parameter", assetTerm.params[2].includes("10"), JSON.stringify(assetTerm.params[2]));
+
+        /*
+         * "My posts" reuses this query rather than a second one, so the author
+         * filter must be parameterised like every other filter and must not
+         * shift the positions the checks above depend on when it is absent.
+         */
+        const mineQuery = feedSearch.buildFeedSearchQuery("nova", "900000000000000911", { authorDiscordId: "900000000000000911" });
+        check("an author filter is parameterised", /AND u\."discordId" = \$4/.test(squash(mineQuery.text)), squash(mineQuery.text).slice(0, 400));
+        check("the author filter travels only as a parameter", !squash(mineQuery.text).includes("900000000000000911"));
+        check("an author filter combines with the type filter", squash(feedSearch.buildFeedSearchQuery("nova", null, { authorDiscordId: "9", itemType: "PALETTE" }).text).includes('AND u."discordId" = $4 AND sp."itemType" = $5'));
+        check("no author filter leaves the parameter layout untouched", feedSearch.buildFeedSearchQuery("nova", "9", { authorDiscordId: null }).params[3] === 18, JSON.stringify(feedSearch.buildFeedSearchQuery("nova", "9", { authorDiscordId: null }).params));
     }
 
     {
@@ -1153,6 +1148,17 @@ async function partTwo() {
         check("Discover understands the popular sort", discover.includes('"popular"'));
         check("Discover normalises the term before searching", discover.includes("normalizeFeedSearchTerm"));
         check("Discover hydrates the search results into cards", discover.includes("hydrateFeedPosts"));
+
+        /*
+         * "My posts" is a filter on this page, not a second route, so both data
+         * sources have to receive the author or the chip would silently show
+         * the whole feed while reading as active.
+         */
+        check("Discover reads a mine param", /raw\.mine\s*===\s*"1"/.test(discover));
+        check("Discover only honours mine when signed in", /viewerDiscordId\s*!==\s*null/.test(discover));
+        check("search receives the author filter", /searchFeedPosts\([\s\S]{0,500}?authorDiscordId/.test(discover));
+        check("the browse query receives the author filter", /getFeedPosts\([\s\S]{0,500}?authorDiscordId/.test(discover));
+        check("the search form preserves the mine filter", /name="mine"/.test(discover));
     }
 
     {

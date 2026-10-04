@@ -101,10 +101,49 @@ function buildInteractionErrorEmbed() {
     });
 }
 
+/**
+ * Shown when a button's custom id matches no registered handler. That almost
+ * always means the embed is older than the current deploy, so the honest
+ * advice is to re-run the command rather than "something went wrong".
+ */
+function buildUnknownComponentEmbed() {
+    return buildSystemEmbed({
+        title:
+            "This Button Is Out of Date",
+
+        description:
+            "Aesthetic King no longer recognises this button — it was probably posted by an older version of the bot. Run the command again to get a fresh one.",
+
+        type:
+            "warning",
+    });
+}
+
+/**
+ * Shown when the per-member limiter stops an action.
+ *
+ * `formattedRetryAfter` is a Discord timestamp token from
+ * `rateLimitService.formatRetryAfter`, so the member sees "in about 2 minutes"
+ * in their own timezone rather than a raw second count.
+ */
+function buildRateLimitedEmbed(formattedRetryAfter) {
+    return buildSystemEmbed({
+        title:
+            "Slow Down",
+
+        description:
+            `You have sent too many requests to Aesthetic King. Try again ${formattedRetryAfter}.`,
+
+        type: "warning",
+    });
+}
+
 module.exports = {
     buildSystemEmbed,
     buildCommandDisabledEmbed,
     buildWrongChannelEmbed,
     buildAccessDeniedEmbed,
     buildInteractionErrorEmbed,
+    buildUnknownComponentEmbed,
+    buildRateLimitedEmbed,
 };

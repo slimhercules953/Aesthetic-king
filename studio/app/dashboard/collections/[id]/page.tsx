@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../../lib/pageMetadata";
+
+import {
     ArrowLeft,
     FolderHeart,
     Palette,
@@ -58,6 +62,11 @@ function titleCase(
         )
         .join(" ");
 }
+
+export const metadata =
+    dashboardMetadata(
+        "Collection"
+    );
 
 export default async function CollectionDetailPage({
     params,

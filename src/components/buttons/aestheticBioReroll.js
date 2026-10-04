@@ -26,6 +26,12 @@ const {
 } = require("./aestheticReroll");
 
 module.exports = {
+    /*
+     * A reroll is a fresh AI call, so it shares the member's generation
+     * bucket with the command that made the embed.
+     */
+    rateLimitScope: "generation",
+
     customId: "aesthetic:bio",
 
     async execute(interaction) {

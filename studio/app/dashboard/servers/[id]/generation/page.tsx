@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../../../lib/pageMetadata";
+
+import {
     ArrowLeft,
     Bot,
     Crown,
@@ -18,6 +22,11 @@ type PageProps = {
         id: string;
     }>;
 };
+
+export const metadata =
+    dashboardMetadata(
+        "Server Generation"
+    );
 
 export default async function GenerationPage({
     params,

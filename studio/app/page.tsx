@@ -21,8 +21,53 @@ import {
     verifySessionToken,
 } from "../lib/session";
 
-const features = [
-    {
+import type {
+    Metadata,
+} from "next";
+
+/*
+ * This is the only marketing page, so it is the only one worth indexing. The
+ * signed-in app is `noindex` via `lib/pageMetadata.ts`; creator profiles opt in
+ * themselves. Everything else inherits this.
+ */
+export const metadata: Metadata = {
+    /*
+     * `absolute` opts out of the root layout's `%s | Aesthetic King Studio`
+     * template — the landing page is the brand, it shouldn't suffix itself.
+     */
+    title: {
+        absolute: "Aesthetic King Studio",
+    },
+    description:
+        "Aesthetic King designs the banner, avatar, colors, bio and status for a complete Discord look. Build palettes and profile sets in the browser, save what you like, and run the same generator for your whole server.",
+    keywords: [
+        "Discord aesthetics",
+        "Discord profile",
+        "Discord banner",
+        "color palette generator",
+        "Discord bot",
+    ],
+    alternates: {
+        canonical: "/",
+    },
+    openGraph: {
+        title: "Aesthetic King Studio",
+        description:
+            "Build a complete Discord look — banner, avatar, colors, bio and status — then bring it to your server.",
+        type: "website",
+        url: "/",
+        siteName: "Aesthetic King",
+    },
+    twitter: {
+        card: "summary_large_image",
+        title: "Aesthetic King Studio",
+        description:
+            "Build a complete Discord look, then bring it to your server.",
+    },
+    robots: "index, follow",
+};
+
+const features = [    {
         icon: Sparkles,
         title: "Aesthetic generator",
         body: "Pick an aesthetic and a mood, and Aesthetic King builds a matching Discord profile with colors, bio, status and symbols.",

@@ -1,10 +1,4 @@
 const {
-    getActivePlan,
-} = require(
-    "../entitlements/featureAccessService"
-);
-
-const {
     prisma,
 } = require("./prisma");
 
@@ -200,7 +194,7 @@ async function recordUsageEvent(
                     ? String(packId)
                     : null,
 
-                premium: premium === true,
+                premium: isPremium,
             },
         });
     } catch (error) {

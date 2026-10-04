@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../../lib/pageMetadata";
+
+import {
     cookies,
 } from "next/headers";
 
@@ -55,6 +59,12 @@ const RESET_LABELS: Record<
     monthly: "Resets monthly",
     never: "Lifetime allowance",
 };
+
+export const metadata =
+    dashboardMetadata(
+        "Usage",
+        "How much of each plan allowance you have used and when it resets."
+    );
 
 export default async function PremiumUsagePage() {
     const cookieStore =

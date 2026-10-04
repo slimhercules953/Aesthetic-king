@@ -290,6 +290,7 @@ export default function ImageToAestheticStudio({
                     ref={inputRef}
                     type="file"
                     accept={ACCEPTED.join(",")}
+                    aria-label="Choose an image"
                     className="hidden"
                     onChange={(event) => {
                         const file =

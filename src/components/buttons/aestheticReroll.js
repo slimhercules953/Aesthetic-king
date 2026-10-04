@@ -702,6 +702,12 @@ async function sendExpiredResponse(
 }
 
 module.exports = {
+    /*
+     * A reroll is a fresh AI call, so it shares the member's generation
+     * bucket with the command that made the embed.
+     */
+    rateLimitScope: "generation",
+
     customId:
         "aesthetic:reroll",
 

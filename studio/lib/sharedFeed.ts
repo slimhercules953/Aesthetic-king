@@ -400,6 +400,13 @@ export async function getFeedPosts(
         sort?: "recent" | "popular";
         limit?: number;
         offset?: number;
+        /**
+         * Restricts the grid to one author's posts. Used by Discover's "My
+         * posts" chip. Kept as an option on the shared query rather than a
+         * separate `getMyPosts` call so the chip composes with the type, tag
+         * and sort filters instead of replacing them.
+         */
+        authorDiscordId?: string | null;
     } = {}
 ): Promise<SharedPostSummary[]> {
     const limit =
@@ -422,6 +429,12 @@ export async function getFeedPosts(
     ];
 
     let filterSql = "";
+
+    if (options.authorDiscordId) {
+        params.push(options.authorDiscordId);
+        filterSql +=
+            ` AND u."discordId" = $${params.length}`;
+    }
 
     if (options.itemType) {
         params.push(options.itemType);

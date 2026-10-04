@@ -39,6 +39,13 @@ const {
 module.exports = {
     requireGenerationChannel: true,
 
+    /*
+     * Generation is the one thing worth metering per member: every run costs an
+     * AI call, and reroll buttons share the same bucket.
+     */
+    rateLimitScope: "generation",
+
+
     data: new SlashCommandBuilder()
         .setName("aesthetic")
         .setDescription(

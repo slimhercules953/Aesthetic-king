@@ -43,6 +43,8 @@ export type FeedSearchOptions = {
     sort?: "recent" | "popular";
     limit?: number;
     offset?: number;
+    /** See the same option on `getFeedPosts`. */
+    authorDiscordId?: string | null;
 };
 
 export type CreatorHit = {
@@ -219,6 +221,12 @@ export function buildFeedSearchQuery(
     ];
 
     let filterSql = "";
+
+    if (options.authorDiscordId) {
+        params.push(options.authorDiscordId);
+        filterSql +=
+            ` AND u."discordId" = $${params.length}`;
+    }
 
     if (options.itemType) {
         params.push(options.itemType);

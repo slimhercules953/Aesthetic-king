@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../lib/pageMetadata";
+
+import {
     cookies,
 } from "next/headers";
 
@@ -20,6 +24,12 @@ import {
 import {
     getSavedAestheticsByDiscordId,
 } from "../../lib/savedAesthetics";
+
+export const metadata =
+    dashboardMetadata(
+        "Overview",
+        "Everything you have made, what you have published, and what needs attention next."
+    );
 
 export default async function DashboardPage() {
     const cookieStore =

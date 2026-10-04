@@ -7,8 +7,14 @@
  * must stay dependency-free.
  */
 
+/*
+ * Public, not under /dashboard: the dashboard layout bounces anonymous
+ * visitors to the landing page, and creator profiles are shared into Discord
+ * chats where the reader usually has not signed in. `/dashboard/u/...` still
+ * resolves — it redirects here.
+ */
 export const CREATOR_PROFILE_BASE =
-    "/dashboard/u";
+    "/u";
 
 /**
  * Discord IDs are snowflakes: digits only, and never the empty string.

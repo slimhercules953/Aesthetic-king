@@ -91,10 +91,6 @@ enum NotificationType {
   /// Someone liked a profile or aesthetic the user shared.
   LIKE
 
-  /// A profile the user built was edited — by them or by the bot
-  /// applying a new default.
-  PROFILE_UPDATED
-
   /// Premium was granted.
   PREMIUM_GRANTED
 
@@ -753,4 +749,39 @@ enum SharedItemType {
 enum EntitlementType {
   PREMIUM
   SERVER_PREMIUM
+}
+
+/// One row per payment-provider webhook the app has actually acted on.
+///
+/// Providers redeliver aggressively: any non-2xx answer is retried, and
+/// Stripe also sends the same event more than once under load. The
+/// unique index on (provider, externalEventId) turns a replay into an
+/// insert conflict that the handler skips, so "claim the event, then do
+/// the work" is safe without a distributed lock.
+///
+/// `payload` keeps the decoded event so a disputed grant can be
+/// reconstructed months later without the provider's event history,
+/// which is pruned.
+model PaymentEventRecord {
+  id String @id @default(cuid())
+
+  /// Which provider sent it, e.g. "stripe". Namespaced because two
+  /// providers may hand out the same-shaped id independently.
+  provider String
+
+  /// The provider's own event id.
+  externalEventId String
+
+  /// One of the PaymentEventKind values the app understands.
+  kind String
+
+  /// Account the event was attributed to, when it named one.
+  discordId String?
+
+  payload Json
+
+  processedAt DateTime @default(now())
+
+  @@unique([provider, externalEventId], map: "PaymentEventRecord_provider_externalEventId_key")
+  @@index([discordId, processedAt])
 }

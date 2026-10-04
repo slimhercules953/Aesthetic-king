@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Aesthetic King">
+  <defs>
+    <linearGradient id="ak" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8b5cf6" />
+      <stop offset="1" stop-color="#d946ef" />
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="16" fill="url(#ak)" />
+
+  <!--
+    A crown rather than a letter: the mark is used at 16px in the sidebar and
+    32px as a favicon, where "AK" turns to mush but three points still read.
+  -->
+  <path
+    d="M15 41h34l2.6-19.4a1.6 1.6 0 0 0-2.5-1.6L38.4 28 33.2 17.6a1.6 1.6 0 0 0-2.9 0L24.8 28 14.4 20a1.6 1.6 0 0 0-2.5 1.6L15 41Z"
+    fill="#fff"
+  />
+
+  <rect x="15" y="45" width="34" height="4.5" rx="2.25" fill="#fff" opacity="0.85" />
+</svg>

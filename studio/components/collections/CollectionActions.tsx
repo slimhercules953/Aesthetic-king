@@ -223,6 +223,7 @@ export default function CollectionActions({
                         </div>
 
                         <input
+                            aria-label="Collection name"
                             value={
                                 name
                             }

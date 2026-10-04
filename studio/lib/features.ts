@@ -8,8 +8,15 @@ export type ResetPeriod =
     | "monthly"
     | "never";
 
+/*
+ * There used to be a PERSONAL_PACK_LIMIT entry here. Personal Packs were never
+ * built, so nothing ever wrote the counter and the Usage page would have shown
+ * a permanent 0/2 for a feature nobody can use. A limit that cannot be reached
+ * is not a limit, it is a promise the product does not keep — so it lives here
+ * as a note instead of in the registry. Add it back together with the feature
+ * that increments it.
+ */
 export const FEATURE_IDS = [
-    "PERSONAL_PACK_LIMIT",
     "COLLECTION_LIMIT",
     "SAVED_PROFILE_LIMIT",
     "AI_GENERATION_LIMIT",
@@ -92,28 +99,6 @@ export type FeatureConfig =
  * the call site. Nothing outside this file should contain a limit.
  */
 export const FEATURES = {
-    PERSONAL_PACK_LIMIT: {
-        kind: "metered",
-
-        label: "Personal Packs",
-        description:
-            "Saved personal aesthetic packs you can apply to your own profile.",
-
-        freeLimit: 2,
-        premiumLimit: 25,
-
-        resetPeriod: "never",
-
-        // Personal Packs are not implemented in Studio yet, so
-        // nothing writes this counter. Configured now so the limit
-        // is already central when the feature lands.
-        usageSource: "ledger",
-
-        crownUnlockAvailable: false,
-        crownCost: null,
-        crownUnlockBoost: null,
-    },
-
     COLLECTION_LIMIT: {
         kind: "metered",
 

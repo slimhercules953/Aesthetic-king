@@ -232,9 +232,6 @@ function analyzeColor(hex) {
     const onDark = contrastRatio(normalized, DISCORD_THEMES.dark.background);
     const onLight = contrastRatio(normalized, DISCORD_THEMES.light.background);
 
-    const onWhiteText = contrastRatio(normalized, WHITE);
-    const onBlackText = contrastRatio(normalized, BLACK);
-
     const asText = Math.min(onDark, onLight);
 
     return {

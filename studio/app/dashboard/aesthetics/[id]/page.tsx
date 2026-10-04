@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../../lib/pageMetadata";
+
+import {
     ArrowLeft,
     CircleUserRound,
     Hash,
@@ -75,6 +79,11 @@ function formatDate(
         new Date(value)
     );
 }
+
+export const metadata =
+    dashboardMetadata(
+        "Aesthetic"
+    );
 
 export default async function SavedAestheticPage({
     params,

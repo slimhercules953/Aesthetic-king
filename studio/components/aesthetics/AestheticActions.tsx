@@ -219,6 +219,7 @@ export default function AestheticActions({
                         </div>
 
                         <input
+                            aria-label="Aesthetic name"
                             value={
                                 name
                             }

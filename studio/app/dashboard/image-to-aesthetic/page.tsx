@@ -1,4 +1,14 @@
+import {
+    dashboardMetadata,
+} from "../../../lib/pageMetadata";
+
 ﻿import ImageToAestheticStudio from "../../../components/image-to-aesthetic/ImageToAestheticStudio";
+
+export const metadata =
+    dashboardMetadata(
+        "Image to Aesthetic",
+        "Upload any image and get a Discord profile built from its colours."
+    );
 
 export default function ImageToAestheticPage() {
     const r2PublicUrl = process.env.R2_PUBLIC_URL;

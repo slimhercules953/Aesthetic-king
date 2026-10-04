@@ -412,6 +412,7 @@ export default function PaletteStudio({
                                     >
                                         <input
                                             type="color"
+                                            aria-label={`Colour ${index + 1} picker`}
                                             value={
                                                 isValidHex(
                                                     color
@@ -433,6 +434,7 @@ export default function PaletteStudio({
                                         />
 
                                         <input
+                                            aria-label={`Colour ${index + 1} hex value`}
                                             value={
                                                 color
                                             }
@@ -915,6 +917,7 @@ function SavedPaletteCard({
                         </h3>
 
                         <input
+                            aria-label="Palette name"
                             value={
                                 name
                             }

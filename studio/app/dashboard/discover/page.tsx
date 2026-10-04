@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../lib/pageMetadata";
+
+import {
     cookies,
 } from "next/headers";
 
@@ -7,6 +11,7 @@ import {
     Flame,
     Search,
     Sparkles,
+    User,
 } from "lucide-react";
 
 import {
@@ -88,6 +93,7 @@ function buildQuery(
         sort?: string | null;
         tag?: string | null;
         q?: string | null;
+        mine?: boolean;
     }
 ) {
     const search =
@@ -121,6 +127,18 @@ function buildQuery(
         );
     }
 
+    /*
+     * Only the affirmative form is written into the URL. `?mine=0` would work,
+     * but a link that says "mine" while showing everyone's posts is worse than
+     * one that simply does not mention the filter.
+     */
+    if (params.mine) {
+        search.set(
+            "mine",
+            "1"
+        );
+    }
+
     const value =
         search.toString();
 
@@ -128,6 +146,12 @@ function buildQuery(
         ? `/dashboard/discover?${value}`
         : "/dashboard/discover";
 }
+
+export const metadata =
+    dashboardMetadata(
+        "Discover",
+        "Aesthetics, palettes, profile sets and packs the Aesthetic King community has published — searchable by caption, tag, creator and colour."
+    );
 
 export default async function DiscoverPage({
     searchParams,
@@ -200,6 +224,21 @@ export default async function DiscoverPage({
         session?.discordId ?? null;
 
     /*
+     * "My posts" is a filter on this page rather than a separate route: the
+     * chips, sort, search box and cards are all wanted unchanged, and a second
+     * page would mean two places to update whenever the feed gains an item type.
+     * It is only honoured for a signed-in visitor — there is no "mine" to show
+     * otherwise, and silently falling back to the whole feed would make the
+     * active chip a lie.
+     */
+    const mine =
+        raw.mine === "1" && viewerDiscordId !== null;
+
+    const authorDiscordId = mine
+        ? viewerDiscordId
+        : null;
+
+    /*
      * A term and the browse view share one grid. Searching swaps the data
      * source rather than the layout, so filters, sort and cards behave
      * identically either way.
@@ -212,6 +251,7 @@ export default async function DiscoverPage({
                     itemType,
                     tag,
                     sort,
+                    authorDiscordId,
                     limit: PAGE_SIZE,
                 }
             )
@@ -221,11 +261,12 @@ export default async function DiscoverPage({
                     itemType,
                     tag,
                     sort,
+                    authorDiscordId,
                     limit: PAGE_SIZE,
                 }
             );
 
-    const creators = term
+    const creators = term && !mine
         ? await searchFeedCreators(
                 term,
                 6
@@ -365,6 +406,14 @@ export default async function DiscoverPage({
                     />
                 )}
 
+                {mine && (
+                    <input
+                        type="hidden"
+                        name="mine"
+                        value="1"
+                    />
+                )}
+
                 <label className="relative flex-1 basis-64">
                     <Search
                         size={15}
@@ -396,6 +445,7 @@ export default async function DiscoverPage({
                             type: itemType,
                             sort,
                             tag,
+                            mine,
                         })}
                         className="text-xs font-semibold text-zinc-500 underline-offset-4 transition hover:text-zinc-200 hover:underline"
                     >
@@ -424,6 +474,7 @@ export default async function DiscoverPage({
                                         sort,
                                         tag,
                                         q: searchParam,
+                                        mine,
                                     })}
                                     className={[
                                         "rounded-xl border px-4 py-2 text-sm font-medium transition",
@@ -442,12 +493,56 @@ export default async function DiscoverPage({
                 </div>
 
                 <div className="ml-auto flex gap-2">
+                    {/*
+                      * Signed in only, and rendered as a link rather than a
+                      * checkbox: every other filter on this page is a link, so
+                      * the URL stays the single source of truth and a filtered
+                      * grid remains shareable and reload-safe.
+                      */}
+                    {viewerDiscordId && (
+                        <a
+                            href={
+                                mine
+                                    ? buildQuery({
+                                        type: itemType,
+                                        sort,
+                                        tag,
+                                        q: searchParam,
+                                    })
+                                    : buildQuery({
+                                        type: itemType,
+                                        sort,
+                                        tag,
+                                        q: searchParam,
+                                        mine: true,
+                                    })
+                            }
+                            className={[
+                                "inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition",
+                                mine
+                                    ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200"
+                                    : "border-white/[0.06] text-zinc-500 hover:border-white/[0.12] hover:text-zinc-200",
+                            ].join(
+                                " "
+                            )}
+                        >
+                            <User
+                                size={15}
+                            />
+
+                            {mine
+                                ? "Everyone"
+                                : "My posts"}
+                        </a>
+                    )}
+
                     <a
                         href={buildQuery({
                             type: itemType,
                             sort: "recent",
                             tag,
                             q: searchParam,
+                            mine,
                         })}
                         className={[
                             "inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition",
@@ -471,6 +566,7 @@ export default async function DiscoverPage({
                             sort: "popular",
                             tag,
                             q: searchParam,
+                            mine,
                         })}
                         className={[
                             "inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition",
@@ -505,6 +601,7 @@ export default async function DiscoverPage({
                             sort,
                             tag: null,
                             q: searchParam,
+                            mine,
                         })}
                         className="ml-auto text-xs font-semibold text-zinc-500 underline-offset-4 transition hover:text-zinc-200 hover:underline"
                     >
@@ -583,7 +680,9 @@ export default async function DiscoverPage({
                     </div>
 
                     <h2 className="mt-6 text-xl font-semibold text-zinc-200">
-                        {term
+                        {mine
+                            ? "You have not published anything"
+                            : term
                             ? "Nothing matched that search"
                             : tag
                             ? "Nothing tagged yet"
@@ -591,7 +690,9 @@ export default async function DiscoverPage({
                     </h2>
 
                     <p className="mt-3 max-w-md text-sm leading-6 text-zinc-500">
-                        {term
+                        {mine
+                            ? "Publish something from your library and it shows up here, where you can remove a post without deleting the thing behind it."
+                            : term
                             ? "Search looks at captions, tags, creator names, saved aesthetic names and palette colours across everything the community published. Try a shorter or different term."
                             : tag
                             ? "No posts use that tag yet. Try another one, or add it when you share something."

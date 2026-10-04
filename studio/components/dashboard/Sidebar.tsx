@@ -3,6 +3,7 @@
 import {
     Activity,
     BarChart3,
+    Bell,
     CircleUserRound,
     Coins,
     Compass,
@@ -79,6 +80,15 @@ const primaryNavigation = [
         label: "Collections",
         href: "/dashboard/collections",
         icon: FolderHeart,
+    },
+    /*
+     * The topbar bell only holds MAX_LIST rows, so without this entry the
+     * older half of a busy account's history would be unreachable.
+     */
+    {
+        label: "Notifications",
+        href: "/dashboard/notifications",
+        icon: Bell,
     },
 ];
 

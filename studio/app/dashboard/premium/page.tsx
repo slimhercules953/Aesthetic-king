@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../lib/pageMetadata";
+
+import {
     cookies,
 } from "next/headers";
 
@@ -50,6 +54,12 @@ function formatDate(
         }
     );
 }
+
+export const metadata =
+    dashboardMetadata(
+        "Premium",
+        "What Aesthetic King Premium unlocks, the limits behind each plan, and what Crowns can buy."
+    );
 
 export default async function PremiumOverviewPage() {
     const cookieStore =

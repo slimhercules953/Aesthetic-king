@@ -19,7 +19,10 @@
     "start": "node src/index.js",
     "start:v1": "node index.js",
     "dev": "node src/index.js",
-    "deploy": "node scripts/deployCommands.js"
+    "deploy": "node scripts/deployCommands.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "node scripts/runAllTests.js"
   },
   "repository": {
     "type": "git",

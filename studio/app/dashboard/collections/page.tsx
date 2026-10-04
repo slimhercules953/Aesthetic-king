@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../lib/pageMetadata";
+
+import {
     cookies,
 } from "next/headers";
 
@@ -17,6 +21,12 @@ import {
     SESSION_COOKIE_NAME,
     verifySessionToken,
 } from "../../../lib/session";
+
+export const metadata =
+    dashboardMetadata(
+        "Collections",
+        "Group aesthetics, palettes and assets into collections you can share to Discover."
+    );
 
 export default async function CollectionsPage() {
     const cookieStore =

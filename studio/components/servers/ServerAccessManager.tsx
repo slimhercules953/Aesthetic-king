@@ -405,6 +405,11 @@ export default function ServerAccessManager({
                     targets.length > 0 ? (
                         <select
                             value={targetId}
+                            aria-label={
+                                kind === "ROLE"
+                                    ? "Choose a role"
+                                    : "Choose a channel"
+                            }
                             onChange={(event) =>
                                 setTargetId(
                                     event.target.value

@@ -302,6 +302,46 @@ SKU → `EntitlementType` + duration mapping belongs in
 `lib/features.ts`, and the source string must be one of `PAID_SOURCES`
 in `lib/entitlements.ts` or Premium will be labeled promotional.
 
+### Checkout
+
+`lib/payments/` is where money becomes an entitlement. It is split so that
+the provider is a detail:
+
+- `types.ts` — the whole contract. A provider is exactly two operations:
+  create a checkout session, and verify a webhook delivery. Nothing else in
+  the app is allowed to know Stripe exists.
+- `catalog.ts` — which plans are sellable and which provider price backs
+  each one. A plan whose `PREMIUM_*_PRICE_ID` is unset is not offered, so
+  checkout can be enabled one plan at a time. Also the only definition of
+  `addMonths`, which clamps to the last day of the target month (a bare
+  `setUTCMonth` turned "one month after Jan 31" into Mar 3).
+- `stripe.ts` — the Stripe adapter, written against `fetch` and Web Crypto
+  instead of the SDK so it runs on Workers without the dependency. Signature
+  verification is an HMAC-SHA256 over `"{t}.{body}"` with a five-minute
+  tolerance and a constant-time compare against *every* `v1` value, so a
+  secret can be rotated without dropping in-flight deliveries.
+- `applyPaymentEvent.ts` — the only code that writes an entitlement from a
+  payment. `index.ts` picks the provider from `PAYMENT_PROVIDER`.
+
+Money moves in one direction. The browser is redirected to a Stripe-hosted
+page; the app never sees card data and never trusts a browser-supplied
+amount or Discord id. The id being credited is read back from the
+signature-verified payload, and the amount comes from the provider's price
+object.
+
+Delivery is idempotent by `(provider, externalEventId)`: a claim is inserted
+before anything is granted, so a retry grants nothing twice. If applying then
+throws, the claim is deleted again — otherwise Stripe's retry finds the row
+already claimed and a paying customer silently gets nothing.
+
+Routes: `POST /api/billing/checkout` (session-gated; 404 when no provider is
+configured, 303 to the provider's URL) and `POST /api/webhooks/stripe`
+(404 unconfigured, 401 unsigned, 500 only when applying failed and a retry is
+worth having). An unconfigured deployment answers 404 rather than 5xx on
+purpose: a 5xx makes the provider retry a plain misconfiguration for days.
+
+`scripts/testPayments.js` in the repository root covers all of it offline.
+
 ### Migrations
 
 Premium needs all pending migrations applied:
@@ -493,7 +533,7 @@ Discover. Both take a string straight out of the URL and use it to select
 *other people's* content, which is a new kind of exposure for the Studio.
 
 **A creator page is a projection, not a new surface.**
-`/dashboard/u/[discordId]` renders `getCreatorProfile()` +
+`/u/[discordId]` renders `getCreatorProfile()` +
 `getCreatorTopTags()` + `getFeedPostsByAuthorDiscordId()`, and every one of
 those reads `SharedPost`. Nothing from a private library — unshared
 aesthetics, palettes, profiles, collections — is reachable through

@@ -11,18 +11,30 @@ const {
 } = require("../../components/buttons/bioReroll");
 
 const {
-    getDefaultAestheticId,
+    withPackOption,
+    resolveGenerationContext,
+    respondToPackAutocomplete,
+    buildPackUnavailableReply,
+    buildAestheticRequiredReply,
 } = require(
-    "../../services/database/guildSettingsService"
+    "../../services/aesthetics/packContextService"
 );
 
 module.exports = {
     requireGenerationChannel: true,
+
+    /*
+     * Generation is the one thing worth metering per member: every run costs an
+     * AI call, and reroll buttons share the same bucket.
+     */
+    rateLimitScope: "generation",
+
     data: new SlashCommandBuilder()
         .setName("bio")
         .setDescription(
             "Generates an aesthetic Discord bio."
         )
+        .addStringOption(withPackOption)
         .addStringOption((option) =>
             option
                 .setName("aesthetic")
@@ -44,42 +56,69 @@ module.exports = {
                 .setMaxLength(300)
         ),
 
+    async autocomplete(interaction) {
+        await respondToPackAutocomplete(
+            interaction
+        );
+    },
+
     async execute(interaction) {
-        await interaction.deferReply();
+        /*
+         * Same ladder as every other generation command: the typed option,
+         * then the server's default Aesthetic Pack, then the server default
+         * aesthetic. Resolving it here (rather than reading the default
+         * directly) is what lets a configured Pack drive `/bio`.
+         */
+        const context =
+            await resolveGenerationContext({
+                interaction,
+                aestheticId:
+                    interaction.options.getString(
+                        "aesthetic"
+                    ),
+            });
 
-        let aestheticId =
-            interaction.options.getString(
-                "aesthetic"
-            );
-
-        if (
-            !aestheticId &&
-            interaction.guildId
-        ) {
-            aestheticId =
-                await getDefaultAestheticId(
-                    interaction.guildId
-                );
-        }
-
-        if (!aestheticId) {
-            await interaction.editReply(
-                "Choose an aesthetic, or ask a server manager to configure a default aesthetic in Aesthetic King Studio."
+        if (context.packUnavailable) {
+            await interaction.reply(
+                buildPackUnavailableReply()
             );
 
             return;
         }
 
-        const request =
-            interaction.options.getString(
-                "prompt"
-            ) || "";
+        if (context.missingAesthetic) {
+            await interaction.reply(
+                buildAestheticRequiredReply(
+                    "Choose an aesthetic, select an Aesthetic Pack, or ask a server manager to configure a default aesthetic in Aesthetic King Studio."
+                )
+            );
+
+            return;
+        }
+
+        await interaction.deferReply();
+
+        // Only the fields the prompt reads are kept, so nothing extra about
+        // the Pack drifts into the AI prompt.
+        const pack = context.pack
+            ? {
+                  name: context.pack.name,
+                  description:
+                      context.pack.description ?? null,
+                  symbols: context.packSymbols,
+              }
+            : null;
 
         const response =
             await buildBioResponse({
                 interaction,
-                aestheticId,
-                request,
+                aestheticId:
+                    context.aestheticId,
+                request:
+                    interaction.options.getString(
+                        "prompt"
+                    ) || "",
+                pack,
             });
 
         await interaction.editReply(

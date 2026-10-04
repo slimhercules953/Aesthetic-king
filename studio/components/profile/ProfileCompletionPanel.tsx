@@ -222,6 +222,7 @@ export default function ProfileCompletionPanel({
                 {kind === "set" && (
                     <select
                         value={setId}
+                        aria-label="Frame set"
                         onChange={(event) => setSetId(event.target.value)}
                         className={selectClass}
                     >
@@ -237,6 +238,7 @@ export default function ProfileCompletionPanel({
                 {kind === "aesthetic" && (
                     <select
                         value={aestheticId}
+                        aria-label="Aesthetic to use"
                         onChange={(event) => setAestheticId(event.target.value)}
                         className={selectClass}
                     >
@@ -251,6 +253,7 @@ export default function ProfileCompletionPanel({
                 {kind === "color" && (
                     <select
                         value={colorName}
+                        aria-label="Colour to apply"
                         onChange={(event) => setColorName(event.target.value)}
                         className={selectClass}
                     >

@@ -1,3 +1,7 @@
+import {
+    dashboardMetadata,
+} from "../../../lib/pageMetadata";
+
 import ProfileWorkspace from "../../../components/profile/ProfileWorkspace";
 
 import {
@@ -25,6 +29,12 @@ function firstParam(
 
     return value ?? null;
 }
+
+export const metadata =
+    dashboardMetadata(
+        "Profile Builder",
+        "Compose banner, avatar, colours and bio together and preview the Discord profile as you change it."
+    );
 
 export default async function ProfilePage({
     searchParams,

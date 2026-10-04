@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../lib/pageMetadata";
+
+import {
     cookies,
 } from "next/headers";
 
@@ -37,6 +41,12 @@ function formatDate(
         new Date(value)
     );
 }
+
+export const metadata =
+    dashboardMetadata(
+        "My Aesthetics",
+        "Every aesthetic you have generated or saved, searchable by tag, colour and mood."
+    );
 
 export default async function MyAestheticsPage() {
     const cookieStore =

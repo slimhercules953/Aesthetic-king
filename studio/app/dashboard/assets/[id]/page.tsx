@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../../lib/pageMetadata";
+
+import {
     ArrowLeft,
     Crown,
     Sparkles,
@@ -70,6 +74,11 @@ function titleCase(
         )
         .join(" ");
 }
+
+export const metadata =
+    dashboardMetadata(
+        "Asset"
+    );
 
 export default async function AssetDetailPage({
     params,

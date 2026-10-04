@@ -1,3 +1,7 @@
+import {
+    dashboardMetadata,
+} from "../../../../lib/pageMetadata";
+
 import ProfileWorkspace from "../../../../components/profile/ProfileWorkspace";
 
 import {
@@ -27,6 +31,11 @@ function firstParam(
 
     return value ?? null;
 }
+
+export const metadata =
+    dashboardMetadata(
+        "Profile"
+    );
 
 export default async function ProfileByIdPage({
     params,

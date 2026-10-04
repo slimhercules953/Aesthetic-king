@@ -386,6 +386,7 @@ export default function ServerBotIdentityManager({
                         ref={fileInput}
                         type="file"
                         accept="image/png,image/jpeg,image/webp,image/gif"
+                        aria-label="Choose a bot avatar"
                         className="hidden"
                         onChange={(event) => {
                             void pickAvatar(

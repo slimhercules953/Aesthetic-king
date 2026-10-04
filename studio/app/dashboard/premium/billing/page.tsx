@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../../lib/pageMetadata";
+
+import {
     cookies,
 } from "next/headers";
 
@@ -31,6 +35,11 @@ import {
     getLimitForPlan,
     type Plan,
 } from "../../../../lib/features";
+
+import {
+    getPaymentProvider,
+    getSellablePlans,
+} from "../../../../lib/payments";
 
 function formatDate(
     value: Date | null
@@ -144,7 +153,22 @@ function planValue(
     };
 }
 
-export default async function PremiumBillingPage() {
+export const metadata =
+    dashboardMetadata(
+        "Billing",
+        "Your plan, what each limit means, and how to change your subscription."
+    );
+
+export default async function PremiumBillingPage({
+    searchParams,
+}: {
+    searchParams?: Promise<{
+        checkout?: string;
+        plan?: string;
+    }>;
+}) {
+    const query = (await searchParams) ?? {};
+
     const cookieStore =
         await cookies();
 
@@ -184,6 +208,15 @@ export default async function PremiumBillingPage() {
         billingDevToolsEnabled(
             identity.discordId
         );
+
+    /*
+     * Computed per request rather than baked in at build time, because
+     * which plans exist depends on environment configuration. A
+     * deployment that has created only some of its Stripe prices shows
+     * only those buttons.
+     */
+    const plans = getSellablePlans();
+    const checkoutAvailable = getPaymentProvider() !== null;
 
     return (
         <>
@@ -226,32 +259,135 @@ export default async function PremiumBillingPage() {
                 </p>
             </section>
 
-            <section className="mt-6 rounded-3xl border border-white/[0.06] bg-[#101015] p-6 lg:p-7">
-                <div className="flex items-start gap-3">
-                    <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-2.5 text-zinc-400">
-                        <ShieldCheck
-                            size={17}
-                        />
-                    </div>
+            {
+                query.checkout === "complete" && (
+                    <section className="mt-6 rounded-3xl border border-emerald-500/20 bg-emerald-500/[0.05] p-6">
+                        <h2 className="text-sm font-semibold text-emerald-200">
+                            Payment received
+                        </h2>
 
-                    <div>
-                        <h2 className="text-sm font-semibold text-zinc-100">
-                            Checkout is not connected yet
+                        <p className="mt-2 max-w-3xl text-xs leading-6 text-emerald-200/70">
+                            Thanks. Premium usually appears within a few
+                            seconds — it is granted by the payment
+                            provider confirming the charge, not by this
+                            page. If it has not shown up below after a
+                            minute, reload before contacting support.
+                        </p>
+                    </section>
+                )
+            }
+
+            {
+                query.checkout === "cancelled" && (
+                    <section className="mt-6 rounded-3xl border border-white/[0.08] bg-white/[0.02] p-6">
+                        <h2 className="text-sm font-semibold text-zinc-200">
+                            Checkout cancelled
                         </h2>
 
                         <p className="mt-2 max-w-3xl text-xs leading-6 text-zinc-500">
-                            No payment provider is wired up, and this
-                            page deliberately does not imitate one.
-                            Premium is granted today by a provider
-                            webhook, a Discord SKU, or a manual grant.
-                            The entitlement system is built to work
-                            before billing exists, so connecting a
-                            provider later only adds rows here rather
-                            than becoming the source of truth.
+                            Nothing was charged and nothing changed on
+                            this account.
                         </p>
-                    </div>
-                </div>
-            </section>
+                    </section>
+                )
+            }
+
+            {
+                checkoutAvailable && plans.length > 0 ? (
+                    <section className="mt-6 rounded-3xl border border-white/[0.06] bg-[#101015] p-6 lg:p-7">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-600">
+                            Plans
+                        </p>
+
+                        <h2 className="mt-2 text-lg font-semibold text-zinc-100">
+                            Buy Premium
+                        </h2>
+
+                        <p className="mt-2 max-w-3xl text-xs leading-6 text-zinc-500">
+                            Payment is handled on the provider&apos;s own
+                            page — this site never sees card details. A
+                            subscription renews until you cancel it at the
+                            provider; a one-time plan never charges again.
+                            Cancelling stops future charges but leaves
+                            Premium running until the period you paid for
+                            ends.
+                        </p>
+
+                        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+                            {plans.map((plan) => (
+                                <div
+                                    key={plan.id}
+                                    className="flex flex-col rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5"
+                                >
+                                    <h3 className="text-sm font-semibold text-zinc-100">
+                                        {plan.name}
+                                    </h3>
+
+                                    <p className="mt-2 text-2xl font-bold tracking-tight text-violet-300">
+                                        {plan.displayPrice}
+                                    </p>
+
+                                    <p className="mt-3 flex-1 text-xs leading-6 text-zinc-500">
+                                        {plan.blurb}
+                                    </p>
+
+                                    <form
+                                        action="/api/billing/checkout"
+                                        method="post"
+                                        className="mt-4"
+                                    >
+                                        <input
+                                            type="hidden"
+                                            name="plan"
+                                            value={plan.id}
+                                        />
+
+                                        <button
+                                            type="submit"
+                                            className="w-full rounded-xl border border-violet-400/30 bg-violet-500/15 px-4 py-2.5 text-sm font-semibold text-violet-200 transition hover:bg-violet-500/25"
+                                        >
+                                            {
+                                                plan.durationMonths === null
+                                                    ? "Subscribe"
+                                                    : "Continue to payment"
+                                            }
+                                        </button>
+                                    </form>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                ) : (
+                    <section className="mt-6 rounded-3xl border border-white/[0.06] bg-[#101015] p-6 lg:p-7">
+                        <div className="flex items-start gap-3">
+                            <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-2.5 text-zinc-400">
+                                <ShieldCheck
+                                    size={17}
+                                />
+                            </div>
+
+                            <div>
+                                <h2 className="text-sm font-semibold text-zinc-100">
+                                    Checkout is not available yet
+                                </h2>
+
+                                <p className="mt-2 max-w-3xl text-xs leading-6 text-zinc-500">
+                                    No payment provider is configured for
+                                    this deployment, and this page
+                                    deliberately does not imitate one.
+                                    Premium is granted today by a provider
+                                    webhook, a Discord SKU, or a manual
+                                    grant. The entitlement system is built
+                                    to work before billing exists, so
+                                    connecting a provider later only adds
+                                    rows here rather than becoming the
+                                    source of truth.
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+                )
+            }
 
             {
                 devEnabled && (
@@ -288,6 +424,7 @@ export default async function PremiumBillingPage() {
 
                                 <select
                                     name="months"
+                                    aria-label="Subscription length"
                                     className="rounded-xl border border-white/[0.08] bg-[#0c0c11] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-amber-500/40"
                                 >
                                     <option value="1">

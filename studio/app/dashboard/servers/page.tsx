@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../lib/pageMetadata";
+
+import {
     cookies,
 } from "next/headers";
 
@@ -68,6 +72,12 @@ function getGuildIconUrl(
         `${guild.id}/${guild.icon}.png?size=128`
     );
 }
+
+export const metadata =
+    dashboardMetadata(
+        "My Servers",
+        "Servers where Aesthetic King is installed, and the Server Studio you can run in each."
+    );
 
 export default async function ServersPage() {
     const cookieStore =

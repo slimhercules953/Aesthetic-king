@@ -17,7 +17,6 @@ import {
 
 export type NotificationType =
     | "LIKE"
-    | "PROFILE_UPDATED"
     | "PREMIUM_GRANTED"
     | "PREMIUM_REVOKED"
     | "PREMIUM_EXPIRING"

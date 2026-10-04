@@ -1,5 +1,35 @@
 const fs = require("fs");
 
+const logger = require("../src/utils/logger");
+
+/*
+ * Renders a real preview from a random set pulled out of R2, so it needs the
+ * same credentials as the R2 diagnostic. Skipped rather than failed when they
+ * are absent — see scripts/testR2.js for the reasoning.
+ *
+ * dotenv is loaded explicitly because the guard below must run before the
+ * asset service is required: that module builds an S3 client at require time.
+ */
+require("dotenv").config();
+
+const R2_ENV_VARS = [
+    "R2_ACCOUNT_ID",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+    "R2_BUCKET_NAME",
+];
+
+const missing = R2_ENV_VARS.filter((name) => !process.env[name]);
+
+if (missing.length > 0) {
+    logger.warn(
+        `Skipping renderer diagnostic — unset ${missing.join(", ")}.`
+    );
+
+    console.log("0 passed, 0 failed (skipped: no R2 credentials)");
+    process.exit(0);
+}
+
 const {
     getRandomProfileSet,
     getAssetBuffer,
@@ -13,8 +43,6 @@ const {
 const {
     renderProfilePreview,
 } = require("../src/services/rendering/profileRenderer");
-
-const logger = require("../src/utils/logger");
 
 async function testRenderer() {
     logger.info(

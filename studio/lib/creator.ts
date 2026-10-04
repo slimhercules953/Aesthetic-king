@@ -216,3 +216,47 @@ export async function getCreatorTopTags(
 
     return result.rows;
 }
+
+/**
+ * Discord IDs of every account with at least one post in the feed, newest
+ * activity first.
+ *
+ * Exists for `app/sitemap.ts`. A profile only exists when its author has
+ * published — `getCreatorProfile` 404s otherwise — so listing all Studio users
+ * would put dead URLs in the sitemap, which is worse than listing fewer.
+ *
+ * `LIMIT` is a safety rail, not a product rule: a sitemap file caps at 50,000
+ * URLs, and the accounts with recent activity are the ones worth crawling.
+ */
+export async function listPublishedCreatorDiscordIds(
+    limit = 5000
+): Promise<Array<{
+    discordId: string;
+    lastPostAt: Date;
+}>> {
+    const result =
+        await query<{
+            discordId: string;
+            lastPostAt: Date;
+        }>(
+            `
+            SELECT
+                u."discordId" AS "discordId",
+                MAX(sp."createdAt") AS "lastPostAt"
+            FROM "SharedPost" sp
+            INNER JOIN "User" u
+                ON u.id = sp."userId"
+            GROUP BY u."discordId"
+            ORDER BY MAX(sp."createdAt") DESC
+            LIMIT $1
+            `,
+            [
+                Math.min(
+                    Math.max(limit, 1),
+                    50000
+                ),
+            ]
+        );
+
+    return result.rows;
+}

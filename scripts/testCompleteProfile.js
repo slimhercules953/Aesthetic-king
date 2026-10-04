@@ -170,7 +170,6 @@ const {
     MIN_PALETTE_COLORS,
     checkCompleteness,
     normalizeHex,
-    normalizePalette,
 } = model;
 
 const {
@@ -180,7 +179,7 @@ const {
     path.join(ROOT, "studio", "lib", "aesthetics.ts"),
     stubs
 );
-const { MOODS, isValidMoodId } = loadModule(
+const { MOODS } = loadModule(
     path.join(ROOT, "studio", "lib", "moods.ts"),
     stubs
 );

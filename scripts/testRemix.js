@@ -536,7 +536,7 @@ function offline() {
         check(
             "the attribution links to their profile",
             result.attribution.href ===
-                `/dashboard/u/${AUTHOR}`,
+                `/u/${AUTHOR}`,
             String(result.attribution.href)
         );
 

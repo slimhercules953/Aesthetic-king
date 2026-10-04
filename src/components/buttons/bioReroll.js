@@ -44,6 +44,7 @@ async function buildBioResponse({
     interaction,
     aestheticId,
     request = "",
+    pack = null,
     stateId = null,
 }) {
     const {
@@ -52,6 +53,7 @@ async function buildBioResponse({
     } = await generateBio({
         aestheticId,
         request,
+        pack,
     });
 
     let resolvedStateId =
@@ -67,6 +69,15 @@ async function buildBioResponse({
 
                 aestheticId,
                 request,
+
+                /*
+                 * The Pack lives in the server's Studio settings, so a reroll
+                 * minutes later could otherwise pick up an edit (or a deletion)
+                 * and quietly change the style of the bio being refreshed.
+                 * Carrying the snapshot keeps a reroll consistent with the
+                 * original.
+                 */
+                pack,
             });
     }
 
@@ -110,6 +121,12 @@ async function sendExpiredResponse(
 }
 
 module.exports = {
+    /*
+     * A reroll is a fresh AI call, so it shares the member's generation
+     * bucket with the command that made the embed.
+     */
+    rateLimitScope: "generation",
+
     customId: "bio:reroll",
 
     async execute(interaction) {
@@ -148,6 +165,7 @@ module.exports = {
         const {
             aestheticId,
             request,
+            pack,
         } = state.data;
 
         const response =
@@ -155,6 +173,7 @@ module.exports = {
                 interaction,
                 aestheticId,
                 request,
+                pack: pack ?? null,
                 stateId,
             });
 

@@ -150,7 +150,7 @@ async function hasPremiumAssets(discordId) {
 }
 
 /**
- * `hasPremiumAssets` for interactive commands.
+ * `hasFeatureAccess` for interactive commands.
  *
  * Commands like `/profile` previously worked without a database, and
  * an outage should not take the free library down with it. On a lookup
@@ -170,6 +170,32 @@ async function resolvePremiumAssets(discordId) {
     }
 }
 
+/**
+ * `hasFeatureAccess` for interactive commands, for any gated feature.
+ *
+ * Same fail-closed policy as `resolvePremiumAssets`: a database blip
+ * costs a premium user one command, whereas failing open would hand out
+ * paid features on an outage.
+ */
+async function resolveFeatureAccess(
+    discordId,
+    feature
+) {
+    try {
+        return await hasFeatureAccess(
+            discordId,
+            feature
+        );
+    } catch (error) {
+        console.warn(
+            `[entitlements] "${feature}" check failed, falling back to FREE:`,
+            error?.message || error
+        );
+
+        return false;
+    }
+}
+
 module.exports = {
     GATED_FEATURES,
 
@@ -178,4 +204,5 @@ module.exports = {
     hasFeatureAccess,
     hasPremiumAssets,
     resolvePremiumAssets,
+    resolveFeatureAccess,
 };

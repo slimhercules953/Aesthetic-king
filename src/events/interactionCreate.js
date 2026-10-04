@@ -37,6 +37,67 @@ const {
 );
 
 const {
+    checkCommandFeatureAccess,
+    buildCommandFeatureLockedReply,
+} = require(
+    "../services/entitlements/commandEntitlementService"
+);
+
+const {
+    checkRateLimit,
+    formatRetryAfter,
+} = require(
+    "../services/interactions/rateLimitService"
+);
+
+const {
+    buildRateLimitedEmbed,
+} = require(
+    "../components/embeds/systemResponse"
+);
+
+/**
+ * Buttons that only write a row are left on the generic scope; the reroll
+ * handlers that reach the AI declare `rateLimitScope: "generation"` themselves.
+ */
+
+/**
+ * Applies the per-member limiter and builds the reply when it says stop.
+ *
+ * Returns `null` when the action may proceed, so the call sites stay a single
+ * `const blocked = ...; if (blocked) return;`.
+ *
+ * Keyed on the user rather than the channel or guild: the resource being
+ * protected is the AI endpoint, and one member's spam should not cool down
+ * their whole server.
+ */
+async function enforceRateLimit(
+    interaction,
+    scope
+) {
+    const result = checkRateLimit(scope, {
+        guildId: interaction.guildId,
+        userId: interaction.user?.id,
+    });
+
+    if (result.allowed) {
+        return null;
+    }
+
+    return {
+        embeds: [
+            buildRateLimitedEmbed(
+                formatRetryAfter(
+                    result.retryAfterSeconds
+                )
+            ),
+        ],
+
+        flags: MessageFlags.Ephemeral,
+    };
+}
+
+const {
     getState,
 } = require(
     "../services/interactions/interactionStateService"
@@ -47,6 +108,7 @@ const {
     buildWrongChannelEmbed,
     buildAccessDeniedEmbed,
     buildInteractionErrorEmbed,
+    buildUnknownComponentEmbed,
 } = require(
     "../components/embeds/systemResponse"
 );
@@ -206,6 +268,35 @@ module.exports = {
                     }
                 }
 
+                /*
+                 * Personal entitlements sit after the guild rules and before
+                 * the channel restriction: "is this command on in this server"
+                 * is the server owner's call and answers first, then "may this
+                 * person use it", then "is this the right channel". Unlike the
+                 * two checks above it, this one is user-scoped, so it also runs
+                 * in DMs.
+                 *
+                 * It is enforced here rather than inside `execute` for the same
+                 * reason `requireGenerationChannel` is: a command cannot ship
+                 * without it by forgetting a line, and the reply has not been
+                 * deferred yet, so the upsell can be ephemeral.
+                 */
+                const entitlement =
+                    await checkCommandFeatureAccess(
+                        command,
+                        interaction.user?.id
+                    );
+
+                if (!entitlement.allowed) {
+                    await interaction.reply(
+                        buildCommandFeatureLockedReply(
+                            entitlement
+                        )
+                    );
+
+                    return;
+                }
+
                 if (
                     command.requireGenerationChannel &&
                     interaction.guildId
@@ -233,6 +324,28 @@ module.exports = {
 
                         return;
                     }
+                }
+
+                /*
+                 * The limiter runs last among the pre-flight checks so a
+                 * request that was going to be refused anyway does not burn
+                 * one of the member's hits. It is still before `execute`,
+                 * which is the only place it can be: once generation has
+                 * started the cost is already paid.
+                 */
+                const commandBlocked =
+                    await enforceRateLimit(
+                        interaction,
+                        command.rateLimitScope ??
+                            "command"
+                    );
+
+                if (commandBlocked) {
+                    await interaction.reply(
+                        commandBlocked
+                    );
+
+                    return;
                 }
 
                 await command.execute(
@@ -298,6 +411,34 @@ module.exports = {
                         `Button handler not found: ${interaction.customId}`
                     );
 
+                    /*
+                     * A silent return here leaves the member's click spinning
+                     * with no feedback at all, which reads as the bot being
+                     * broken. The id almost always belongs to an embed from a
+                     * previous deploy, so say that instead.
+                     */
+                    const response = {
+                        embeds: [
+                            buildUnknownComponentEmbed(),
+                        ],
+
+                        flags:
+                            MessageFlags.Ephemeral,
+                    };
+
+                    if (
+                        interaction.replied ||
+                        interaction.deferred
+                    ) {
+                        await interaction.followUp(
+                            response
+                        );
+                    } else {
+                        await interaction.reply(
+                            response
+                        );
+                    }
+
                     return;
                 }
 
@@ -327,6 +468,26 @@ module.exports = {
 
                         return;
                     }
+                }
+
+                /*
+                 * Same limiter as commands, on the same user key, so hammering
+                 * a reroll button and running the command draw from one
+                 * allowance instead of two.
+                 */
+                const buttonBlocked =
+                    await enforceRateLimit(
+                        interaction,
+                        buttonHandler.rateLimitScope ??
+                            "command"
+                    );
+
+                if (buttonBlocked) {
+                    await interaction.reply(
+                        buttonBlocked
+                    );
+
+                    return;
                 }
 
                 await buttonHandler.execute(
@@ -389,7 +550,9 @@ module.exports = {
                     await interaction.respond(
                         []
                     );
-                } catch {}
+                } catch {
+                    /* the interaction is already gone */
+                }
 
                 return;
             }

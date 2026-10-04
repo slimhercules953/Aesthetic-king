@@ -19,35 +19,121 @@ import {
     notFound,
 } from "next/navigation";
 
+import type {
+    Metadata,
+} from "next";
+
 import {
     SESSION_COOKIE_NAME,
     verifySessionToken,
-} from "../../../../lib/session";
+} from "../../../lib/session";
 
 import {
     getCreatorProfile,
     getCreatorTopTags,
-} from "../../../../lib/creator";
+} from "../../../lib/creator";
 
 import {
     getFeedPostsByAuthorDiscordId,
     getSharedPostCommentsByPostIds,
-} from "../../../../lib/sharedFeed";
+} from "../../../lib/sharedFeed";
 
 import {
     hydrateFeedPosts,
-} from "../../../../lib/feedItems";
+} from "../../../lib/feedItems";
+
+import {
+    normalizeDiscordId,
+} from "../../../lib/creatorHref";
 
 import FeedCard, {
     type FeedCardData,
     type FeedCommentData,
-} from "../../../../components/feed/FeedCard";
+} from "../../../components/feed/FeedCard";
 
 type PageProps = {
     params: Promise<{
         discordId: string;
     }>;
 };
+
+/*
+ * This page deliberately lives outside /dashboard. The dashboard layout
+ * redirects anonymous visitors to the landing page, and a creator profile is
+ * the one thing in the product that has to survive being pasted into a Discord
+ * message by someone who has never signed in.
+ */
+export async function generateMetadata({
+    params,
+}: PageProps): Promise<Metadata> {
+    const {
+        discordId,
+    } = await params;
+
+    const normalized =
+        normalizeDiscordId(discordId);
+
+    const profile = normalized
+        ? await getCreatorProfile(
+                normalized
+            ).catch(
+                () => null
+            )
+        : null;
+
+    if (!profile) {
+        return {
+            title: "Creator",
+            robots: "noindex",
+        };
+    }
+
+    const displayName =
+        profile.displayName ||
+        profile.username ||
+        "Creator";
+
+    const description =
+        profile.postCount > 0
+            ? `${displayName} has published ${profile.postCount} ${
+                  profile.postCount === 1
+                      ? "aesthetic"
+                      : "aesthetics"
+              } to Aesthetic King — ${profile.likesReceived} likes and ${profile.remixesReceived} remixes so far.`
+            : `${displayName} on Aesthetic King.`;
+
+    const avatar =
+        discordAvatarUrl(
+            profile.discordId,
+            profile.avatarHash
+        );
+
+    return {
+        title: displayName,
+        description,
+        /*
+         * Indexable but not eagerly crawled: these pages are projections of
+         * feed posts and change constantly, which is exactly what a search
+         * engine should be allowed to see and what a preview bot needs.
+         */
+        robots: "index, follow",
+        openGraph: {
+            title: `${displayName} on Aesthetic King`,
+            description,
+            type: "profile",
+        },
+        twitter: {
+            card: avatar
+                ? "summary_large_image"
+                : "summary",
+            title: `${displayName} on Aesthetic King`,
+            description,
+            ...(avatar
+                ? { images: [avatar] }
+                : {}),
+        },
+    };
+}
 
 const POSTS_LIMIT = 30;
 

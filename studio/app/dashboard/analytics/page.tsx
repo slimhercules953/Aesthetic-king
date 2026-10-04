@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../lib/pageMetadata";
+
+import {
     cookies,
 } from "next/headers";
 
@@ -182,6 +186,11 @@ function itemHref(
         ? `/dashboard/aesthetics/${row.itemId}`
         : "/dashboard/discover";
 }
+
+export const metadata =
+    dashboardMetadata(
+        "Creator Analytics"
+    );
 
 export default async function CreatorAnalyticsPage({
     searchParams,

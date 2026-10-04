@@ -181,7 +181,7 @@ function offline() {
     check(
         "a snowflake becomes a profile href",
         href.creatorProfileHref("123456789012345678") ===
-            "/dashboard/u/123456789012345678",
+            "/u/123456789012345678",
         String(href.creatorProfileHref("123456789012345678"))
     );
 

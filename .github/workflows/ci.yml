@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: ["v2", "main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  bot:
+    name: Bot, lint and suites
+
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+            # A throwaway database on a throwaway runner. Real credentials
+            # never belong in this file.
+            POSTGRES_PASSWORD: postgres
+            POSTGRES_DB: aesthetic_king_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aesthetic_king_test
+
+      # src/config/env.js refuses to load without these. The suites never call
+      # Discord, so placeholder values are enough — but they must exist.
+      TOKEN: ci-placeholder-token
+      CLIENT_ID: 123456789012345678
+      DEV_GUILD_ID: 123456789012345678
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+
+      - name: Lint
+        run: npm run lint -- --quiet
+
+      - name: Run all suites
+        run: node scripts/runAllTests.js
+
+  studio:
+    name: Studio typecheck and build
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: studio
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: studio/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build

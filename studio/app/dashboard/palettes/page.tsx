@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../lib/pageMetadata";
+
+import {
     cookies,
 } from "next/headers";
 
@@ -16,6 +20,12 @@ import {
     SESSION_COOKIE_NAME,
     verifySessionToken,
 } from "../../../lib/session";
+
+export const metadata =
+    dashboardMetadata(
+        "Palettes",
+        "Colour palettes you have built, extracted from images, or pulled from an aesthetic."
+    );
 
 export default async function PalettesPage() {
     const cookieStore =

@@ -1,4 +1,8 @@
 import {
+    dashboardMetadata,
+} from "../../../../lib/pageMetadata";
+
+import {
     cookies,
 } from "next/headers";
 
@@ -142,6 +146,12 @@ function describeUnlock(
         row.expiresAt
     )}`;
 }
+
+export const metadata =
+    dashboardMetadata(
+        "Crowns",
+        "Crowns you have earned, what you have spent them on, and what they unlock."
+    );
 
 export default async function PremiumCrownsPage() {
     const cookieStore =
@@ -513,6 +523,7 @@ export default async function PremiumCrownsPage() {
                             <input
                                 type="number"
                                 name="amount"
+                                aria-label="Amount of Crowns to grant"
                                 defaultValue={100}
                                 min={1}
                                 max={1000}
