@@ -96,7 +96,7 @@ rows behind them.
 `CROWN_EARN_DAILY_TOTAL_CAP` (25) is a second ceiling on top of the
 per-source ones, so no combination of sources can exceed it.
 
-### The two-week rule
+### The one-month rule
 
 The amounts are not free-floating. `CROWN_MONTH_MAX_EARN` is the cap
 times 31 — the most a single account could possibly bank in a month —
