@@ -36,8 +36,8 @@ const AESTHETICS_PATH = "/dashboard/aesthetics";
  * How many rows a single section tries to show before moving to a new field.
  *
  * An embed field caps out at 1024 characters and five fully-populated rows can
- * exceed that (a 60-character name, six swatches and a 40-character username
- * idea is roughly 210 characters each), so rows are packed into as many fields
+ * exceed that (a 60-character name, six hex codes and a 40-character username
+ * idea is roughly 180 characters each), so rows are packed into as many fields
  * as they need instead of being blindly joined into one.
  */
 const ROWS_PER_SECTION = 5;
@@ -104,7 +104,14 @@ function describeAesthetic(aesthetic) {
         lines.push(`style: ${style}`);
     }
 
-    const palette = formatPalette(aesthetic.palette);
+    /*
+     * No swatch line here. /saved stacks up to five aesthetics and five
+     * palettes in one embed, and a square emoji per colour costs a line each —
+     * which for the dark, near-monochrome palettes this product mostly
+     * produces is five identical blocks that say nothing the hex codes below
+     * don't. Single-item views like /remix keep the swatches.
+     */
+    const palette = formatPalette(aesthetic.palette, { showSwatches: false });
 
     if (palette) {
         lines.push(palette);
@@ -124,7 +131,7 @@ function describePalette(palette) {
         `**${truncate(palette.name, 60) || "Untitled palette"}**`,
     ];
 
-    const colors = formatPalette(palette.colors);
+    const colors = formatPalette(palette.colors, { showSwatches: false });
 
     if (colors) {
         lines.push(colors);
@@ -138,10 +145,13 @@ function describePalette(palette) {
 module.exports = {
     /*
      * Exported for scripts/testCommands.js, which asserts that oversized rows
-     * are split across fields instead of blowing the 1024-character limit.
+     * are split across fields instead of blowing the 1024-character limit, and
+     * that a row stays as compact as the /saved layout promises.
      */
     packRows,
     buildSectionFields,
+    describeAesthetic,
+    describePalette,
 
     data: new SlashCommandBuilder()
         .setName("saved")

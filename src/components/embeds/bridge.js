@@ -121,8 +121,15 @@ const BRIDGE_FOOTER = "Aesthetic King \u2022 Studio";
  * closest thing that survives on every client. The hex codes are printed
  * underneath because a square is pretty but not copy-pasteable, and the reason
  * most people ask a bot for a palette is to paste it somewhere.
+ *
+ * `showSwatches: false` prints the hex codes alone. Callers that stack several
+ * palettes in one embed do that: a monochrome palette becomes a row of
+ * identical squares, which is a line of height spent to say nothing.
  */
-function formatPalette(colors, { max = 6, showHex = true } = {}) {
+function formatPalette(
+    colors,
+    { max = 6, showHex = true, showSwatches = true } = {}
+) {
     const list = Array.isArray(colors)
         ? colors.filter((color) => typeof color === "string" && color.trim())
         : [];
@@ -132,6 +139,12 @@ function formatPalette(colors, { max = 6, showHex = true } = {}) {
     }
 
     const shown = list.slice(0, max);
+
+    const hexes = shown.join(" ");
+
+    if (!showSwatches) {
+        return showHex ? hexes : null;
+    }
 
     /*
      * A stored palette is free text, so an entry may not be a hex at all. It
@@ -144,8 +157,6 @@ function formatPalette(colors, { max = 6, showHex = true } = {}) {
     if (!showHex) {
         return swatches || null;
     }
-
-    const hexes = shown.join(" ");
 
     return swatches ? `${swatches}\n${hexes}` : hexes;
 }

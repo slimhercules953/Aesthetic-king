@@ -201,6 +201,45 @@ check(
 );
 
 /*
+ * /saved stacks several palettes in one embed, so it drops the swatch line and
+ * keeps the hex codes. That is a one-line-per-entry saving, which is the whole
+ * point, so the shape is asserted rather than trusted.
+ */
+check(
+    "showSwatches false is hex codes alone",
+    formatPalette(["#0a0a0a", "#7c5cff"], { showSwatches: false }) ===
+        "#0a0a0a #7c5cff",
+    JSON.stringify(
+        formatPalette(["#0a0a0a", "#7c5cff"], { showSwatches: false })
+    )
+);
+check(
+    "showSwatches false stays on one line",
+    formatPalette(
+        ["#0a0a0a", "#1f1f1f", "#7c5cff", "#ffffff"],
+        { showSwatches: false }
+    ) === "#0a0a0a #1f1f1f #7c5cff #ffffff"
+);
+check(
+    "showSwatches false still respects max",
+    formatPalette(["#ff0000", "#00ff00", "#0000ff"], {
+        max: 2,
+        showSwatches: false,
+    }) === "#ff0000 #00ff00"
+);
+check(
+    "showSwatches false with showHex false has nothing left to say",
+    formatPalette(["#7c5cff"], {
+        showSwatches: false,
+        showHex: false,
+    }) === null
+);
+check(
+    "showSwatches false still returns null for no colours",
+    formatPalette([], { showSwatches: false }) === null
+);
+
+/*
  * A stored palette is free text, so a non-hex entry is printed but must not
  * borrow a stranger's square.
  */

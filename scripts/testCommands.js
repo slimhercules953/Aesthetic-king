@@ -30,6 +30,10 @@ const {
 
 const { InteractionContextType } = require("discord.js");
 
+const {
+    formatPalette,
+} = require("../src/components/embeds/bridge");
+
 const ROOT = path.join(__dirname, "..", "src");
 
 let passed = 0;
@@ -340,6 +344,68 @@ check(
 check(
     "packRows never returns an empty field",
     packRows([]).length === 1 && packRows([])[0] === "\u200b"
+);
+
+/*
+ * /saved stacks ten rows in one embed, so it renders palettes as hex codes
+ * only. A swatch line costs a line per entry and, for the near-monochrome
+ * palettes this product mostly produces, renders as a row of identical blocks.
+ * Asserted against the real row builders so the option cannot silently come
+ * back.
+ */
+const { describeAesthetic, describePalette } = require("../src/commands/studio/saved");
+
+const SQUARE_EMOJI = /[\u{1F7E5}-\u{1F7EB}\u{2B1B}\u{2B1C}]/u;
+
+const sampleAesthetic = describeAesthetic({
+    name: "midnight",
+    aestheticId: "cyberpunk",
+    palette: ["#0a0a0a", "#12121c", "#7c5cff"],
+    usernameIdea: "nyx.exe",
+    updatedAt: new Date(),
+});
+
+check(
+    "a saved aesthetic row has no swatch line",
+    !SQUARE_EMOJI.test(sampleAesthetic),
+    sampleAesthetic
+);
+check(
+    "a saved aesthetic row still lists the hex codes",
+    sampleAesthetic.includes("#0a0a0a #12121c #7c5cff"),
+    sampleAesthetic
+);
+check(
+    "a saved aesthetic row is five lines",
+    sampleAesthetic.split("\n").length === 5,
+    `${sampleAesthetic.split("\n").length} lines:\n${sampleAesthetic}`
+);
+
+const samplePalette = describePalette({
+    name: "ink",
+    colors: ["#0a0a0a", "#7c5cff"],
+    updatedAt: new Date(),
+});
+
+check(
+    "a saved palette row has no swatch line",
+    !SQUARE_EMOJI.test(samplePalette),
+    samplePalette
+);
+check(
+    "a saved palette row still lists the hex codes",
+    samplePalette.includes("#0a0a0a #7c5cff"),
+    samplePalette
+);
+
+/*
+ * /remix shows one post at a time and keeps the swatches, so the shared helper
+ * must not have been switched off globally.
+ */
+check(
+    "the single-item view keeps swatches",
+    SQUARE_EMOJI.test(formatPalette(["#7c5cff"])),
+    formatPalette(["#7c5cff"])
 );
 
 console.log("");
