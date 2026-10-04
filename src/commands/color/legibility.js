@@ -3,6 +3,7 @@ const {
     AttachmentBuilder,
     EmbedBuilder,
     MessageFlags,
+    InteractionContextType,
 } = require("discord.js");
 
 const {
@@ -143,7 +144,10 @@ module.exports = {
                 .setDescription("Name to preview. Defaults to your display name.")
                 .setRequired(false)
                 .setMaxLength(32)
-        ),
+        )
+        // Server-scoped: the generation channel is a guild setting, so there
+        // is nowhere for this output to go in a DM.
+        .setContexts(InteractionContextType.Guild),
 
     async execute(interaction) {
         const colorsOption = interaction.options.getString("colors");

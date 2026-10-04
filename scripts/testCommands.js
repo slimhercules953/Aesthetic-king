@@ -28,6 +28,8 @@ const {
     GATED_COMMAND_FEATURES,
 } = require("../src/services/entitlements/commandEntitlementService");
 
+const { InteractionContextType } = require("discord.js");
+
 const ROOT = path.join(__dirname, "..", "src");
 
 let passed = 0;
@@ -59,6 +61,8 @@ const MAX_CHOICE_NAME = 100;
 const MAX_FIELD_VALUE = 1024;
 
 const commandNames = [];
+const nameByFile = [];
+const guildOnlyFiles = new Set();
 
 for (const file of files) {
     const rel = path.relative(ROOT, file).replace(/\\/g, "/");
@@ -86,6 +90,15 @@ for (const file of files) {
     }
 
     commandNames.push(json.name);
+    nameByFile.push([rel, json.name]);
+
+    if (
+        Array.isArray(json.contexts) &&
+        json.contexts.length === 1 &&
+        json.contexts[0] === InteractionContextType.Guild
+    ) {
+        guildOnlyFiles.add(rel);
+    }
 
     check(`${rel} loads and builds`, true);
 
@@ -137,6 +150,22 @@ for (const file of files) {
             RATE_LIMIT_SCOPES.has(mod.rateLimitScope),
         `got ${String(mod.rateLimitScope)}`
     );
+
+    /*
+     * Guild-dependent commands must declare the Guild context. Without it a
+     * command is usable in DMs, where the pipeline's guild rules (per-command
+     * switch, access rules and especially the generation-channel restriction)
+     * are all skipped because they need a guild to evaluate.
+     */
+    if (mod.requireGenerationChannel || json.name === "serverstats") {
+        check(
+            `${rel} restricts a guild-dependent command to servers`,
+            Array.isArray(json.contexts) &&
+                json.contexts.length === 1 &&
+                json.contexts[0] === InteractionContextType.Guild,
+            `contexts is ${JSON.stringify(json.contexts)} — it must be [${InteractionContextType.Guild}]`
+        );
+    }
 
     const descriptionLength = (json.description ?? "").length;
 
@@ -192,6 +221,33 @@ for (const name of commandNames) {
 
 for (const [name, count] of counts) {
     check(`command name "${name}" is unique`, count === 1, `registered ${count} times`);
+}
+
+/*
+ * The commands that stay available in DMs are a deliberate list: they read
+ * account-level data and need no guild. A new command that is neither
+ * guild-scoped nor listed here has not had the question asked, so fail loudly
+ * rather than ship another command that quietly bypasses the guild rules.
+ */
+const DM_USABLE_COMMANDS = new Set([
+    "ping",
+    "saved",
+    "remix",
+    "discover",
+    "analytics",
+    "premium",
+]);
+
+for (const [file, name] of nameByFile) {
+    if (guildOnlyFiles.has(file)) {
+        continue;
+    }
+
+    check(
+        `${name} is either guild-scoped or an approved DM command`,
+        DM_USABLE_COMMANDS.has(name),
+        "declare .setContexts(InteractionContextType.Guild) or add it to the approved DM list"
+    );
 }
 
 /*

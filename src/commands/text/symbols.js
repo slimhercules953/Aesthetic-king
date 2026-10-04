@@ -1,6 +1,7 @@
 const {
     SlashCommandBuilder,
     EmbedBuilder,
+    InteractionContextType,
 } = require("discord.js");
 
 const {
@@ -43,7 +44,10 @@ module.exports = {
                     .addChoices(
                         ...getAestheticChoices()
                     )
-        ),
+        )
+        // Server-scoped: packs and the generation channel are guild settings,
+        // so there is nothing sensible to show in a DM.
+        .setContexts(InteractionContextType.Guild),
 
     async autocomplete(interaction) {
         await respondToPackAutocomplete(

@@ -3,6 +3,7 @@ const {
     AttachmentBuilder,
     EmbedBuilder,
     MessageFlags,
+    InteractionContextType,
 } = require("discord.js");
 
 const {
@@ -56,7 +57,10 @@ module.exports = {
                 .setMinValue(2)
                 .setMaxValue(8)
                 .setRequired(false)
-        ),
+        )
+        // Server-scoped: the generation channel is a guild setting, so there
+        // is nowhere for this output to go in a DM.
+        .setContexts(InteractionContextType.Guild),
 
     async execute(interaction) {
         const attachment =

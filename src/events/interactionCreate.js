@@ -1,6 +1,7 @@
 const {
     Events,
     MessageFlags,
+    InteractionContextType,
 } = require("discord.js");
 
 const logger =
@@ -109,9 +110,33 @@ const {
     buildAccessDeniedEmbed,
     buildInteractionErrorEmbed,
     buildUnknownComponentEmbed,
+    buildGuildOnlyCommandEmbed,
 } = require(
     "../components/embeds/systemResponse"
 );
+
+/**
+ * A command that declares `contexts: [Guild]` is hidden from DMs by Discord
+ * itself, so in practice nothing reaches `execute` outside a server. The
+ * declaration lives in the command file, though, and a stale registration or a
+ * command registered before the context was set can still slip through, so the
+ * pipeline re-checks it. Without this, a guild-only command run in a DM would
+ * skip the generation-channel rule entirely — that check needs a guild.
+ */
+function isGuildOnlyCommand(command) {
+    const contexts =
+        command?.data?.contexts ??
+        command?.data?.toJSON?.().contexts;
+
+    return (
+        Array.isArray(contexts) &&
+        contexts.length > 0 &&
+        contexts.every(
+            (context) =>
+                context === InteractionContextType.Guild
+        )
+    );
+}
 
 /**
  * Server access rules apply to everything a member can trigger, not just
@@ -203,6 +228,27 @@ module.exports = {
                     logger.warn(
                         `Command not found: ${interaction.commandName}`
                     );
+
+                    return;
+                }
+
+                /*
+                 * Guild-only commands are filtered out of the DM picker by
+                 * Discord, so this is the backstop for a registration that is
+                 * older than the command's current context declaration.
+                 */
+                if (
+                    !interaction.guildId &&
+                    isGuildOnlyCommand(command)
+                ) {
+                    await interaction.reply({
+                        embeds: [
+                            buildGuildOnlyCommandEmbed(),
+                        ],
+
+                        flags:
+                            MessageFlags.Ephemeral,
+                    });
 
                     return;
                 }

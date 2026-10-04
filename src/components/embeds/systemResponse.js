@@ -68,6 +68,23 @@ function buildWrongChannelEmbed(
     });
 }
 
+/**
+ * Shown when a server-only command somehow arrives in a DM. Discord normally
+ * hides those commands in DMs, so this is a backstop for a stale registration.
+ */
+function buildGuildOnlyCommandEmbed() {
+    return buildSystemEmbed({
+        title:
+            "Server Command Only",
+
+        description:
+            "That command only works inside a server, where Aesthetic King uses the server's packs, defaults and generation channel.\n\nRun it in a server you share with the bot.",
+
+        type:
+            "info",
+    });
+}
+
 function buildAccessDeniedEmbed(
     reason
 ) {
@@ -143,6 +160,7 @@ module.exports = {
     buildCommandDisabledEmbed,
     buildWrongChannelEmbed,
     buildAccessDeniedEmbed,
+    buildGuildOnlyCommandEmbed,
     buildInteractionErrorEmbed,
     buildUnknownComponentEmbed,
     buildRateLimitedEmbed,

@@ -1,5 +1,6 @@
 const {
     SlashCommandBuilder,
+    InteractionContextType,
 } = require("discord.js");
 
 const {
@@ -50,7 +51,10 @@ module.exports = {
                 .addChoices(
                     ...getMoodChoices()
                 )
-        ),
+        )
+        // Server-scoped: packs, defaults and the generation channel are all
+        // guild settings, so there is nothing sensible to generate in a DM.
+        .setContexts(InteractionContextType.Guild),
 
     async autocomplete(interaction) {
         await respondToPackAutocomplete(

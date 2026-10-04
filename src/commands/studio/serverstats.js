@@ -2,6 +2,7 @@ const {
     SlashCommandBuilder,
     PermissionFlagsBits,
     MessageFlags,
+    InteractionContextType,
 } = require("discord.js");
 
 const {
@@ -108,7 +109,11 @@ module.exports = {
         )
         .setDefaultMemberPermissions(
             PermissionFlagsBits.ManageGuild
-        ),
+        )
+        // The stats are this server's usage, so the command is meaningless
+        // outside one. Declaring the context also stops a DM reaching the
+        // Manage Guild check below, which relies on guild member permissions.
+        .setContexts(InteractionContextType.Guild),
 
     async execute(interaction) {
         /*
