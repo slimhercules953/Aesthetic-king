@@ -14,6 +14,8 @@ import AddPaletteToCollectionButton from "../collections/AddPaletteToCollectionB
 
 import ShareToFeedButton from "../feed/ShareToFeedButton";
 
+import Modal from "../ui/Modal";
+
 import {
     useRouter,
 } from "next/navigation";
@@ -280,7 +282,7 @@ export default function PaletteStudio({
                             </h2>
 
                             <p className="mt-2 text-sm text-zinc-500">
-                                Build a reusable 3–6 color palette.
+                                Build a reusable 3â€“6 color palette.
                             </p>
                         </div>
 
@@ -565,7 +567,7 @@ export default function PaletteStudio({
                         <p className="mt-2 text-sm text-zinc-500">
                             {aestheticId ||
                                 "No aesthetic"}{" "}
-                            •{" "}
+                            â€¢{" "}
                             {moodId ||
                                 "No mood"}
                         </p>
@@ -802,7 +804,7 @@ function SavedPaletteCard({
                     <p className="mt-2 text-sm text-zinc-600">
                         {palette.aestheticId ||
                             "No aesthetic"}{" "}
-                        •{" "}
+                        â€¢{" "}
                         {palette.moodId ||
                             "No mood"}
                     </p>
@@ -906,7 +908,7 @@ function SavedPaletteCard({
             </article>
 
             {renameOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm">
+                <Modal className="p-5" label="Rename palette">
                     <div className="w-full max-w-md rounded-3xl border border-white/[0.08] bg-[#121218] p-6">
                         <h3 className="text-xl font-semibold">
                             Rename Palette
@@ -957,11 +959,11 @@ function SavedPaletteCard({
                             </button>
                         </div>
                     </div>
-                </div>
+                </Modal>
             )}
 
             {deleteOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm">
+                <Modal className="p-5" label="Delete palette">
                     <div className="w-full max-w-md rounded-3xl border border-red-500/15 bg-[#121218] p-6">
                         <h3 className="text-xl font-semibold">
                             Delete Palette?
@@ -1000,7 +1002,7 @@ function SavedPaletteCard({
                             </button>
                         </div>
                     </div>
-                </div>
+                </Modal>
             )}
         </>
     );

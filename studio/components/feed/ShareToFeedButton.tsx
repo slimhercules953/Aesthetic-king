@@ -13,6 +13,7 @@ import {
     useRouter,
 } from "next/navigation";
 
+import Modal from "../ui/Modal";
 import UpgradePrompt from "../ui/UpgradePrompt";
 
 import {
@@ -177,7 +178,7 @@ export default function ShareToFeedButton({
             </button>
 
             {open && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+                <Modal label="Share to Discover">
                     <div className="w-full max-w-md rounded-3xl border border-white/[0.08] bg-[#101015] p-6 shadow-2xl shadow-black/60">
                         <div className="flex items-start justify-between gap-4">
                             <div>
@@ -292,7 +293,7 @@ export default function ShareToFeedButton({
                             </button>
                         </div>
                     </div>
-                </div>
+                </Modal>
             )}
         </>
     );

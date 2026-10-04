@@ -13,6 +13,7 @@ import {
     useState,
 } from "react";
 
+import Modal from "../ui/Modal";
 import UpgradePrompt from "../ui/UpgradePrompt";
 
 import {
@@ -132,7 +133,7 @@ export default function CreateCollectionButton() {
             </button>
 
             {open && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm">
+                <Modal className="p-5" label="Create collection">
                     <div className="w-full max-w-md rounded-3xl border border-white/[0.08] bg-[#121218] p-6 shadow-2xl">
                         <div className="flex items-start justify-between gap-4">
                             <div>
@@ -241,7 +242,7 @@ export default function CreateCollectionButton() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </Modal>
             )}
         </>
     );

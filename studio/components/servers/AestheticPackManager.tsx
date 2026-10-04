@@ -24,6 +24,8 @@ import {
     MOODS,
 } from "../../lib/moods";
 
+import Modal from "../ui/Modal";
+
 import type {
     ServerAestheticPack,
 } from "../../lib/aestheticPacks";
@@ -420,7 +422,7 @@ export default function AestheticPackManager({
                                 ? ""
                                 : "s"
                         }
-                        {" • "}
+                        {" â€¢ "}
                         {
                             enabledCount
                         } enabled
@@ -656,7 +658,7 @@ export default function AestheticPackManager({
                 )}
 
             {draft && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+                <Modal label={draft.id ? "Edit pack" : "Create pack"}>
                     <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-white/[0.08] bg-[#101015] p-6 shadow-2xl">
                         <div className="flex items-start justify-between gap-4">
                             <div>
@@ -899,7 +901,7 @@ export default function AestheticPackManager({
                                                     ),
                                         })
                                     }
-                                    placeholder="✦ ☾ ♱"
+                                    placeholder="âœ¦ â˜¾ â™±"
                                     className="mt-2 h-12 w-full rounded-xl border border-white/[0.07] bg-black/20 px-4 text-sm text-zinc-300"
                                 />
                             </div>
@@ -958,7 +960,7 @@ export default function AestheticPackManager({
                             </button>
                         </div>
                     </div>
-                </div>
+                </Modal>
             )}
         </>
     );

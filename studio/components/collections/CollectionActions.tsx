@@ -14,6 +14,8 @@ import {
     useState,
 } from "react";
 
+import Modal from "../ui/Modal";
+
 type CollectionActionsProps = {
     id: string;
     currentName: string;
@@ -192,7 +194,7 @@ export default function CollectionActions({
             </div>
 
             {renameOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm">
+                <Modal className="p-5" label="Rename collection">
                     <div className="w-full max-w-md rounded-3xl border border-white/[0.08] bg-[#121218] p-6 shadow-2xl">
                         <div className="flex items-start justify-between">
                             <div>
@@ -276,11 +278,11 @@ export default function CollectionActions({
                             </button>
                         </div>
                     </div>
-                </div>
+                </Modal>
             )}
 
             {deleteOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm">
+                <Modal className="p-5" label="Delete collection">
                     <div className="w-full max-w-md rounded-3xl border border-red-500/15 bg-[#121218] p-6 shadow-2xl">
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/10 text-red-400">
                             <Trash2
@@ -333,7 +335,7 @@ export default function CollectionActions({
                             </button>
                         </div>
                     </div>
-                </div>
+                </Modal>
             )}
         </>
     );

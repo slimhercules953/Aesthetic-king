@@ -11,6 +11,8 @@ import {
     useState,
 } from "react";
 
+import Modal from "../ui/Modal";
+
 type CollectionOption = {
     id: string;
     name: string;
@@ -141,7 +143,7 @@ export default function AddPaletteToCollectionButton({
             </button>
 
             {open && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm">
+                <Modal className="p-5" label="Add palette to collection">
                     <div className="w-full max-w-lg rounded-3xl border border-white/[0.08] bg-[#121218] shadow-2xl">
                         <div className="flex items-start justify-between border-b border-white/[0.06] p-6">
                             <div>
@@ -297,7 +299,7 @@ export default function AddPaletteToCollectionButton({
                             </button>
                         </div>
                     </div>
-                </div>
+                </Modal>
             )}
         </>
     );
