@@ -83,25 +83,53 @@ table to keep in sync — the daily caps are counted out of the ledger
 itself, which means the numbers on the page can never disagree with the
 rows behind them.
 
-`CROWN_EARN_RULES` in `lib/crownEarning.ts` holds every amount and cap
-(placeholder numbers, same convention as `features.ts`):
+`CROWN_EARN_RULES` in `lib/crownEarning.ts` holds every amount and cap:
 
 | Source | Amount | Per day | Paid to |
 | --- | --- | --- | --- |
-| `publish` | 15 | 3 | whoever shares to Discover |
-| `like_received` | 2 | 10 | the post's author |
-| `comment_received` | 3 | 10 | the post's author |
-| `daily_visit` | 5 | 1 | the visitor |
-| `topgg_vote` | 25 | 1 | the voter |
+| `publish` | 5 | 3 | whoever shares to Discover |
+| `like_received` | 1 | 10 | the post's author |
+| `comment_received` | 2 | 10 | the post's author |
+| `daily_visit` | 3 | 1 | the visitor |
+| `topgg_vote` | 10 | 1 | the voter |
 
-`CROWN_EARN_DAILY_TOTAL_CAP` (60) is a second ceiling on top of the
+`CROWN_EARN_DAILY_TOTAL_CAP` (25) is a second ceiling on top of the
 per-source ones, so no combination of sources can exceed it.
+
+### The two-week rule
+
+The amounts are not free-floating. `CROWN_MONTH_MAX_EARN` is the cap
+times 31 — the most a single account could possibly bank in a month —
+and `CROWN_MONTH_MIN_COST` is twice that. Every Crown-buyable period of
+access has to cost at least the floor, and `testCrownEarning.js` asserts
+it, so a future price change cannot quietly break the rule.
+
+The reason is a specific kind of leak: if a month of Premium costs less
+than a month of farming, then paying stops being the way to get it. Worse,
+a user who saves up can buy several months back to back and spend the
+following months inside Premium while earning nothing. Pricing at 2× the
+ceiling means the most dedicated account on the platform still has to
+either pay or keep working for it.
+
+Two consequences live in the code, not just the numbers:
+
+- TIMED unlocks do not stack. `purchaseUnlock` refuses the purchase
+  unless the existing unlock is inside `TIMED_RENEWAL_WINDOW_DAYS` (3) of
+  expiring, and the `ON CONFLICT` update sets
+  `expiresAt = NOW() + period` rather than extending what was there. You
+  can renew early and forfeit a few days; you cannot pre-buy a run of
+  months.
+- BOOST unlocks are exempt from the floor because they cannot be banked —
+  they are keyed to the reset period and simply stop applying when it
+  rolls over. The test checks the other direction instead: maxing out a
+  BOOST with Crowns still lands under what the Premium plan itself
+  grants.
 
 `isEarnSourceLive()` decides what the Earn page offers. Every source
 except `topgg_vote` is wired into the product, so it is always live; a
 Top.gg vote can only arrive through the webhook, so the source is hidden
 until `TOPGG_WEBHOOK_SECRET` is set — the same condition the route uses
-to answer 404. Advertising "25 Crowns for voting" when no vote can be
+to answer 404. Advertising "10 Crowns for voting" when no vote can be
 received is a promise the product cannot keep. Hiding a source hides the
 offer only: rows already awarded under it still appear in the history
 and still count toward today's total.

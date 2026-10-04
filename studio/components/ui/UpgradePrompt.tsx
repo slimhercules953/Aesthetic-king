@@ -17,6 +17,11 @@ import {
 
 import type { FeatureDeniedBody } from "../../lib/denied";
 
+import {
+    getCrownUnlockTerms,
+    isFeatureId,
+} from "../../lib/features";
+
 /**
  * Shown whenever the server refuses an action for entitlement reasons.
  *
@@ -59,6 +64,11 @@ export default function UpgradePrompt({
     const canBuy =
         denied.crownUnlockAvailable &&
         denied.crownCost !== null;
+
+    const terms =
+        canBuy && isFeatureId(denied.feature)
+            ? getCrownUnlockTerms(denied.feature)
+            : null;
 
     async function buy() {
         if (busy) {
@@ -200,6 +210,14 @@ export default function UpgradePrompt({
                         </button>
                     )}
             </div>
+
+            {canBuy && terms && (
+                <p className="mt-3 text-[11px] text-zinc-600">
+                    {terms.kind === "BOOST"
+                        ? `That buys ${terms.allowance} more ${denied.label.toLowerCase()} uses in the current period.`
+                        : `That keeps ${denied.label.toLowerCase()} open for ${terms.days} days. You can buy it again near the end of that period.`}
+                </p>
+            )}
 
             {failure && (
                 <p className="mt-3 text-xs text-rose-300">

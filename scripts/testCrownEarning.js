@@ -54,6 +54,13 @@ const EARNING_PATH = path.join(
     "crownEarning.ts"
 );
 
+const FEATURES_PATH = path.join(
+    ROOT,
+    "studio",
+    "lib",
+    "features.ts"
+);
+
 const TOPGG_ROUTE_PATH = path.join(
     ROOT,
     "studio",
@@ -408,6 +415,90 @@ const day = new Date().toISOString().slice(0, 10);
             )
         )
     );
+
+    check(
+        "the monthly ceiling is the daily cap times the longest month",
+        earning.CROWN_MONTH_MAX_EARN ===
+        earning.CROWN_EARN_DAILY_TOTAL_CAP * 31
+    );
+
+    check(
+        "the minimum month cost is twice the monthly ceiling",
+        earning.CROWN_MONTH_MIN_COST ===
+        earning.CROWN_MONTH_MAX_EARN * 2
+    );
+
+    /* ---------------------------------------------------------------- */
+    section("1b. Crowns cannot add up to a free month of Premium");
+
+    /*
+     * The product rule this guards: a month of Crown-buyable access has
+     * to cost more than twice what the most active account on the
+     * platform can earn in a month. Below that, farming becomes a way of
+     * not paying, and a user who saves up can run several months back to
+     * back without earning anything.
+     *
+     * Only TIMED unlocks are counted. A BOOST is windowed and dies with
+     * the period, so it can never be banked into future access, and the
+     * allowances are all well under what the plan itself grants.
+     */
+    const features = loadModule(FEATURES_PATH);
+
+    const timed = features.FEATURE_IDS
+        .map((feature) => ({
+            feature,
+            terms: features.getCrownUnlockTerms(feature),
+        }))
+        .filter((entry) => entry.terms?.kind === "TIMED");
+
+    check(
+        "there is something Crowns can buy a month of",
+        timed.length > 0
+    );
+
+    const monthCost = timed.reduce(
+        (sum, entry) => sum + entry.terms.cost,
+        0
+    );
+
+    check(
+        "a month of everything Crowns can buy costs at least twice a month of maximum earning",
+        monthCost >= earning.CROWN_MONTH_MIN_COST,
+        `costs ${monthCost}, floor ${earning.CROWN_MONTH_MIN_COST}`
+    );
+
+    for (const entry of timed) {
+        check(
+            `${entry.feature} alone costs more than a month of maximum earning`,
+            entry.terms.cost > earning.CROWN_MONTH_MAX_EARN,
+            `${entry.terms.cost} vs ${earning.CROWN_MONTH_MAX_EARN}`
+        );
+
+        check(
+            `${entry.feature} is sold in periods of a month or less`,
+            entry.terms.days > 0 && entry.terms.days <= 31,
+            `${entry.terms.days} days`
+        );
+    }
+
+    for (const feature of features.FEATURE_IDS) {
+        const terms =
+            features.getCrownUnlockTerms(feature);
+
+        if (terms?.kind !== "BOOST") {
+            continue;
+        }
+
+        const config = features.FEATURES[feature];
+
+        check(
+            `${feature} boosts stay well under what the plan itself allows`,
+            Math.floor(
+                earning.CROWN_MONTH_MAX_EARN / terms.cost
+            ) * terms.allowance < config.premiumLimit,
+            `${Math.floor(earning.CROWN_MONTH_MAX_EARN / terms.cost) * terms.allowance} vs plan ${config.premiumLimit}`
+        );
+    }
 
     /* ---------------------------------------------------------------- */
     section("2. A qualifying event writes one EARN row");
@@ -873,7 +964,7 @@ const day = new Date().toISOString().slice(0, 10);
 
     /*
      * A Top.gg vote only arrives if the webhook is configured, and the
-     * Studio is not deployed yet. Offering "25 Crowns for voting" when no
+     * Studio is not deployed yet. Offering "10 Crowns for voting" when no
      * vote can ever be received is a promise the product cannot keep, so
      * the source disappears with the secret.
      */

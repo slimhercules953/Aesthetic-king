@@ -25,9 +25,11 @@ import {
  *    by itself the moment the window rolls over — nothing has to
  *    expire it, and a boost bought in March can never leak into April.
  *
- *  - a TIMED unlock opens a gated feature until `expiresAt`. Buying
- *    again while it is still open extends the deadline rather than
- *    starting a second row.
+ *  - a TIMED unlock opens a gated feature until `expiresAt`, one
+ *    period at a time. Buying again while it is still open is refused
+ *    rather than extending the deadline, so Crowns cannot be banked
+ *    into several months of access in advance — see
+ *    `CROWN_MONTH_MAX_EARN` in `crownEarning.ts`.
  *
  * Both are written in the same transaction as the Crown spend, so a
  * charge can never land without the unlock and an unlock can never
@@ -40,6 +42,18 @@ import {
  * rather than buying a second copy of the same access.
  */
 const TIMED_PERIOD_KEY = "TIMED";
+
+/**
+ * How close to the deadline a TIMED unlock has to be before it can be
+ * bought again.
+ *
+ * A purchase always sets the deadline to a full period from the moment
+ * of purchase, never to "current deadline plus a period", so buying
+ * early costs you the time you had left. This window is how much of
+ * that a user is allowed to throw away: it makes "I want to renew now"
+ * possible without letting anybody pre-pay for March in January.
+ */
+const TIMED_RENEWAL_WINDOW_DAYS = 3;
 
 export type CrownUnlockRow = {
     id: string;
@@ -155,7 +169,14 @@ export type UnlockPurchaseResult =
         reason:
             | "not_unlockable"
             | "insufficient"
-            | "already_unlocked";
+            | "already_unlocked"
+            | "already_active";
+
+        /**
+         * Set when `reason` is `already_active`: when the access the
+         * user already has runs out.
+         */
+        activeUntil?: Date | null;
 
         balance: number;
     };
@@ -202,11 +223,15 @@ export async function purchaseUnlock(
             : TIMED_PERIOD_KEY;
 
     /*
-     * Repeat purchases are allowed and stack, so the key cannot be
-     * derived from the window — a second deliberate top-up in the
-     * same month must charge. A coarse minute bucket instead absorbs
+     * A BOOST can be bought repeatedly inside one window, so the key
+     * cannot be derived from the window — a second deliberate top-up in
+     * the same month must charge. A coarse minute bucket instead absorbs
      * a double-clicked button and a dropped-response retry, which is
      * what an idempotency key is for.
+     *
+     * A TIMED purchase is additionally refused while the current period
+     * has days left on it, so the bucket is only ever the difference
+     * between one clear refusal and two.
      */
     const idempotencyKey =
         `unlock:${feature}:${Math.floor(
@@ -293,6 +318,60 @@ export async function purchaseUnlock(
 
                     balance,
                 };
+            }
+
+            /*
+             * A gated feature is sold one period at a time. Without
+             * this, a user who farms Crowns could buy three months of
+             * Premium Assets in one sitting and then not earn again
+             * until they ran out, which is exactly the loop the
+             * earning caps exist to prevent.
+             *
+             * The renewal window keeps the common case working:
+             * somebody two days from lapsing can top up before they
+             * lose access, and simply lose those two days.
+             */
+            if (terms.kind === "TIMED") {
+                const active =
+                    await client.query<{
+                        expiresAt: Date | null;
+                    }>(
+                        `
+                        SELECT "expiresAt"
+                        FROM "CrownUnlock"
+                        WHERE
+                            "userId" = $1
+                            AND feature = $2
+                            AND kind = 'TIMED'
+                            AND "expiresAt" > NOW() + ($3 || ' days')::interval
+                        LIMIT 1
+                        `,
+                        [
+                            userId,
+                            feature,
+                            TIMED_RENEWAL_WINDOW_DAYS,
+                        ]
+                    );
+
+                if (active.rowCount) {
+                    /*
+                     * Returned, not thrown: the caller already has a
+                     * 409 path, and the balance is worth sending back
+                     * so the UI can show it next to the price.
+                     */
+                    return {
+                        ok: false as const,
+
+                        reason:
+                            "already_active" as const,
+
+                        activeUntil:
+                            active.rows[0].expiresAt ??
+                            null,
+
+                        balance,
+                    };
+                }
             }
 
             if (balance < terms.cost) {
@@ -421,10 +500,14 @@ export async function purchaseUnlock(
                             "periodKey"
                         )
                         DO UPDATE SET
-                            "expiresAt" = GREATEST(
-                                "CrownUnlock"."expiresAt",
-                                NOW()
-                            ) + ($4 || ' days')::interval,
+                            /*
+                             * Never extends. The guard above only
+                             * lets a purchase through once the
+                             * current period is nearly over, so
+                             * renewing always means exactly one
+                             * fresh period from now.
+                             */
+                            "expiresAt" = NOW() + ($4 || ' days')::interval,
                             "transactionId" =
                                 EXCLUDED."transactionId",
                             "updatedAt" = NOW()

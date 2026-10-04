@@ -116,13 +116,23 @@ export async function POST(
         );
 
     if (!result.ok) {
+        const error =
+            result.reason === "insufficient"
+                ? `You need ${terms.cost} Crowns and have ${result.balance}.`
+                : result.reason === "already_active"
+                    ? result.activeUntil
+                        ? `You already have that until ${new Date(
+                            result.activeUntil
+                        ).toLocaleDateString(undefined, {
+                            month: "long",
+                            day: "numeric",
+                        })}. You can buy it again in the last few days before it ends.`
+                        : "You already have that unlocked."
+                    : "That unlock is already active.";
+
         return NextResponse.json(
             {
-                error:
-                    result.reason ===
-                        "insufficient"
-                        ? `You need ${terms.cost} Crowns and have ${result.balance}.`
-                        : "That unlock is already active.",
+                error,
 
                 reason:
                     result.reason,

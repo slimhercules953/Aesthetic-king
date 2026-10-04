@@ -73,14 +73,17 @@ export type CrownEarnRule = {
 };
 
 /**
- * These numbers are product placeholders, like the ones in `features.ts`.
- * Change them here and nowhere else.
+ * Change these numbers here and nowhere else.
  *
  * The shape of the economy is the part worth keeping: publishing is the
  * best-paid action because it is the one that makes Discover worth
  * visiting, receiving engagement pays less than creating it so a popular
  * account cannot idle its way to a boost, and a Top.gg vote is worth more
  * than a like because it costs the voter something real.
+ *
+ * The scale is set by `CROWN_EARN_DAILY_TOTAL_CAP` and by the prices in
+ * `features.ts` together — see `CROWN_MONTH_MAX_EARN` below for the rule
+ * that ties them together.
  */
 export const CROWN_EARN_RULES: Record<
     CrownEarnSource,
@@ -89,35 +92,35 @@ export const CROWN_EARN_RULES: Record<
     publish: {
         source: "publish",
         label: "Publish to Discover",
-        amount: 15,
+        amount: 5,
         dailyCap: 3,
     },
 
     like_received: {
         source: "like_received",
         label: "A post of yours got a like",
-        amount: 2,
+        amount: 1,
         dailyCap: 10,
     },
 
     comment_received: {
         source: "comment_received",
         label: "A post of yours got a comment",
-        amount: 3,
+        amount: 2,
         dailyCap: 10,
     },
 
     daily_visit: {
         source: "daily_visit",
         label: "Daily visit",
-        amount: 5,
+        amount: 3,
         dailyCap: 1,
     },
 
     topgg_vote: {
         source: "topgg_vote",
         label: "Voted for the bot on Top.gg",
-        amount: 25,
+        amount: 10,
         dailyCap: 1,
     },
 };
@@ -131,7 +134,37 @@ export const CROWN_EARN_SOURCES = Object.keys(
  * all sources. Without it the per-source caps are just an instruction to
  * farm every source instead of one.
  */
-export const CROWN_EARN_DAILY_TOTAL_CAP = 60;
+export const CROWN_EARN_DAILY_TOTAL_CAP = 25;
+
+/**
+ * The most a single account can bank in a month by farming every source
+ * up to the daily ceiling on every day of the longest month.
+ *
+ * This is the number the Crown prices in `features.ts` are measured
+ * against. The rule: a month of anything Crowns can buy must cost at
+ * least twice this. Crowns are meant to pay for a specific thing you ran
+ * out of, not to add up into a free month of Premium — if a dedicated
+ * account could earn its way to unlocked access, or bank three months of
+ * it while nobody was watching, the economy would be a way of not paying
+ * rather than a way of paying.
+ *
+ * The prices are not in this file, so the check lives in
+ * `testCrownEarning.js`: it works out what a month of every
+ * Crown-buyable feature costs and refuses anything cheaper than
+ * `CROWN_MONTH_MIN_COST`. Changing either side fails that test.
+ */
+export const CROWN_MONTH_MAX_EARN =
+    CROWN_EARN_DAILY_TOTAL_CAP * 31;
+
+/**
+ * What a month of Crown-buyable access has to cost, at minimum.
+ *
+ * Two times the most anybody can farm in a month. The multiplier is the
+ * headroom: at 1× a determined user breaks even every month, and at 2×
+ * they still have to choose between paying and not having the thing.
+ */
+export const CROWN_MONTH_MIN_COST =
+    CROWN_MONTH_MAX_EARN * 2;
 
 export type AwardResult =
     | {

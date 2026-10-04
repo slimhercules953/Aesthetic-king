@@ -174,7 +174,7 @@ export const FEATURES = {
         usageSource: "ledger",
 
         crownUnlockAvailable: true,
-        crownCost: 10,
+        crownCost: 60,
         crownUnlockBoost: 10,
     },
 
@@ -196,7 +196,7 @@ export const FEATURES = {
         usageSource: "ledger",
 
         crownUnlockAvailable: true,
-        crownCost: 40,
+        crownCost: 200,
         crownUnlockBoost: 5,
     },
 
@@ -231,7 +231,7 @@ export const FEATURES = {
         freeAllowed: false,
 
         crownUnlockAvailable: true,
-        crownCost: 25,
+        crownCost: 1000,
         crownUnlockDays: 30,
     },
 
@@ -245,7 +245,7 @@ export const FEATURES = {
         freeAllowed: false,
 
         crownUnlockAvailable: true,
-        crownCost: 20,
+        crownCost: 800,
         crownUnlockDays: 30,
     },
 

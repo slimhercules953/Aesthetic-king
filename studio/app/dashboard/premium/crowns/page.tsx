@@ -30,6 +30,7 @@ import {
     FEATURE_IDS,
     FEATURES,
     getFeatureConfig,
+    getCrownUnlockTerms,
     isFeatureId,
 } from "../../../../lib/features";
 
@@ -276,39 +277,54 @@ export default async function PremiumCrownsPage() {
                                     FEATURES[
                                         feature
                                     ],
+                                terms:
+                                    getCrownUnlockTerms(
+                                        feature
+                                    ),
                             })
                         )
                             .filter(
                                 (entry) =>
-                                    entry.config.crownCost !==
-                                    null
+                                    entry.terms !== null
                             )
                             .map(
                                 ({
                                     feature,
                                     config,
+                                    terms,
                                 }) => (
                                     <div
                                         key={
                                             feature
                                         }
-                                        className="flex items-center justify-between gap-3 rounded-2xl border border-white/[0.06] bg-[#0c0c11] px-4 py-3"
+                                        className="rounded-2xl border border-white/[0.06] bg-[#0c0c11] px-4 py-3"
                                     >
-                                        <span className="text-sm text-zinc-300">
-                                            {
-                                                config.label
-                                            }
-                                        </span>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="text-sm text-zinc-300">
+                                                {
+                                                    config.label
+                                                }
+                                            </span>
 
-                                        <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-amber-300">
-                                            <Crown
-                                                size={13}
-                                            />
+                                            <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-amber-300">
+                                                <Crown
+                                                    size={13}
+                                                />
 
+                                                {
+                                                    terms!.cost
+                                                }
+                                            </span>
+                                        </div>
+
+                                        <p className="mt-1 text-[11px] leading-5 text-zinc-600">
                                             {
-                                                config.crownCost
+                                                terms!.kind ===
+                                                    "BOOST"
+                                                    ? `${terms!.allowance} extra uses, this month only`
+                                                    : `${terms!.days} days of access`
                                             }
-                                        </span>
+                                        </p>
                                     </div>
                                 )
                             )
@@ -316,9 +332,13 @@ export default async function PremiumCrownsPage() {
                 </div>
 
                 <p className="mt-4 text-xs leading-6 text-zinc-600">
-                    These prices are placeholders held in one place
-                    inside the feature registry and are expected to
-                    change before the economy is finalised.
+                    A month of everything Crowns can buy costs more
+                    than twice what the most active account can earn
+                    in a month. That is deliberate: Crowns are for
+                    topping up something you ran out of, not for
+                    saving up into a free month of Premium. Timed
+                    access is sold one period at a time, so it cannot
+                    be bought several months ahead.
                 </p>
             </section>
 
