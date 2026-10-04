@@ -79,8 +79,6 @@ module.exports = {
             return;
         }
 
-        await interaction.deferReply();
-
         const aestheticId =
             context.aestheticId;
 
@@ -94,18 +92,38 @@ module.exports = {
                 aestheticId
             );
 
+        /*
+         * An Aesthetic Pack stores a free-text aestheticId, so a pack can point
+         * at a style the shipped catalogue has no symbols for. That is a
+         * configuration gap, not a crash, so say so instead of throwing and
+         * showing the generic error embed.
+         */
         if (
             !aesthetic ||
             !symbols
         ) {
-            throw new Error(
-                `No symbol collection exists for ${aestheticId}.`
-            );
+            await interaction.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle(
+                            "✦ No symbols for that style yet"
+                        )
+                        .setDescription(
+                            `**${aesthetic?.name ?? aestheticId}** has no symbol collection yet. Pick one of the built-in styles with the \`style\` option, or choose a different Aesthetic Pack.`
+                        )
+                        .setColor(0x7c5cff),
+                ],
+                ephemeral: true,
+            });
+
+            return;
         }
+
+        await interaction.deferReply();
 
         const embedColor =
             parseInt(
-                aesthetic.colors[0]
+                (aesthetic.colors?.[0] ?? "#7c5cff")
                     .replace(
                         "#",
                         ""
@@ -131,9 +149,14 @@ module.exports = {
                 name:
                     `✦ ${packName} Symbols`,
                 value:
-                    context.packSymbols.join(
-                        "   "
-                    ),
+                    context.packSymbols
+                        .join(
+                            "   "
+                        )
+                        .slice(
+                            0,
+                            1024
+                        ),
             });
         }
 

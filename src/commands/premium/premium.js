@@ -29,7 +29,16 @@ const {
  * reach someone who already knew to ask.
  */
 
+/*
+ * `expiresAt` is nullable in the schema (BOOST unlocks have none), so a
+ * missing date degrades to "no expiry" rather than throwing inside the
+ * embed builder and turning the whole reply into the generic error.
+ */
 function formatExpiry(date) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+        return "no expiry set";
+    }
+
     const ms = date.getTime() - Date.now();
 
     const days = Math.floor(ms / 86_400_000);

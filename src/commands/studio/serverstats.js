@@ -24,9 +24,10 @@ const {
  * plain refusal.
  *
  * Only aggregates leave the database. The embed reports command totals and
- * member counts, never message content, and member names are resolved from the
- * guild member cache — if a top member has left the server the id is shown
- * instead, because inventing a name would misreport who used the bot.
+ * member counts, never message content. Members are shown as mentions rather
+ * than looked-up names: Discord renders the mention with the member's current
+ * display name, which avoids needing the privileged guild members intent, and
+ * renders a removed member as a placeholder instead of inventing a name.
  */
 
 const SERVER_ANALYTICS_PATH = "/dashboard/servers";
