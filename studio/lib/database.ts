@@ -19,7 +19,7 @@ import { Client, Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
  *
  * The promise is memoised rather than built at module scope because
  * `env` bindings are not reliably readable during module
- * initialisation, and a module that throws at import time takes the
+ * initialization, and a module that throws at import time takes the
  * whole Worker down instead of failing one request.
  */
 let poolPromise: Promise<Pool> | null = null;

@@ -113,7 +113,7 @@ async function checkGuildAccess(
  *
  * Usage: `const denied = await guardGuildAccess(request, id); if (denied)
  * return denied;` — a response is only produced on failure, so `null` means
- * the caller is authorised and may proceed.
+ * the caller is authorized and may proceed.
  */
 export async function guardGuildAccess(
     request: NextRequest,

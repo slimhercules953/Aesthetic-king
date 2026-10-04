@@ -96,7 +96,7 @@ async function getAccessRules(
     return rules;
 }
 
-function normalise(value) {
+function normalize(value) {
     return String(value ?? "");
 }
 
@@ -146,14 +146,14 @@ async function checkGuildAccess({
     const matches = (rule) => {
         if (rule.kind === "ROLE") {
             return memberRoles.has(
-                normalise(rule.targetId)
+                normalize(rule.targetId)
             );
         }
 
         if (rule.kind === "CHANNEL") {
             return (
                 channel !== null &&
-                channel === normalise(rule.targetId)
+                channel === normalize(rule.targetId)
             );
         }
 

@@ -114,7 +114,7 @@ export default function ServerBotIdentityManager({
         useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
-        let cancelled = false;
+        let canceled = false;
 
         async function load() {
             try {
@@ -134,7 +134,7 @@ export default function ServerBotIdentityManager({
                     );
                 }
 
-                if (cancelled) {
+                if (canceled) {
                     return;
                 }
 
@@ -146,7 +146,7 @@ export default function ServerBotIdentityManager({
                     body.identity?.nick ?? ""
                 );
             } catch (loadFailure) {
-                if (!cancelled) {
+                if (!canceled) {
                     setLoadError(
                         loadFailure instanceof Error
                             ? loadFailure.message
@@ -154,7 +154,7 @@ export default function ServerBotIdentityManager({
                     );
                 }
             } finally {
-                if (!cancelled) {
+                if (!canceled) {
                     setLoading(false);
                 }
             }
@@ -163,7 +163,7 @@ export default function ServerBotIdentityManager({
         load();
 
         return () => {
-            cancelled = true;
+            canceled = true;
         };
     }, [guildId]);
 

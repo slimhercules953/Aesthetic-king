@@ -112,7 +112,7 @@ export default async function LandingPage() {
 
                 <p className="mt-6 max-w-2xl text-sm leading-7 text-zinc-400 sm:text-base lg:text-lg">
                     Aesthetic King designs the banner, avatar, colors, bio and status for you.
-                    Save what you like, organise it into collections, and run the same generator
+                    Save what you like, organize it into collections, and run the same generator
                     for your whole server.
                 </p>
 

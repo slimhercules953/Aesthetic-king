@@ -424,7 +424,7 @@ export default async function PremiumCrownsPage() {
                         studio/lib/crownEarning.ts
                     </code>{" "}
                     and are expected to change before the economy is
-                    finalised.
+                    finalized.
                 </p>
             </section>
 
@@ -499,7 +499,7 @@ export default async function PremiumCrownsPage() {
                         </div>
 
                         <p className="mt-2 text-xs leading-6 text-amber-200/70">
-                            Reward rules are not finalised, so this
+                            Reward rules are not finalized, so this
                             panel only appears when the deployment
                             sets <code>CROWN_DEV=&quot;true&quot;</code>.
                             Use it to seed a balance for testing.

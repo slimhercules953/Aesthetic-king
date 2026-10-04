@@ -292,7 +292,7 @@ model GuildSettings {
 
   /// Presentation choices for this server, edited in Server Studio >
   /// Appearance. Every field is nullable/optional so a server that has
-  /// never opened the tab keeps the bot's built-in behaviour instead of
+  /// never opened the tab keeps the bot's built-in behavior instead of
   /// inheriting an arbitrary default.
   embedColor         String?
   footerText         String?
@@ -383,7 +383,7 @@ model GuildAccessRule {
 
 /// Append-only usage log behind Server Studio > Analytics.
 ///
-/// Deliberately denormalised: `guildId` and `discordUserId` are raw
+/// Deliberately denormalized: `guildId` and `discordUserId` are raw
 /// Discord snowflakes with no foreign keys, because this is written on the
 /// hot path of every interaction and an insert must never fail because of
 /// referential integrity or an unsynced row. Analytics are therefore
@@ -521,7 +521,7 @@ model Entitlement {
   skuId String?
 
   /// The provider's own entitlement/purchase ID. Kept so a replayed
-  /// webhook is recognised as a duplicate and so a refund can revoke
+  /// webhook is recognized as a duplicate and so a refund can revoke
   /// the exact grant it applies to rather than "any Premium".
   externalEntitlementId String?
 

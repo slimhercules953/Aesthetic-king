@@ -60,11 +60,11 @@ We do not collect message content, direct messages, friend lists, precise geoloc
 
 Your data is used only to operate the product:
 
-- To recognise you across requests and keep you signed in.
+- To recognize you across requests and keep you signed in.
 - To save and restore the aesthetics, palettes, and collections you create.
 - To attribute community posts, likes, and comments to you.
 - To enforce free-tier limits and unlock features you have paid for.
-- To charge correctly, prevent duplicate charges, and honour refunds.
+- To charge correctly, prevent duplicate charges, and honor refunds.
 - To apply per-server configuration where a server admin has enabled the bot.
 - To provide support when you contact us, and to keep the service secure and abuse-free.
 

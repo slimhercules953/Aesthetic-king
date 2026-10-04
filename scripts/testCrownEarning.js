@@ -15,7 +15,7 @@
  * award writes the wrong amount or the wrong source shows up as a wrong
  * cap rather than passing silently.
  *
- * Asserted behaviour:
+ * Asserted behavior:
  *
  *   1. Rule table shape: every source is capped, positive, and has a label.
  *   2. An award writes one EARN row with the rule's amount and source.
@@ -1060,7 +1060,7 @@ const day = new Date().toISOString().slice(0, 10);
     });
 
     check(
-        "an explicit amount is honoured",
+        "an explicit amount is honored",
         custom.awarded === true && custom.amount === 7
     );
 

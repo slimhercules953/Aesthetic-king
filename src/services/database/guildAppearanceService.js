@@ -9,7 +9,7 @@
  *
  * Everything fails open to the bot's built-in defaults: a guild with no
  * settings row, or a database hiccup, gets exactly the pre-Appearance
- * behaviour.
+ * behavior.
  */
 
 const {
@@ -35,7 +35,7 @@ function toBoolean(value, fallback) {
     return fallback;
 }
 
-function normaliseHex(value) {
+function normalizeHex(value) {
     if (typeof value !== "string") {
         return null;
     }
@@ -47,9 +47,9 @@ function normaliseHex(value) {
         : null;
 }
 
-function normalise(settings) {
+function normalize(settings) {
     return {
-        embedColor: normaliseHex(settings?.embedColor),
+        embedColor: normalizeHex(settings?.embedColor),
         footerText:
             typeof settings?.footerText === "string" &&
             settings.footerText.trim()
@@ -89,7 +89,7 @@ async function loadAppearance(discordGuildId) {
         },
     });
 
-    return normalise(guild?.settings);
+    return normalize(guild?.settings);
 }
 
 async function getGuildAppearance(discordGuildId) {

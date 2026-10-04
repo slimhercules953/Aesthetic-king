@@ -100,7 +100,7 @@ function devToolsEnabled(
 }
 
 /**
- * Crown reward rules are not finalised, so nothing should hand out
+ * Crown reward rules are not finalized, so nothing should hand out
  * Crowns automatically and the grant UI must stay hidden. Both the
  * page and its API route check this so the flag cannot be bypassed
  * by calling the endpoint directly.

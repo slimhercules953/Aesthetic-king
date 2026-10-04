@@ -88,7 +88,7 @@ function detectMimeTypeFromBuffer(buffer) {
         return "image/webp";
     }
 
-    // Recognised but unsupported, so the bot can name the format instead of
+    // Recognized but unsupported, so the bot can name the format instead of
     // reporting "unknown".
     if (
         buffer.length >= 3 &&

@@ -19,7 +19,7 @@ import {
 /**
  * Seeds a Crown balance for development.
  *
- * Reward rules are deliberately not finalised, so this route exists
+ * Reward rules are deliberately not finalized, so this route exists
  * only to exercise the ledger and the history UI. It refuses to run
  * unless the deployment sets CROWN_DEV="true", which keeps it inert
  * in production without depending on NODE_ENV (unreliable under

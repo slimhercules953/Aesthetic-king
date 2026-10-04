@@ -195,8 +195,8 @@ module.exports = {
         const rectWidth4 = 659 - 73;  // Width of the rectangle
         const rectHeight4 = 982 - 893; // Height of the rectangle
 
-        // Draw the filled grey rectangle
-        ctx.fillStyle = '#424549'; // Grey fill color
+        // Draw the filled gray rectangle
+        ctx.fillStyle = '#424549'; // Gray fill color
         ctx.fillRect(rectX4, rectY4, rectWidth4, rectHeight4);
 
         // Rectangle coordinates (from the HTML <area> tag)
@@ -315,10 +315,10 @@ module.exports = {
         const circleY = 847-20; // Center Y
         const radius = 60; // Radius
 
-        // Draw the filled dark grey circle
+        // Draw the filled dark gray circle
         ctx.beginPath(); // Start a new path
         ctx.arc(circleX, circleY, radius, 0, 2 * Math.PI); // Create the circle
-        ctx.fillStyle = '#424549'; // Dark grey fill color
+        ctx.fillStyle = '#424549'; // Dark gray fill color
         ctx.fill(); // Fill the circle
 
         // Step 6: Profile Picture
@@ -346,7 +346,7 @@ module.exports = {
         // Draw the filled circle
         ctx.beginPath(); // Start a new path
         ctx.arc(tinyCircleX, tinyCircleY, tinyCircleRadius, 0, 2 * Math.PI); // Create the circle
-        ctx.fillStyle = '#282b30'; // Dark grey fill color (or any desired color)
+        ctx.fillStyle = '#282b30'; // Dark gray fill color (or any desired color)
         ctx.fill(); // Fill the circle
 
         // Draw the smaller green circle inside
@@ -384,7 +384,7 @@ module.exports = {
         ctx.arcTo(rectX5, rectY5, rectX5 + borderRadius5, rectY5, borderRadius5);
 
         ctx.closePath();
-        ctx.fillStyle = '#36393e'; // Dark grey fill color
+        ctx.fillStyle = '#36393e'; // Dark gray fill color
         ctx.fill(); // Fill the rectangle
 
         const rectX6 = 422; // Top-left X
@@ -426,7 +426,7 @@ module.exports = {
         ctx.arcTo(rectX6, rectY6, rectX6 + borderRadius6, rectY6, borderRadius6);
         
         ctx.closePath();
-        ctx.fillStyle = '#36393e'; // Dark grey fill color
+        ctx.fillStyle = '#36393e'; // Dark gray fill color
         ctx.fill(); // Fill the rectangle
         
         // Draw the placeholders for the images (representing them as circles for simplicity)

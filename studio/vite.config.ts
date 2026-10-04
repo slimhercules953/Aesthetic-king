@@ -10,7 +10,7 @@ export default defineConfig({
     // dev server at http://<this machine's IP>:3000.
     host: true,
     port: 3000,
-    // Vite blocks requests whose Host header isn't recognised, to stop
+    // Vite blocks requests whose Host header isn't recognized, to stop
     // DNS-rebinding attacks. Bare IPv4 addresses are always allowed, so
     // this only needs to cover access by machine name.
     allowedHosts: ["KILLER", ".local", ".lan"],

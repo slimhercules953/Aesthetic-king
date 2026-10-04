@@ -11,7 +11,7 @@
  * is hand-written, so this transpiles the real module with the Studio's
  * own esbuild and asserts against the real schema.
  *
- * Asserted behaviour:
+ * Asserted behavior:
  *
  *   1. All three columns land in one save (the regression itself).
  *   2. A column the patch omits keeps its stored value.

@@ -13,7 +13,7 @@ import {
 
 import {
     getGuildAnalytics,
-    normaliseRange,
+    normalizeRange,
 } from "../../../../../lib/guildAnalytics";
 
 type RouteContext = {
@@ -44,7 +44,7 @@ export async function GET(
             return denied;
         }
 
-        const days = normaliseRange(
+        const days = normalizeRange(
             new URL(request.url)
                 .searchParams
                 .get("days")

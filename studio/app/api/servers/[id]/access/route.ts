@@ -35,9 +35,9 @@ type RouteContext = {
 /**
  * Shared preamble: session + guild-management permission, then the install
  * check. `guardGuildAccess` already returns a response on failure, so a
- * `null` here means the caller is authorised.
+ * `null` here means the caller is authorized.
  */
-async function authorise(
+async function authorize(
     request: NextRequest,
     guildId: string
 ): Promise<NextResponse | null> {
@@ -72,7 +72,7 @@ export async function GET(
     const { id } = await params;
 
     try {
-        const denied = await authorise(request, id);
+        const denied = await authorize(request, id);
 
         if (denied) {
             return denied;
@@ -114,7 +114,7 @@ export async function POST(
     const { id } = await params;
 
     try {
-        const denied = await authorise(request, id);
+        const denied = await authorize(request, id);
 
         if (denied) {
             return denied;
@@ -148,7 +148,7 @@ export async function PUT(
     const { id } = await params;
 
     try {
-        const denied = await authorise(request, id);
+        const denied = await authorize(request, id);
 
         if (denied) {
             return denied;
@@ -190,7 +190,7 @@ export async function DELETE(
     const { id } = await params;
 
     try {
-        const denied = await authorise(request, id);
+        const denied = await authorize(request, id);
 
         if (denied) {
             return denied;

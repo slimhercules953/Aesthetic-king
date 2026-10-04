@@ -79,7 +79,7 @@ function formatFilterName(value) {
 }
 
 /*
- * Pack color/symbol normalisation moved into the shared pack service so
+ * Pack color/symbol normalization moved into the shared pack service so
  * every generation command applies the same rules. This command needs the
  * colors as {hex} objects, so it adapts the shared string list.
  */

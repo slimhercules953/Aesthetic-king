@@ -212,7 +212,7 @@ export type ProfileValidationResult =
     | ProfileValidationFailure;
 
 /**
- * Validates and normalises anything the client sent into a `ProfileDraft`.
+ * Validates and normalizes anything the client sent into a `ProfileDraft`.
  *
  * Deliberately lenient about *shape* and strict about *meaning*: an
  * unknown key is dropped rather than rejected, and a field that is

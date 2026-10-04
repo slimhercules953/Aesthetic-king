@@ -69,7 +69,7 @@ export default function ServerAppearanceManager({
         useState<string | null>(null);
 
     useEffect(() => {
-        let cancelled = false;
+        let canceled = false;
 
         async function load() {
             try {
@@ -89,13 +89,13 @@ export default function ServerAppearanceManager({
                     );
                 }
 
-                if (!cancelled) {
+                if (!canceled) {
                     setAppearance(
                         body.appearance ?? null
                     );
                 }
             } catch (error) {
-                if (!cancelled) {
+                if (!canceled) {
                     setLoadError(
                         error instanceof Error
                             ? error.message
@@ -103,7 +103,7 @@ export default function ServerAppearanceManager({
                     );
                 }
             } finally {
-                if (!cancelled) {
+                if (!canceled) {
                     setLoading(false);
                 }
             }
@@ -112,7 +112,7 @@ export default function ServerAppearanceManager({
         load();
 
         return () => {
-            cancelled = true;
+            canceled = true;
         };
     }, [guildId]);
 
@@ -157,7 +157,7 @@ export default function ServerAppearanceManager({
             }
 
             /*
-             * Trust the server's copy: it is the one that normalised the hex
+             * Trust the server's copy: it is the one that normalized the hex
              * to `#rrggbb` and truncated the footer, so echoing it back keeps
              * the preview honest about what the bot will actually render.
              */

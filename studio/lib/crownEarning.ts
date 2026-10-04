@@ -238,7 +238,7 @@ export async function awardCrowns(
          * every page load — and taking the user's row lock to discover
          * that would serialise normal browsing behind the ledger. This
          * read hits the unique index and answers the common case without
-         * one. It is only an optimisation: the authoritative check is
+         * one. It is only an optimization: the authoritative check is
          * inside the transaction below.
          */
         const already =

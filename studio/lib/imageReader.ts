@@ -196,7 +196,7 @@ export async function readImagePalette({
         "- bio should be expressive but concise, and 190 characters or fewer.",
         "- status must be 128 characters or fewer.",
         "- symbols should contain 3 to 6 decorative Unicode symbols that suit the palette.",
-        "- palette must contain 3 to 6 valid six-digit hexadecimal colors derived from the sampled palette. You may adjust lightness slightly for cohesion but must stay recognisably the same colors.",
+        "- palette must contain 3 to 6 valid six-digit hexadecimal colors derived from the sampled palette. You may adjust lightness slightly for cohesion but must stay recognizably the same colors.",
         "- Everything must feel cohesive with the sampled palette, not with a generic aesthetic.",
         "- Do not include asset URLs.",
         "- Do not include anything outside the JSON object.",

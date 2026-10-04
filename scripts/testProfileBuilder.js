@@ -16,10 +16,10 @@
  * Prisma client, so nothing else checks that hand-written SQL against the
  * real schema. It is skipped (not failed) when no database is reachable.
  *
- * Asserted behaviour:
+ * Asserted behavior:
  *
  *   1. Text clamping counts code points, so emoji survive.
- *   2. Hex / palette / symbol / discriminator normalisation.
+ *   2. Hex / palette / symbol / discriminator normalization.
  *   3. parseProfileInput truncates noise and rejects the unrenderable.
  *   4. Contrast picks a readable text color on any background.
  *   5. derivePreviewState has a fallback for every empty field.
@@ -239,7 +239,7 @@ async function main() {
     );
 
     /* ------------------------------------------------------------------ */
-    section("Color normalisation");
+    section("Color normalization");
 
     check(
         "lowercase hex is uppercased",
@@ -505,7 +505,7 @@ async function main() {
      * readable one, so compare the ratios directly.
      */
     check(
-        "mid-tone grey gets the higher-contrast color",
+        "mid-tone gray gets the higher-contrast color",
         (() => {
             const bg = "#808080";
             const chosen = contrastTextColor(bg);
@@ -1103,7 +1103,7 @@ async function databaseSection() {
         );
 
         check(
-            "create normalised the input on the way in",
+            "create normalized the input on the way in",
             first.name === "First version" &&
                 first.discriminator === "0042" &&
                 first.accentColor === "#EC4899" &&
@@ -1218,7 +1218,7 @@ async function databaseSection() {
         );
 
         check(
-            "a patch normalises what it is given",
+            "a patch normalizes what it is given",
             (
                 await db.updateProfileForDiscordUser(
                     first.id,

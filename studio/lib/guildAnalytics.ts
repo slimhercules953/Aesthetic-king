@@ -29,7 +29,7 @@ const ALLOWED_RANGES: number[] = [
     90,
 ];
 
-export function normaliseRange(
+export function normalizeRange(
     value: unknown
 ): AnalyticsRange {
     const days = Number(value);

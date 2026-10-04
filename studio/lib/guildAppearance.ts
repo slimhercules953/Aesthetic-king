@@ -93,9 +93,9 @@ const HEX_COLOR =
 /**
  * Discord rejects an out-of-range color number, and a 3-digit shorthand or
  * an `rgb()` string would be stored happily and then break every embed.
- * Normalising here means the bot can pass the value straight through.
+ * Normalizing here means the bot can pass the value straight through.
  */
-function normaliseEmbedColor(
+function normalizeEmbedColor(
     value: unknown
 ): string | null {
     if (value === null) {
@@ -125,7 +125,7 @@ function normaliseEmbedColor(
         : `#${trimmed}`;
 }
 
-function normaliseFooterText(
+function normalizeFooterText(
     value: unknown
 ): string | null {
     if (value === null) {
@@ -152,7 +152,7 @@ function normaliseFooterText(
     return trimmed.slice(0, 120);
 }
 
-function normaliseFlag(
+function normalizeFlag(
     value: unknown,
     field: string
 ): boolean {
@@ -192,7 +192,7 @@ export async function updateGuildAppearance(
 
     if (has("embedColor")) {
         values.push(
-            normaliseEmbedColor(patch.embedColor)
+            normalizeEmbedColor(patch.embedColor)
         );
 
         sets.push(
@@ -202,7 +202,7 @@ export async function updateGuildAppearance(
 
     if (has("footerText")) {
         values.push(
-            normaliseFooterText(patch.footerText)
+            normalizeFooterText(patch.footerText)
         );
 
         sets.push(
@@ -212,7 +212,7 @@ export async function updateGuildAppearance(
 
     if (has("showPackBadge")) {
         values.push(
-            normaliseFlag(
+            normalizeFlag(
                 patch.showPackBadge,
                 "Show pack badge"
             )
@@ -225,7 +225,7 @@ export async function updateGuildAppearance(
 
     if (has("showGeneratedImages")) {
         values.push(
-            normaliseFlag(
+            normalizeFlag(
                 patch.showGeneratedImages,
                 "Show generated images"
             )
@@ -238,7 +238,7 @@ export async function updateGuildAppearance(
 
     if (has("showRerollButtons")) {
         values.push(
-            normaliseFlag(
+            normalizeFlag(
                 patch.showRerollButtons,
                 "Show reroll buttons"
             )

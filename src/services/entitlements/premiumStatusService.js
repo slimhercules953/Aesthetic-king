@@ -96,7 +96,7 @@ async function getCrownTotals(discordId) {
  *
  * BOOST unlocks are excluded: they are monthly allowance top-ups for
  * metered features, which the bot does not count, so listing them here
- * would promise something the bot cannot honour.
+ * would promise something the bot cannot honor.
  */
 async function getActiveUnlocks(discordId) {
     const unlocks =

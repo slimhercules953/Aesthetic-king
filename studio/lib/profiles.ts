@@ -155,7 +155,7 @@ export async function countProfilesForDiscordUser(
 }
 
 /**
- * Inserts a profile, normalising the input first.
+ * Inserts a profile, normalizing the input first.
  *
  * `makeActive` clears the flag on the user's other rows inside the same
  * transaction. Doing it as two statements would let a concurrent
@@ -299,7 +299,7 @@ export type UpdateProfilePatch = Partial<ProfileDraft> & {
  * Applies a patch.
  *
  * Only the keys actually present are written, and each is passed through
- * the same normaliser the create path uses, so a PATCH cannot smuggle in
+ * the same normalizer the create path uses, so a PATCH cannot smuggle in
  * a value POST would have rejected.
  */
 export async function updateProfileForDiscordUser(
@@ -327,7 +327,7 @@ export async function updateProfileForDiscordUser(
     };
 
     /*
-     * Each field goes through the same normaliser the create path uses.
+     * Each field goes through the same normalizer the create path uses.
      * `parseProfileInput` is deliberately not reused here: it rejects a
      * draft with no palette and no set, which is a rule about a whole
      * profile. A patch carries one field, so applying it would refuse a

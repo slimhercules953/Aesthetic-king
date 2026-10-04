@@ -3,7 +3,7 @@
  * Phase 2 verification for Server Studio access, appearance and analytics.
  *
  * Unlike the other scripts/ helpers this one needs no Discord connection — it
- * writes a throwaway guild straight to the database and asserts the behaviour
+ * writes a throwaway guild straight to the database and asserts the behavior
  * the bot depends on:
  *
  *   1. Access rules evaluate with deny precedence and allow-list semantics.

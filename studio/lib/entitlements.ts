@@ -29,7 +29,7 @@ export type EntitlementRecord = {
     skuId: string | null;
 
     /**
-     * The provider's own entitlement ID. Used to recognise a replayed
+     * The provider's own entitlement ID. Used to recognize a replayed
      * webhook and to revoke the exact grant a refund applies to.
      */
     externalEntitlementId: string | null;

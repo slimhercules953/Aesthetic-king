@@ -112,7 +112,7 @@ export default async function ServerPage({
 
     /*
      * Every tab is live now, so the Overview reads their state instead of
-     * labelling them "Planned". One round trip, and each loader already
+     * labeling them "Planned". One round trip, and each loader already
      * returns a harmless empty value for a guild that has not configured
      * the area yet.
      */
@@ -153,7 +153,7 @@ export default async function ServerPage({
     const denyRules =
         accessRules.length - allowRules;
 
-    const appearanceCustomised =
+    const appearanceCustomized =
         Boolean(
             appearance?.embedColor ||
             appearance?.footerText
@@ -517,8 +517,8 @@ export default async function ServerPage({
                     href={`/dashboard/servers/${guild.id}/appearance`}
                     status="Available"
                     detail={
-                        appearanceCustomised
-                            ? "Customised"
+                        appearanceCustomized
+                            ? "Customized"
                             : "Bot defaults"
                     }
                 />

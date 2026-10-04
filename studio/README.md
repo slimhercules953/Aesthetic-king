@@ -225,7 +225,7 @@ see, so it has to be caught by loading the page.
 
 Server components may pass real `Date` objects to client components, but
 the same shape arriving over JSON has ISO strings. Client components
-should type those `string | Date` and normalise, as
+should type those `string | Date` and normalize, as
 `components/servers/ServerAnalytics.tsx` does.
 
 **Always list `createdAt` and `updatedAt` in an `INSERT`.** `@updatedAt` in
@@ -299,7 +299,7 @@ Both are null for manual and dev grants, and nothing invents SKU
 constants until the store actually exists. When it does, the
 SKU → `EntitlementType` + duration mapping belongs in
 `lib/features.ts`, and the source string must be one of `PAID_SOURCES`
-in `lib/entitlements.ts` or Premium will be labelled promotional.
+in `lib/entitlements.ts` or Premium will be labeled promotional.
 
 ### Migrations
 
@@ -386,7 +386,7 @@ aesthetic library from growing a bio column every time the card gains a
 field.
 
 **Everything is clamped on the way in.** `parseProfileInput` in
-`lib/profileModel.ts` enforces `PROFILE_LIMITS` and normalises colors,
+`lib/profileModel.ts` enforces `PROFILE_LIMITS` and normalizes colors,
 symbols and the discriminator before anything reaches SQL, and
 `lib/profiles.ts` runs the same function on create *and* update. The
 limits match the bot's renderer, so a profile that saves is a profile
@@ -414,7 +414,7 @@ even briefly.
 ### Testing it
 
 `node scripts/testProfileBuilder.js` (from the repo root) has two halves.
-The first asserts the pure model — clamping, normalisation, contrast,
+The first asserts the pure model — clamping, normalization, contrast,
 preview fallbacks, completeness. The second connects to the real
 database and runs `lib/profiles.ts`'s SQL against the real schema,
 because the Studio has no Prisma client: every statement is hand-written

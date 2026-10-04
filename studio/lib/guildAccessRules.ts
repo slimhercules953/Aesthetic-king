@@ -96,7 +96,7 @@ export async function getAccessRules(
  * hand-edited request, and storing it would create a rule that can never
  * match — which, under deny-beats-allow, silently does nothing at best.
  */
-function normaliseTargetId(
+function normalizeTargetId(
     value: unknown
 ): string {
     if (typeof value !== "string") {
@@ -149,7 +149,7 @@ export async function addAccessRule(
         );
     }
 
-    const targetId = normaliseTargetId(
+    const targetId = normalizeTargetId(
         input.targetId
     );
 
@@ -233,7 +233,7 @@ export async function removeAccessRule(
         );
     }
 
-    const targetId = normaliseTargetId(
+    const targetId = normalizeTargetId(
         input.targetId
     );
 
@@ -310,7 +310,7 @@ export async function replaceAccessRules(
         return {
             kind,
             effect,
-            targetId: normaliseTargetId(
+            targetId: normalizeTargetId(
                 rule.targetId
             ),
         };

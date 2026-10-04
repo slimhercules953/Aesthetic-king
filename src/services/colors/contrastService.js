@@ -32,7 +32,7 @@ function clampChannel(value) {
 
 /**
  * Accepts "#abc", "abc", "#aabbcc", "aabbcc" (case-insensitive).
- * Returns a normalised "#aabbcc" or null.
+ * Returns a normalized "#aabbcc" or null.
  */
 function normalizeHex(input) {
     if (typeof input !== "string") {

@@ -16,7 +16,7 @@
  * symbol block at all, and set color tags are words rather than hex. Those
  * mismatches are what sections 3-6 hammer.
  *
- * Asserted behaviour:
+ * Asserted behavior:
  *
  *   1. Every seed kind yields a draft that passes checkCompleteness.
  *   2. A fixed seed plus fixed randomness is byte-identical (determinism).
@@ -444,7 +444,7 @@ check(
 );
 
 check(
-    "every palette entry is normalised hex",
+    "every palette entry is normalized hex",
     composed.palette.every(
         (hex) => normalizeHex(hex) === hex
     )

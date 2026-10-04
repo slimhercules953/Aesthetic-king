@@ -8,7 +8,7 @@
  * own esbuild and asserts against it. That means the checks run against the
  * shipped code rather than a JavaScript copy that could drift.
  *
- * Asserted behaviour:
+ * Asserted behavior:
  *
  *   1. The catalog is well-formed and every set carries tags.
  *   2. URL parsing/building round-trips, including unknown and hostile
@@ -225,7 +225,7 @@ function main() {
     check("single values still parse", parsed.colors[0] === "purple");
     check("tags parse", parsed.tags[0] === "moody");
     check("favorites=1 enables the toggle", parsed.favoritesOnly === true);
-    check("sort is honoured", parsed.sort === "richest", `sort=${parsed.sort}`);
+    check("sort is honored", parsed.sort === "richest", `sort=${parsed.sort}`);
 
     const hostile = parseAssetQuery(
         paramsFrom("sort=../../etc/passwd&aesthetics=CYBER,,cyber&favorites=yes")

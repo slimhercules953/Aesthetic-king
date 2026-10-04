@@ -69,7 +69,7 @@ function normalizePackSymbols(packSymbols) {
 }
 
 /*
- * Returns the Pack a command should honour, plus whether the caller asked
+ * Returns the Pack a command should honor, plus whether the caller asked
  * for one that could not be used. `unavailable` is only true when the user
  * explicitly named a Pack, because falling back quietly from a typed choice
  * is how a server ends up with "it ignored my Pack" confusion.

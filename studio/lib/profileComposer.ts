@@ -33,7 +33,7 @@ import {
  *
  * This module is deliberately pure: it takes a catalog, a seed and an
  * optional random source, and returns a draft. No database, no env, no
- * Ollama. That keeps every judgement call (which set matches which color,
+ * Ollama. That keeps every judgment call (which set matches which color,
  * which catalog aesthetic the Studio can actually render) in one file a
  * plain Node script can exercise exhaustively, and leaves the slow,
  * failure-prone AI enrichment in `profileCompletion.ts`, where it can fail
@@ -573,7 +573,7 @@ function buildBio(
     moodId: string | null,
     random: () => number
 ): string {
-    const flavour = pick(
+    const flavor = pick(
         MOOD_FLAVOUR[moodId ?? ""] ?? DEFAULT_FLAVOUR,
         random
     );
@@ -590,7 +590,7 @@ function buildBio(
      * mood produced sentences that argued with themselves — a Gothic set
      * tagged "calm" read as "Calm energy — dark, dramatic, mysterious",
      * which is two different profiles in one bio. The mood still leads the
-     * line through the flavour phrase above it.
+     * line through the flavor phrase above it.
      */
     const label =
         getAestheticOption(aestheticId)?.name ??
@@ -598,10 +598,10 @@ function buildBio(
         "aesthetic";
 
     const sentence = description
-        ? `${flavour}. ${label} energy — ${description}.`
-        : `${flavour}. ${label} energy.`;
+        ? `${flavor}. ${label} energy — ${description}.`
+        : `${flavor}. ${label} energy.`;
 
-    return clampText(sentence, PROFILE_LIMITS.bio) ?? flavour;
+    return clampText(sentence, PROFILE_LIMITS.bio) ?? flavor;
 }
 
 function buildStatus(
@@ -609,7 +609,7 @@ function buildStatus(
     moodId: string | null,
     random: () => number
 ): string {
-    const flavour = pick(
+    const flavor = pick(
         MOOD_FLAVOUR[moodId ?? ""] ?? DEFAULT_FLAVOUR,
         random
     );
@@ -623,9 +623,9 @@ function buildStatus(
 
     return (
         clampText(
-            `${flavour}${symbol}`,
+            `${flavor}${symbol}`,
             PROFILE_LIMITS.status
-        ) ?? flavour
+        ) ?? flavor
     );
 }
 

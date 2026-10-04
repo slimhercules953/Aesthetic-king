@@ -41,7 +41,7 @@ const MAX_LIST = 50;
 /** How far ahead the Premium expiry warning reaches. */
 export const EXPIRY_WARNING_DAYS = 7;
 
-function normaliseText(
+function normalizeText(
     value: string | null | undefined,
     max: number
 ): string | null {
@@ -70,7 +70,7 @@ export async function createNotification(input: {
     icon?: string | null;
     dedupeKey?: string | null;
 }): Promise<boolean> {
-    const title = normaliseText(input.title, 140);
+    const title = normalizeText(input.title, 140);
     if (!title) return false;
 
     try {
@@ -87,10 +87,10 @@ export async function createNotification(input: {
                     input.userId,
                     input.type,
                     title,
-                    normaliseText(input.body, 500),
-                    normaliseText(input.href, 400),
-                    normaliseText(input.icon, 40),
-                    normaliseText(input.dedupeKey, 190),
+                    normalizeText(input.body, 500),
+                    normalizeText(input.href, 400),
+                    normalizeText(input.icon, 40),
+                    normalizeText(input.dedupeKey, 190),
                 ]
             );
 

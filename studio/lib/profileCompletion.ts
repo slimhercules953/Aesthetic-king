@@ -147,7 +147,7 @@ MOOD: ${getMoodOption(composed.moodId)?.name ?? "unspecified"}
 PALETTE: ${colors || "unspecified"}
 SEEDED FROM: ${seedDescription}
 
-Everything above describes the same profile. Write copy that a fan of the ${aesthetic?.name ?? composed.aestheticId} aesthetic would recognise as their own — the aesthetic is the identity, the mood is only the tone.
+Everything above describes the same profile. Write copy that a fan of the ${aesthetic?.name ?? composed.aestheticId} aesthetic would recognize as their own — the aesthetic is the identity, the mood is only the tone.
 
 Return ONLY valid JSON with exactly these keys:
 - "username": 2-20 characters, lowercase letters, digits and underscores only. No spaces, no periods, no hashtag, no display name.
@@ -234,7 +234,7 @@ async function generateAiCopy(
      * A username is the one field that has to be machine-shaped: it is
      * pasted into Discord's username box, so a model that returns
      * "Gothic Rose." or "@roses" is worse than no answer. The catalog's
-     * slug is kept in that case rather than sanitised into something the
+     * slug is kept in that case rather than sanitized into something the
      * user did not ask for.
      *
      * Underscores are allowed because Discord allows them and the model

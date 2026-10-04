@@ -25,7 +25,7 @@ import {
  * bot identity needs: `PATCH /guilds/{id}/members/@me` requires it for `nick`
  * and requires nothing for the avatar. MANAGE_NICKNAMES is deliberately not
  * requested — it edits other members' nicknames, which the bot never does,
- * and moderation-flavoured bits get invites declined.
+ * and moderation-flavored bits get invites declined.
  */
 const BOT_PERMISSIONS =
     64 +

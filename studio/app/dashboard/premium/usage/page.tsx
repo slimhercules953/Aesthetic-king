@@ -150,7 +150,7 @@ export default async function PremiumUsagePage() {
 
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-400">
                     Counters reflect what Studio actually records.
-                    Anything still unwired is labelled rather than
+                    Anything still unwired is labeled rather than
                     shown as an empty bar.
                 </p>
             </section>
