@@ -315,3 +315,54 @@ because the Studio has no Prisma client: every statement is hand-written
 text, so a wrong column name is only discoverable as a 500 in a browser.
 It skips itself when the database is unreachable rather than failing.
 
+## Complete My Profile
+
+`/dashboard/profile/new` opens with a panel that builds a whole identity
+from one thing the user likes: a profile set, an aesthetic, a colour, or
+the palette they have already painted. It fills whatever is still empty
+and leaves anything they typed alone.
+
+**Composition is deterministic; AI only rewrites text.**
+`lib/profileComposer.ts` picks the set, palette, symbols, username, bio,
+status and accent colour out of the catalogs with an injected `random`,
+so a given seed and seed-value always produce the same profile. Nothing
+in it reads a database, a session or the clock. `lib/profileCompletion.ts`
+is the half that is allowed to do those things: it resolves the seed,
+calls the composer and then optionally asks Ollama to rewrite the three
+text fields. Keeping them apart is what makes the interesting part
+testable — `scripts/testCompleteProfile.js` sweeps every aesthetic and
+colour in the catalog and asserts the result is a complete, coherent
+profile, which would be impossible if the maths depended on a live
+request.
+
+**A failed AI call is not a failed request.** The composer has already
+produced a good draft by the time Ollama is asked. If the model is down,
+times out, or returns prose instead of JSON, `generateAiCopy` swallows it
+and the deterministic text ships. The response reports `ai: false` and
+the panel says so. A user who ticks "Rewrite the text with AI" is asking
+for better copy, not for an error page when the model is offline.
+
+**The quota is spent before the work and refunded on failure.**
+`POST /api/profiles/complete` parses the body *before* `requireFeature`,
+so a malformed request cannot burn a generation. It then records usage
+and only refunds it if the composition throws. `remaining` in the
+response is re-read after `recordUsage` rather than taken from the
+pre-flight check, because a Crown boost can expire mid-request.
+
+**`lib/completionColors.ts` exists to keep the client bundle clean.**
+The panel needs the catalog colour names to build its dropdown, but
+`profileComposer.ts` imports `apiError.ts`, which imports `next/server`.
+Importing the composer from a client component would drag the server
+runtime into the browser. The colour table therefore lives in its own
+leaf module that both sides import.
+
+### Testing it
+
+`node scripts/testCompleteProfile.js` covers the composer across every
+aesthetic and colour, the coherence rules (a bio describes the aesthetic
+it uses, a palette is anchored to the seed colour), and the wire format —
+the exact JSON the panel posts. That last section is not decoration: the
+parser lowercases `kind` and once compared it against the camelCase
+literal, so every profile-set seed 400'd in the browser while the
+composer tests stayed green.
+

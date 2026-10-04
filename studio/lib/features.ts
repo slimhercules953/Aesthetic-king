@@ -190,8 +190,9 @@ export const FEATURES = {
 
         resetPeriod: "monthly",
 
-        // "Complete My Profile" is not built yet. Ledger-backed when
-        // it lands.
+        // The response is returned to the client and nothing is
+        // persisted unless the user saves, so consumption is recorded
+        // explicitly in FeatureUsage.
         usageSource: "ledger",
 
         crownUnlockAvailable: true,

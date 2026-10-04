@@ -28,6 +28,7 @@ export default async function NewProfilePage() {
                 data.advancedUnlocked
             }
             canCreate={data.canCreate}
+            completion={data.completion}
         />
     );
 }

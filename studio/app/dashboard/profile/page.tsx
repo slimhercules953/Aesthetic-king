@@ -22,6 +22,7 @@ export default async function ProfilePage() {
                 data.advancedUnlocked
             }
             canCreate={data.canCreate}
+            completion={data.completion}
         />
     );
 }

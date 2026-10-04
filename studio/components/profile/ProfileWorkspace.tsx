@@ -17,6 +17,8 @@ import {
     FREE_PROFILE_VERSIONS,
 } from "../../lib/profileModel";
 
+import type { CompletionAccess } from "../../lib/profileWorkspace";
+
 type ProfileWorkspaceProps = {
     profile: Profile | null;
     profiles: Profile[];
@@ -24,6 +26,7 @@ type ProfileWorkspaceProps = {
     fallbackUsername: string | null;
     advancedUnlocked: boolean;
     canCreate: boolean;
+    completion: CompletionAccess;
 };
 
 /**
@@ -41,6 +44,7 @@ export default function ProfileWorkspace({
     fallbackUsername,
     advancedUnlocked,
     canCreate,
+    completion,
 }: ProfileWorkspaceProps) {
     const active =
         profiles.find(
@@ -115,6 +119,7 @@ export default function ProfileWorkspace({
                     maxProfiles={
                         FREE_PROFILE_VERSIONS
                     }
+                    completion={completion}
                 />
             </div>
         </>

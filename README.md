@@ -107,6 +107,7 @@ A web workspace at [`studio/`](studio/) — Vinext (React Server Components) dep
 - **Aesthetics / Assets / Collections** — saved library with search and detail views
 - **Discover** — community feed of shared aesthetics (likes + comments)
 - **My Servers → Server Studio** — per-server Overview, Generation settings, Command management, Aesthetic Packs, Appearance, Access, and Analytics
+- **Profile Builder** — build a Discord identity against a live card preview, with **Complete My Profile** filling the whole thing from one seed element (a set, an aesthetic, a colour, or your own palette)
 - **Premium** — plan comparison, usage meters, Crowns balance, billing status
 
 ### Server Studio
@@ -207,7 +208,7 @@ npm run deploy   # deploy to Cloudflare Workers
 
 ### Tests & utilities
 
-Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `testOllama.js`, `testColors.js`, `testRenderer.js`, `testAestheticService.js`, `testPremiumGate.js`, `testPremiumStatus.js`, `testUserService.js`, `testSavedAestheticService.js`, `testStudioPhase2.js`, `testAssetExplorer.js`, `testProfileBuilder.js`, `testGuildSettingsPatch.js`, plus asset catalog tooling (`generateAssetCatalog.js`, `seedAssetClassifications.js`, `tagAssetSet.js`, `tagAssetCatalog.js`) and command management (`clearGlobalCommands.js`, `clearGuildCommands.js`, `deleteGuildCommand.js`). Run individually, e.g. `node scripts/testDatabase.js`.
+Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `testOllama.js`, `testColors.js`, `testRenderer.js`, `testAestheticService.js`, `testPremiumGate.js`, `testPremiumStatus.js`, `testUserService.js`, `testSavedAestheticService.js`, `testStudioPhase2.js`, `testAssetExplorer.js`, `testProfileBuilder.js`, `testCompleteProfile.js`, `testGuildSettingsPatch.js`, plus asset catalog tooling (`generateAssetCatalog.js`, `seedAssetClassifications.js`, `tagAssetSet.js`, `tagAssetCatalog.js`) and command management (`clearGlobalCommands.js`, `clearGuildCommands.js`, `deleteGuildCommand.js`). Run individually, e.g. `node scripts/testDatabase.js`.
 
 `node scripts/testPremiumGate.js` verifies the bot-side Premium Assets gate: that a free user is never handed a premium set (catalog path and R2 path), that an unlocked user still is, that premium-only filters produce the upsell rather than an empty-library reply, that plans resolve from live entitlements, and that every upsell is answered ephemerally.
 
@@ -218,6 +219,8 @@ Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `t
 `node scripts/testAssetExplorer.js` covers the Asset Explorer query layer (`studio/lib/assetQuery.ts`) without a browser or a database: that every catalog set is tagged, that filter and sort state round-trips through the URL, that values within a facet are OR'd while facets are AND'd, that every sort is a permutation of its input, and that facet counts preview the narrowing a chip would cause. It transpiles the TypeScript module with the Studio's own esbuild, so it tests shipped code rather than a copy.
 
 `node scripts/testProfileBuilder.js` covers the Profile Builder model (`studio/lib/profileModel.ts`) the same way, also without a browser or a database: that text clamping counts code points so emoji survive, that hex/palette/symbol/discriminator normalisation dedupes, caps and preserves palette order, that a save truncates noise but refuses a profile that could not be drawn, that the preview's text colour clears WCAG contrast on every derived background, and that the free-tier version limit bites at exactly one profile.
+
+`node scripts/testCompleteProfile.js` covers Complete My Profile (`studio/lib/profileComposer.ts` and `studio/lib/profileCompletion.ts`) without a browser or a database: that every aesthetic and every catalog colour in the catalog produces a profile with all seven fields filled, that the bio describes the aesthetic it was built from rather than the mood, that a palette is anchored to the seed colour, that a seed the composer does not know degrades instead of failing, and that the exact JSON the Builder posts parses — the layer where a camelCase `kind` once made every profile-set seed 400 in the browser while the composer tests stayed green.
 
 `node scripts/testGuildSettingsPatch.js` covers the server settings PATCH (`studio/lib/guildSettings.ts`) against the real database: that one save writes channel, aesthetic and mood together, that patching one column preserves the others, that an explicit `null` clears a column, that repeated saves update the row rather than adding one, and that an empty patch or an uninstalled guild is refused. It also checks the generated SQL directly — the guild id is always the first parameter, only patched columns appear in the statement, and `createdAt`/`updatedAt` are always written. It creates a throwaway guild and deletes it again.
 
@@ -237,7 +240,7 @@ Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `t
 
 ## Roadmap
 
-The product direction is incremental. Current foundation: bot V2, aesthetic/mood system, R2 assets with color extraction, profile rendering, Ollama AI, Discord OAuth, PostgreSQL persistence, My Servers, Server Studio (generation settings, command management, Aesthetic Packs, Appearance, Access, Analytics), Asset Explorer (URL-persisted filters, tags, sorting), Create/Palette Studio, Favorites, Collections, Discover feed, Profile Builder (live-preview Discord profile composition), and the Premium/entitlement framework.
+The product direction is incremental. Current foundation: bot V2, aesthetic/mood system, R2 assets with color extraction, profile rendering, Ollama AI, Discord OAuth, PostgreSQL persistence, My Servers, Server Studio (generation settings, command management, Aesthetic Packs, Appearance, Access, Analytics), Asset Explorer (URL-persisted filters, tags, sorting), Create/Palette Studio, Favorites, Collections, Discover feed, Profile Builder (live-preview Discord profile composition), Complete My Profile (deterministic identity composition from one seed element, optional AI copy), and the Premium/entitlement framework.
 
 | Phase | Focus |
 |---|---|
@@ -245,7 +248,7 @@ The product direction is incremental. Current foundation: bot V2, aesthetic/mood
 | **2** ✅ | Complete Server Studio: Overview, Appearance, Access, Analytics |
 | **3** ✅ | Asset Explorer — searchable R2 library with aesthetic/mood/color metadata, tags, filters, profile sets |
 | **4** ✅ | Profile Builder — visual Discord-style profile construction with live preview |
-| **5** | Complete My Profile — coordinate a full identity from one starting element (PFP, banner, palette, aesthetic…) |
+| **5** ✅ | Complete My Profile — coordinate a full identity from one starting element (PFP, banner, palette, aesthetic…) |
 | **6** | Finalize Free/Premium boundaries and the Crowns economy (earn via community participation, Top.gg votes; spend on individual premium actions) |
 | **7** | Community — publish Packs/profiles to Discover, creator profiles, search/filters, remixing with attribution, creator analytics |
 

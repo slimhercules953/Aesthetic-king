@@ -30,6 +30,7 @@ export default async function ProfileByIdPage({
                 data.advancedUnlocked
             }
             canCreate={data.canCreate}
+            completion={data.completion}
         />
     );
 }

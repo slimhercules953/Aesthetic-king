@@ -19,10 +19,17 @@ import {
 } from "lucide-react";
 
 import ProfilePreview from "./ProfilePreview";
+import ProfileCompletionPanel from "./ProfileCompletionPanel";
 
 import type {
     ProfileSetOption,
 } from "../../lib/profileSetOptions";
+
+/*
+ * Type-only on purpose: `profileWorkspace.ts` reads the database, and a
+ * value import here would drag server code into the browser bundle.
+ */
+import type { CompletionAccess } from "../../lib/profileWorkspace";
 
 import {
     BUILDER_SET_LIMIT,
@@ -59,6 +66,8 @@ type ProfileBuilderProps = {
     advancedUnlocked: boolean;
 
     maxProfiles: number;
+
+    completion: CompletionAccess;
 };
 
 type SaveState =
@@ -126,6 +135,7 @@ export default function ProfileBuilder({
     fallbackUsername,
     advancedUnlocked,
     maxProfiles,
+    completion,
 }: ProfileBuilderProps) {
     const [draft, setDraft] = useState(() =>
         draftFrom(profile)
@@ -547,9 +557,33 @@ export default function ProfileBuilder({
         profiles.length >= maxProfiles &&
         !currentId;
 
+    /*
+     * The composed draft replaces the local one, and `dirty` makes the
+     * existing autosave persist it — the panel must not POST on its own,
+     * or a brand-new profile would be created twice: once by the panel and
+     * again by the debounce that the same edit just armed.
+     *
+     * Replacing rather than merging is safe because the server was given
+     * the current draft and only filled fields that were empty, so every
+     * character the user typed is already inside what comes back.
+     */
+    function applyCompletion(composed: ProfileDraft) {
+        setDraft(composed);
+        setDirty(true);
+
+        setSaveState({ kind: "idle" });
+    }
+
     return (
         <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_360px]">
             <div className="space-y-6">
+                <ProfileCompletionPanel
+                    draft={draft}
+                    sets={sets}
+                    access={completion}
+                    onApply={applyCompletion}
+                />
+
                 <section className="rounded-3xl border border-white/[0.06] bg-[#101015] p-6">
                     <h2 className="text-sm font-semibold text-zinc-200">
                         Identity

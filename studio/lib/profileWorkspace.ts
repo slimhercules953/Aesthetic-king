@@ -29,6 +29,20 @@ import {
     type ProfileSetOption,
 } from "./profileSets";
 
+/**
+ * "Complete My Profile" allowance, flattened to what the panel needs.
+ *
+ * Deliberately not the whole `FeatureAccess`: that carries plan names,
+ * period keys and unlock expiry, none of which the Builder renders, and a
+ * server component should not hand a client component more about the
+ * user's account than the UI asks for.
+ */
+export type CompletionAccess = {
+    allowed: boolean;
+    remaining: number | null;
+    limit: number | null;
+};
+
 export type ProfileWorkspaceData = {
     profile: Profile | null;
     profiles: Profile[];
@@ -36,6 +50,8 @@ export type ProfileWorkspaceData = {
     fallbackUsername: string | null;
     advancedUnlocked: boolean;
     canCreate: boolean;
+
+    completion: CompletionAccess;
 };
 
 async function requireSession() {
@@ -103,6 +119,7 @@ export async function loadProfileWorkspace(
             [
                 "ADVANCED_PROFILE_BUILDER",
                 "PREMIUM_ASSETS",
+                "COMPLETE_PROFILE_LIMIT",
             ]
         ),
     ]);
@@ -138,6 +155,9 @@ export async function loadProfileWorkspace(
             );
     }
 
+    const completionAccess =
+        access.COMPLETE_PROFILE_LIMIT;
+
     return {
         profile,
         profiles,
@@ -157,5 +177,14 @@ export async function loadProfileWorkspace(
                 existingCount,
                 advancedUnlocked
             ),
+
+        completion: {
+            allowed:
+                completionAccess.allowed,
+            remaining:
+                completionAccess.remaining,
+            limit:
+                completionAccess.limit,
+        },
     };
 }

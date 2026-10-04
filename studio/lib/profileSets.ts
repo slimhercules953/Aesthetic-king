@@ -1,6 +1,7 @@
 import {
     getAssetSetById,
     getUsableAssetSets,
+    type AssetCatalogSet,
 } from "./assetCatalog";
 
 import {
@@ -55,6 +56,33 @@ export function getBuilderSets(
             (set) =>
                 set.pfpUrl !== ""
         );
+}
+
+/**
+ * The sets "Complete My Profile" may compose from, as catalog rows.
+ *
+ * `ProfileSetOption` deliberately drops the aesthetics/moods/colours the
+ * composer needs, so this returns the catalog shape instead. It shares the
+ * premium filter and the "has art" filter with `getBuilderSets` so the two
+ * cannot disagree about which sets exist for a given user — otherwise the
+ * composer could hand back a set the Builder then refuses to draw.
+ *
+ * Not capped at `BUILDER_SET_LIMIT`: the grid is a browsable sample, while
+ * a composition should be able to reach the whole library. A set outside
+ * the grid still renders, because the preview resolves any id through
+ * `getBuilderSetById`.
+ */
+export function getCompletableSets(
+    premiumUnlocked: boolean
+): AssetCatalogSet[] {
+    return getUsableAssetSets(
+        premiumUnlocked
+    ).filter(
+        (set) =>
+            Boolean(
+                tryGetProfileAssets(set.id)?.pfpUrl
+            )
+    );
 }
 
 /**
