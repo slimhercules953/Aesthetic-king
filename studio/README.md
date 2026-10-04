@@ -96,6 +96,12 @@ not exist; an API client gets 401/403/502 so it can tell the difference.
   matching DENY denies, any ALLOW present requires a match, otherwise
   open.
 - `lib/guildAnalytics.ts` — five aggregate queries over `GuildUsageEvent`.
+- `lib/guildSettings.ts` — `getGuildSettingsByDiscordId()` and a single
+  `updateGuildSettings(guildId, patch)` that writes any combination of the
+  patchable columns in one upsert. The settings API validates every field in
+  the request before writing anything, so a bad value cannot save part of a
+  form; per-column updaters were removed because a PATCH carrying two fields
+  had to call two of them and the second overwrote the first's result.
 - `lib/discordBot.ts` — `getGuildSnapshot()` supplies the role and channel
   pickers from the live guild. It needs `DISCORD_BOT_TOKEN`; without it
   the Access tab falls back to manual snowflake entry rather than
@@ -123,6 +129,17 @@ candidate tuple — *before* `ON CONFLICT` runs — so an upsert that omits
 `updatedAt` fails with `23502` even when it resolves to the update branch.
 `scripts/testStudioPhase2.js` has a "Studio SQL" section that runs these
 statements against the real schema for exactly that reason.
+
+**Truncate timestamps in UTC.** `createdAt` columns are `timestamp without
+time zone` holding UTC wall-clock values, because that is how a JS `Date` is
+serialised on write. `NOW()` is a `timestamptz`, so `date_trunc('day', NOW())`
+truncates in the *session* zone — `America/New_York` on this database — and
+produces local midnights that never equal the UTC midnights the rows
+truncate to. Any day-bucketed query must therefore say
+`date_trunc('day', NOW() AT TIME ZONE 'UTC')` to match its own rows;
+`getGuildAnalytics()` does this in its daily series. Comparisons like
+`createdAt >= NOW() - $2::interval` are fine unmodified, since Postgres
+converts the naive column to an instant for the comparison.
 
 ### Dev server notes
 

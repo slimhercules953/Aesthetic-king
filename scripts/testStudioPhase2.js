@@ -729,8 +729,8 @@ async function testStudioSql(guildId) {
         `SELECT to_char(day, 'YYYY-MM-DD') AS date,
                 COALESCE(COUNT(e.id)::int, 0) AS count
          FROM generate_series(
-             date_trunc('day', NOW()) - ($2::interval - '1 day')::interval,
-             date_trunc('day', NOW()),
+             date_trunc('day', NOW() AT TIME ZONE 'UTC') - ($2::interval - '1 day')::interval,
+             date_trunc('day', NOW() AT TIME ZONE 'UTC'),
              '1 day'
          ) AS day
          LEFT JOIN "GuildUsageEvent" e

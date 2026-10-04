@@ -207,6 +207,13 @@ export async function getGuildAnalytics(
          * data has to render as a gap in the chart, otherwise a weekend with
          * no activity looks like a dip in a continuous line and the whole
          * shape of the week reads wrong.
+         *
+         * `createdAt` is a `timestamp without time zone` holding UTC
+         * wall-clock values (how Prisma serialises a JS Date), so the buckets
+         * have to be truncated in UTC too. A bare `date_trunc('day', NOW())`
+         * truncates the `timestamptz` in the session zone, which labels the
+         * buckets in local time and silently drops the first few UTC hours of
+         * every day into a bucket that isn't on the chart.
          */
         query<DailyPoint>(
             `
@@ -217,8 +224,8 @@ export async function getGuildAnalytics(
                         0
                     ) AS count
                 FROM generate_series(
-                    date_trunc('day', NOW()) - ($2::interval - '1 day')::interval,
-                    date_trunc('day', NOW()),
+                    date_trunc('day', NOW() AT TIME ZONE 'UTC') - ($2::interval - '1 day')::interval,
+                    date_trunc('day', NOW() AT TIME ZONE 'UTC'),
                     '1 day'
                 ) AS day
                 LEFT JOIN "GuildUsageEvent" e

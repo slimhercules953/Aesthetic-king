@@ -25,6 +25,44 @@ export type GuildSettings = {
 
 type GuildSettingsRow = GuildSettings;
 
+/**
+ * The columns a caller may change in one round trip. A key that is
+ * absent is left alone; a key present with `null` is cleared.
+ */
+export type GuildSettingsPatch = {
+    generationChannelId?:
+    string | null;
+
+    defaultAestheticId?:
+    string | null;
+
+    defaultMoodId?:
+    string | null;
+};
+
+/**
+ * Which patch key maps to which column. Written as a list so the
+ * statement, the parameter order and the `ON CONFLICT` clause are all
+ * generated from one source and cannot drift apart.
+ */
+const PATCHABLE_FIELDS = [
+    {
+        key: "generationChannelId",
+        column: '"generationChannelId"',
+    },
+    {
+        key: "defaultAestheticId",
+        column: '"defaultAestheticId"',
+    },
+    {
+        key: "defaultMoodId",
+        column: '"defaultMoodId"',
+    },
+] as const satisfies ReadonlyArray<{
+    key: keyof GuildSettingsPatch;
+    column: string;
+}>;
+
 export async function getGuildSettingsByDiscordId(
     discordGuildId: string
 ): Promise<GuildSettings | null> {
@@ -69,10 +107,22 @@ export async function getGuildSettingsByDiscordId(
     );
 }
 
-export async function updateGenerationChannel(
+/**
+ * Applies a patch to a guild's settings in one statement.
+ *
+ * The three columns used to have one updater each, and the Studio's
+ * settings form sends all three fields on every save. Whichever updater
+ * ran last won, so saving a default mood and a default aesthetic
+ * together silently dropped the mood. Building the statement from the
+ * keys the caller actually sent fixes that and keeps a partial patch
+ * from clearing columns the caller never mentioned.
+ *
+ * The column names come from PATCHABLE_FIELDS, never from the caller,
+ * so the string interpolation below cannot be injected into.
+ */
+export async function updateGuildSettings(
     discordGuildId: string,
-    generationChannelId:
-        string | null
+    patch: GuildSettingsPatch
 ): Promise<GuildSettings> {
     if (!discordGuildId) {
         throw new ExpectedError(
@@ -80,37 +130,62 @@ export async function updateGenerationChannel(
         );
     }
 
+    const fields = PATCHABLE_FIELDS.filter(
+        (field) =>
+            Object.prototype.hasOwnProperty.call(
+                patch,
+                field.key
+            )
+    );
+
+    if (fields.length === 0) {
+        throw new ExpectedError(
+            "No supported server setting was provided."
+        );
+    }
+
+    /*
+     * $1 is always the guild's Discord ID, so the parameter for each
+     * patched column starts at $2 and follows PATCHABLE_FIELDS order.
+     */
+    const values: unknown[] = [discordGuildId];
+
+    const columns = ["id", '"guildId"'];
+    const selections = ["gen_random_uuid()::text", "g.id"];
+    const updates: string[] = [];
+
+    for (const field of fields) {
+        values.push(patch[field.key] ?? null);
+
+        columns.push(field.column);
+        selections.push(`$${values.length}`);
+        updates.push(
+            `${field.column} = EXCLUDED.${field.column}`
+        );
+    }
+
+    columns.push('"createdAt"', '"updatedAt"');
+    selections.push("NOW()", "NOW()");
+    updates.push('"updatedAt" = NOW()');
+
     const result =
         await query<GuildSettingsRow>(
             `
                 INSERT INTO "GuildSettings" (
-                    id,
-                    "guildId",
-                    "generationChannelId",
-                    "createdAt",
-                    "updatedAt"
+                    ${columns.join(", ")}
                 )
 
                 SELECT
-                    gen_random_uuid()::text,
-                    g.id,
-                    $2,
-                    NOW(),
-                    NOW()
+                    ${selections.join(", ")}
 
                 FROM "Guild" g
 
                 WHERE
-                    g."discordId" =
-                        $1
+                    g."discordId" = $1
 
                 ON CONFLICT ("guildId")
                 DO UPDATE SET
-                    "generationChannelId" =
-                        EXCLUDED."generationChannelId",
-
-                    "updatedAt" =
-                        NOW()
+                    ${updates.join(", ")}
 
                 RETURNING
                     id,
@@ -121,150 +196,7 @@ export async function updateGenerationChannel(
                     "createdAt",
                     "updatedAt"
             `,
-            [
-                discordGuildId,
-                generationChannelId,
-            ]
-        );
-
-    const settings =
-        result.rows[0];
-
-    if (!settings) {
-        throw new ExpectedError(
-            "Aesthetic King is not installed in this Discord server."
-        );
-    }
-
-    return settings;
-}
-
-export async function updateDefaultAesthetic(
-    discordGuildId: string,
-    defaultAestheticId:
-        string | null
-): Promise<GuildSettings> {
-    if (!discordGuildId) {
-        throw new ExpectedError(
-            "A Discord guild ID is required."
-        );
-    }
-
-    const result =
-        await query<GuildSettingsRow>(
-            `
-                INSERT INTO "GuildSettings" (
-                    id,
-                    "guildId",
-                    "defaultAestheticId",
-                    "createdAt",
-                    "updatedAt"
-                )
-
-                SELECT
-                    gen_random_uuid()::text,
-                    g.id,
-                    $2,
-                    NOW(),
-                    NOW()
-
-                FROM "Guild" g
-
-                WHERE
-                    g."discordId" =
-                        $1
-
-                ON CONFLICT ("guildId")
-                DO UPDATE SET
-                    "defaultAestheticId" =
-                        EXCLUDED."defaultAestheticId",
-
-                    "updatedAt" =
-                        NOW()
-
-                RETURNING
-                    id,
-                    "guildId",
-                    "defaultAestheticId",
-                    "defaultMoodId",
-                    "generationChannelId",
-                    "createdAt",
-                    "updatedAt"
-            `,
-            [
-                discordGuildId,
-                defaultAestheticId,
-            ]
-        );
-
-    const settings =
-        result.rows[0];
-
-    if (!settings) {
-        throw new ExpectedError(
-            "Aesthetic King is not installed in this Discord server."
-        );
-    }
-
-    return settings;
-}
-
-export async function updateDefaultMood(
-    discordGuildId: string,
-    defaultMoodId:
-        string | null
-): Promise<GuildSettings> {
-    if (!discordGuildId) {
-        throw new ExpectedError(
-            "A Discord guild ID is required."
-        );
-    }
-
-    const result =
-        await query<GuildSettingsRow>(
-            `
-                INSERT INTO "GuildSettings" (
-                    id,
-                    "guildId",
-                    "defaultMoodId",
-                    "createdAt",
-                    "updatedAt"
-                )
-
-                SELECT
-                    gen_random_uuid()::text,
-                    g.id,
-                    $2,
-                    NOW(),
-                    NOW()
-
-                FROM "Guild" g
-
-                WHERE
-                    g."discordId" =
-                        $1
-
-                ON CONFLICT ("guildId")
-                DO UPDATE SET
-                    "defaultMoodId" =
-                        EXCLUDED."defaultMoodId",
-
-                    "updatedAt" =
-                        NOW()
-
-                RETURNING
-                    id,
-                    "guildId",
-                    "defaultAestheticId",
-                    "defaultMoodId",
-                    "generationChannelId",
-                    "createdAt",
-                    "updatedAt"
-            `,
-            [
-                discordGuildId,
-                defaultMoodId,
-            ]
+            values
         );
 
     const settings =

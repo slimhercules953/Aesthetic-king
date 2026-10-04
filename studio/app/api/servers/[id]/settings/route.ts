@@ -21,9 +21,8 @@ import {
 } from "../../../../../lib/guilds";
 
 import {
-    updateDefaultAesthetic,
-    updateGenerationChannel,
-    updateDefaultMood,
+    updateGuildSettings,
+    type GuildSettingsPatch,
 } from "../../../../../lib/guildSettings";
 
 import {
@@ -193,117 +192,125 @@ export async function PATCH(
             string | null;
         };
 
-    try {
-        let settings;
+    /*
+     * Every field is validated before anything is written, so a request
+     * carrying one bad value cannot leave the others half-applied.
+     */
+    const patch: GuildSettingsPatch = {};
+
+    if (
+        Object.prototype.hasOwnProperty.call(
+            body,
+            "generationChannelId"
+        )
+    ) {
+        const generationChannelId =
+            typeof body.generationChannelId ===
+                "string"
+                ? body.generationChannelId.trim()
+                : null;
+
+        patch.generationChannelId =
+            generationChannelId || null;
+    }
+
+    if (
+        Object.prototype.hasOwnProperty.call(
+            body,
+            "defaultAestheticId"
+        )
+    ) {
+        const defaultAestheticId =
+            typeof body.defaultAestheticId ===
+                "string"
+                ? body.defaultAestheticId
+                    .trim()
+                    .toLowerCase()
+                : null;
 
         if (
-            Object.prototype.hasOwnProperty.call(
-                body,
-                "generationChannelId"
+            defaultAestheticId &&
+            !isValidAestheticId(
+                defaultAestheticId
             )
         ) {
-            const generationChannelId =
-                typeof body.generationChannelId ===
-                    "string"
-                    ? body.generationChannelId.trim()
-                    : null;
-
-            settings =
-                await updateGenerationChannel(
-                    guildId,
-                    generationChannelId ||
-                    null
-                );
-        }
-
-        if (
-            Object.prototype.hasOwnProperty.call(
-                body,
-                "defaultAestheticId"
-            )
-        ) {
-            const defaultAestheticId =
-                typeof body.defaultAestheticId ===
-                    "string"
-                    ? body.defaultAestheticId
-                        .trim()
-                        .toLowerCase()
-                    : null;
-            if (
-                Object.prototype.hasOwnProperty.call(
-                    body,
-                    "defaultMoodId"
-                )
-            ) {
-                const defaultMoodId =
-                    typeof body.defaultMoodId ===
-                        "string"
-                        ? body.defaultMoodId
-                            .trim()
-                            .toLowerCase()
-                        : null;
-
-                if (
-                    defaultMoodId &&
-                    !isValidMoodId(
-                        defaultMoodId
-                    )
-                ) {
-                    return NextResponse.json(
-                        {
-                            error:
-                                "Invalid default mood.",
-                        },
-                        {
-                            status: 400,
-                        }
-                    );
-                }
-
-                settings =
-                    await updateDefaultMood(
-                        guildId,
-                        defaultMoodId ||
-                        null
-                    );
-            }
-
-            if (
-                defaultAestheticId &&
-                !isValidAestheticId(
-                    defaultAestheticId
-                )
-            ) {
-                return NextResponse.json(
-                    {
-                        error:
-                            "Invalid default aesthetic.",
-                    },
-                    {
-                        status: 400,
-                    }
-                );
-            }
-
-            settings =
-                await updateDefaultAesthetic(
-                    guildId,
-                    defaultAestheticId ||
-                    null
-                );
-        }
-
-        if (!settings) {
             return NextResponse.json(
                 {
                     error:
-                        "No supported server setting was provided.",
+                        "Invalid default aesthetic.",
                 },
                 {
                     status: 400,
                 }
             );
         }
+
+        patch.defaultAestheticId =
+            defaultAestheticId || null;
+    }
+
+    if (
+        Object.prototype.hasOwnProperty.call(
+            body,
+            "defaultMoodId"
+        )
+    ) {
+        const defaultMoodId =
+            typeof body.defaultMoodId ===
+                "string"
+                ? body.defaultMoodId
+                    .trim()
+                    .toLowerCase()
+                : null;
+
+        if (
+            defaultMoodId &&
+            !isValidMoodId(
+                defaultMoodId
+            )
+        ) {
+            return NextResponse.json(
+                {
+                    error:
+                        "Invalid default mood.",
+                },
+                {
+                    status: 400,
+                }
+            );
+        }
+
+        patch.defaultMoodId =
+            defaultMoodId || null;
+    }
+
+    if (
+        Object.keys(patch).length === 0
+    ) {
+        return NextResponse.json(
+            {
+                error:
+                    "No supported server setting was provided.",
+            },
+            {
+                status: 400,
+            }
+        );
+    }
+
+    try {
+        /*
+         * One statement for the whole patch. This used to call a
+         * separate updater per field and keep the last result, which
+         * meant the settings form — always sending all three fields —
+         * silently discarded the mood whenever an aesthetic was
+         * present in the same save.
+         */
+        const settings =
+            await updateGuildSettings(
+                guildId,
+                patch
+            );
 
         return NextResponse.json({
             settings,
