@@ -40,6 +40,7 @@ type CatalogEntry = {
     entitlementType: SellablePlan["entitlementType"];
     name: string;
     durationMonths: number | null;
+    checkoutKey: string | null;
     priceVar: string;
     fallbackPrice: string;
     blurb: string;
@@ -55,9 +56,10 @@ const CATALOG: CatalogEntry[] = [
         entitlementType: "PREMIUM",
         name: "Premium monthly",
         durationMonths: null,
+        checkoutKey: "monthly",
 
         priceVar: "PREMIUM_MONTHLY_DISPLAY_PRICE",
-        fallbackPrice: "$4.99 / month",
+        fallbackPrice: "$5 / month",
 
         blurb:
             "Renews every month until you cancel. Cancel any time and Premium runs to the end of the period you already paid for.",
@@ -69,6 +71,7 @@ const CATALOG: CatalogEntry[] = [
         entitlementType: "PREMIUM",
         name: "Premium 3 months",
         durationMonths: 3,
+        checkoutKey: null,
 
         priceVar: "PREMIUM_QUARTER_DISPLAY_PRICE",
         fallbackPrice: "$12.99 once",
@@ -81,14 +84,15 @@ const CATALOG: CatalogEntry[] = [
     {
         id: "premium-annual",
         entitlementType: "PREMIUM",
-        name: "Premium 12 months",
-        durationMonths: 12,
+        name: "Premium yearly",
+        durationMonths: null,
+        checkoutKey: "yearly",
 
         priceVar: "PREMIUM_ANNUAL_DISPLAY_PRICE",
-        fallbackPrice: "$39.99 once",
+        fallbackPrice: "$49.99 / year",
 
         blurb:
-            "One payment, a year of Premium, no renewal. Nothing is charged again automatically.",
+            "Renews every year until you cancel. Cancel any time and Premium runs to the end of the year you already paid for.",
 
         priceIdVar: "PREMIUM_ANNUAL_PRICE_ID",
     },
@@ -115,6 +119,7 @@ export function getSellablePlans(): SellablePlan[] {
                 entitlementType: entry.entitlementType,
                 name: entry.name,
                 durationMonths: entry.durationMonths,
+                checkoutKey: entry.checkoutKey,
                 displayPrice: displayPrice(
                     entry.priceVar,
                     entry.fallbackPrice
@@ -127,7 +132,7 @@ export function getSellablePlans(): SellablePlan[] {
 }
 
 /**
- * Resolves a plan id from the browser.
+ * Resolves a stored plan id, e.g. the one carried in provider metadata.
  *
  * Returns null for an unknown id or one that is not configured here, so
  * a hand-crafted checkout request cannot name an arbitrary price.
@@ -144,6 +149,32 @@ export function findSellablePlan(
     return (
         getSellablePlans().find(
             (plan) => plan.id === wanted
+        ) ?? null
+    );
+}
+
+/**
+ * Resolves the value a checkout form submitted into a real plan.
+ *
+ * This is the only way the browser can pick a plan. It accepts the short
+ * wire values ("monthly", "yearly") and nothing else — not the stored
+ * plan id, not a price id, not an amount — so the set of things a
+ * visitor may ask for is exactly the set of plans this deployment sells.
+ * The lookup is case- and whitespace-insensitive because a hand-built
+ * form should fail for the wrong *plan*, not for a stray space.
+ */
+export function findPlanByCheckoutKey(
+    value: string | null | undefined
+): SellablePlan | null {
+    const wanted = (value ?? "").trim().toLowerCase();
+
+    if (!wanted) {
+        return null;
+    }
+
+    return (
+        getSellablePlans().find(
+            (plan) => plan.checkoutKey === wanted
         ) ?? null
     );
 }

@@ -234,8 +234,37 @@ async function main() {
     );
 
     check(
-        "a one-time plan carries its duration",
-        partial[1].durationMonths === 12
+        "the yearly plan is a subscription too, not a one-off charge",
+        partial[1].durationMonths === null,
+        "its Stripe price recurs, so checkout must use subscription mode"
+    );
+
+    check(
+        "the browser-facing checkout keys are the short ones",
+        partial[0].checkoutKey === "monthly" && partial[1].checkoutKey === "yearly",
+        partial.map((plan) => plan.checkoutKey).join(",")
+    );
+
+    check(
+        "a checkout key resolves to the plan that holds the real price id",
+        catalog.findPlanByCheckoutKey("monthly")?.id === "premium-monthly" &&
+            catalog.findPlanByCheckoutKey("yearly")?.id === "premium-annual"
+    );
+
+    check(
+        "a checkout key is matched loosely but never invented",
+        catalog.findPlanByCheckoutKey("  MONTHLY  ")?.id === "premium-monthly" &&
+            catalog.findPlanByCheckoutKey("weekly") === null &&
+            catalog.findPlanByCheckoutKey("premium-monthly") === null &&
+            catalog.findPlanByCheckoutKey("") === null &&
+            catalog.findPlanByCheckoutKey(null) === null,
+        "a stored plan id must not be accepted from a form"
+    );
+
+    check(
+        "a plan with no configured price has no checkout key either",
+        catalog.findPlanByCheckoutKey("quarterly") === null &&
+            catalog.findPlanByCheckoutKey("premium-quarter") === null
     );
 
     check(
@@ -295,6 +324,45 @@ async function main() {
     /* ---------------------------------------------------------------- */
     section("stripe — webhook signature verification");
 
+    /*
+     * `../database` is stubbed because the customer lookup reads the
+     * stored id from Postgres. These handlers let the customer tests say
+     * exactly what the database holds without a real connection.
+     */
+    const stripeDb = fakeDb();
+
+    const stripeFetch = {
+        calls: [],
+        queued: [],
+        queue(...handlers) {
+            this.queued.push(...handlers);
+        },
+        reset() {
+            this.calls.length = 0;
+            this.queued.length = 0;
+        },
+    };
+
+    const realFetch = globalThis.fetch;
+
+    globalThis.fetch = async (url, init = {}) => {
+        const call = { url: String(url), init, form: new URLSearchParams(String(init.body ?? "")) };
+
+        stripeFetch.calls.push(call);
+
+        const handler = stripeFetch.queued.shift();
+
+        if (!handler) {
+            throw new Error(`testPayments: unexpected fetch ${call.url}`);
+        }
+
+        return {
+            ok: handler.ok ?? true,
+            status: handler.status ?? (handler.ok === false ? 400 : 200),
+            json: async () => handler.json ?? {},
+        };
+    };
+
     const stripe = loadModule(STRIPE_PATH, {
         "../auth": {
             constantTimeEquals: (a, b) => {
@@ -304,6 +372,7 @@ async function main() {
                 return left.length === right.length && crypto.timingSafeEqual(left, right);
             },
         },
+        "../database": stripeDb,
     });
 
     process.env.STRIPE_WEBHOOK_SECRET = SECRET;
@@ -552,6 +621,258 @@ async function main() {
     );
 
     /* ---------------------------------------------------------------- */
+    section("stripe — one customer per account");
+
+    const CUSTOMER_ID = "cus_1234567890";
+    const SNOWFLAKE = "123456789012345678";
+
+    process.env.STRIPE_SECRET_KEY = "sk_test_checkout_probe";
+
+    function storedCustomer(value) {
+        stripeDb.set("SELECT \"stripeCustomerId\"", () => ({
+            rows: value === null ? [] : [{ stripeCustomerId: value }],
+        }));
+    }
+
+    /** Clears the recorded SQL and fetch calls so each case stands alone. */
+    function resetProbe(value) {
+        stripeFetch.reset();
+        stripeDb.calls.length = 0;
+        storedCustomer(value);
+    }
+
+    /* --- a first-time buyer gets a customer, and it is remembered --- */
+
+    resetProbe(null);
+    stripeDb.set('UPDATE "User"', () => ({ rowCount: 1 }));
+    stripeFetch.queue({ json: { id: "cus_brand_new" } });
+
+    check(
+        "an account with no stored customer gets one created",
+        (await stripe.ensureStripeCustomer({ discordId: SNOWFLAKE })) === "cus_brand_new"
+    );
+
+    check(
+        "the created customer is the one Stripe returned",
+        stripeFetch.calls.length === 1 &&
+            stripeFetch.calls[0].url === "https://api.stripe.com/v1/customers" &&
+            stripeFetch.calls[0].init.method === "POST" &&
+            stripeFetch.calls[0].form.get("metadata[discordId]") === SNOWFLAKE,
+        stripeFetch.calls.map((call) => call.url).join(" ")
+    );
+
+    const customerUpdate = stripeDb.calls.find((call) => call.text.includes('UPDATE "User"'));
+
+    check(
+        "the new customer id is written back to the account",
+        !!customerUpdate &&
+            customerUpdate.params[0] === SNOWFLAKE &&
+            customerUpdate.params[1] === "cus_brand_new" &&
+            /"stripeCustomerId" IS NULL/.test(customerUpdate.text),
+        "the IS NULL guard is what stops two concurrent checkouts fighting"
+    );
+
+    /* --- a returning buyer is looked up, never re-created --- */
+
+    resetProbe(CUSTOMER_ID);
+    stripeFetch.queue({ json: { id: CUSTOMER_ID } });
+
+    check(
+        "a stored customer is reused",
+        (await stripe.ensureStripeCustomer({ discordId: SNOWFLAKE })) === CUSTOMER_ID
+    );
+
+    check(
+        "reuse means one read of the customer and no writes at all",
+        stripeFetch.calls.length === 1 &&
+            stripeFetch.calls[0].url === `https://api.stripe.com/v1/customers/${CUSTOMER_ID}` &&
+            (stripeFetch.calls[0].init.method ?? "GET") === "GET" &&
+            !stripeDb.calls.some((call) => call.text.includes('UPDATE "User"')),
+        stripeFetch.calls.map((call) => call.url).join(" ")
+    );
+
+    /* --- a stale id is replaced rather than sent to Stripe --- */
+
+    resetProbe("cus_deleted_in_dashboard");
+    stripeFetch.queue({ ok: false, status: 404, json: { error: { message: "No such customer" } } }, { json: { id: "cus_replacement" } });
+
+    check(
+        "a customer Stripe no longer has is replaced",
+        (await stripe.ensureStripeCustomer({ discordId: SNOWFLAKE })) === "cus_replacement"
+    );
+
+    check(
+        "a stale id is never persisted over",
+        !stripeDb.calls.some((call) => call.text.includes('UPDATE "User"')),
+        "the write only fills a NULL, so a wrong id cannot silently take its place"
+    );
+
+    /* --- losing a race yields the winner's customer --- */
+
+    resetProbe(null);
+    stripeDb.set('UPDATE "User"', () => ({ rowCount: 0 }));
+    stripeFetch.queue({ json: { id: "cus_loser" } }, { json: {} });
+
+    check(
+        "when two checkouts race, the stored customer wins",
+        (await stripe.ensureStripeCustomer({ discordId: SNOWFLAKE })) === null,
+        "nothing was stored, so nothing is claimed"
+    );
+
+    check(
+        "the redundant customer is cleaned up",
+        stripeFetch.calls.some((call) => call.init.method === "DELETE"),
+        stripeFetch.calls.map((call) => `${call.init.method ?? "GET"} ${call.url}`).join(" ")
+    );
+
+    /* --- nothing here may block a purchase --- */
+
+    resetProbe(null);
+    stripeFetch.queue({ ok: false, status: 502, json: {} });
+
+    check(
+        "a Stripe failure yields no customer instead of throwing",
+        (await stripe.ensureStripeCustomer({ discordId: SNOWFLAKE })) === null
+    );
+
+    resetProbe(CUSTOMER_ID);
+
+    check(
+        "a malformed account id never reaches Stripe",
+        (await stripe.ensureStripeCustomer({ discordId: "not-a-snowflake" })) === null &&
+            stripeFetch.calls.length === 0
+    );
+
+    /* --- checkout attaches the customer and keeps its own attribution --- */
+
+    resetProbe(CUSTOMER_ID);
+    stripeFetch.queue(
+        { json: { id: CUSTOMER_ID } },
+        { json: { id: "cs_test_9", url: "https://checkout.stripe.com/c/cs_test_9" } }
+    );
+
+    const hosted = await provider.createCheckoutSession({
+        plan: {
+            id: "premium-annual",
+            entitlementType: "PREMIUM",
+            name: "Premium yearly",
+            durationMonths: null,
+            checkoutKey: "yearly",
+            displayPrice: "$50 / year",
+            blurb: "",
+            providerPriceId: "price_annual",
+        },
+        discordId: SNOWFLAKE,
+        successUrl: "https://example.test/ok",
+        cancelUrl: "https://example.test/no",
+    });
+
+    const sessionCall = stripeFetch.calls.find((call) => call.url.includes("/v1/checkout/sessions"));
+
+    check(
+        "checkout redirects to the hosted page Stripe returned",
+        hosted.url === "https://checkout.stripe.com/c/cs_test_9" &&
+            hosted.providerSessionId === "cs_test_9"
+    );
+
+    check(
+        "a recurring plan is sold in subscription mode",
+        sessionCall?.form.get("mode") === "subscription",
+        `mode was ${sessionCall?.form.get("mode")}`
+    );
+
+    check(
+        "a one-time plan is still sold in payment mode",
+        (async () => {
+            resetProbe(CUSTOMER_ID);
+            stripeFetch.queue(
+                { json: { id: CUSTOMER_ID } },
+                { json: { id: "cs_test_10", url: "https://checkout.stripe.com/c/cs_test_10" } }
+            );
+
+            await provider.createCheckoutSession({
+                plan: {
+                    id: "premium-quarter",
+                    entitlementType: "PREMIUM",
+                    name: "Premium 3 months",
+                    durationMonths: 3,
+                    checkoutKey: null,
+                    displayPrice: "$12.99 once",
+                    blurb: "",
+                    providerPriceId: "price_quarter",
+                },
+                discordId: SNOWFLAKE,
+                successUrl: "https://example.test/ok",
+                cancelUrl: "https://example.test/no",
+            });
+
+            const call = stripeFetch.calls.find((c) => c.url.includes("/v1/checkout/sessions"));
+
+            return call?.form.get("mode") === "payment" && call.form.get("line_items[0][price]") === "price_quarter";
+        })()
+    );
+
+    check(
+        "the price comes from the catalog, never the browser",
+        sessionCall?.form.get("line_items[0][price]") === "price_annual" &&
+            sessionCall.form.get("line_items[0][quantity]") === "1"
+    );
+
+    check(
+        "the checkout session carries the stored customer",
+        sessionCall?.form.get("customer") === CUSTOMER_ID
+    );
+
+    check(
+        "attribution survives even with a customer attached",
+        sessionCall?.form.get("client_reference_id") === SNOWFLAKE &&
+            sessionCall.form.get("metadata[discordId]") === SNOWFLAKE &&
+            sessionCall.form.get("metadata[planId]") === "premium-annual"
+    );
+
+    check(
+        "the plan id sent to Stripe is the stored one, not the wire key",
+        sessionCall?.form.get("metadata[planId]") === "premium-annual" &&
+            !sessionCall.form.toString().includes("yearly")
+    );
+
+    check(
+        "checkout still starts when the customer cannot be resolved",
+        (async () => {
+            resetProbe(null);
+            stripeDb.set('UPDATE "User"', () => ({ rowCount: 1 }));
+            stripeFetch.queue(
+                { ok: false, status: 502, json: {} },
+                { json: { id: "cs_test_11", url: "https://checkout.stripe.com/c/cs_test_11" } }
+            );
+
+            const result = await provider.createCheckoutSession({
+                plan: {
+                    id: "premium-monthly",
+                    entitlementType: "PREMIUM",
+                    name: "Premium monthly",
+                    durationMonths: null,
+                    checkoutKey: "monthly",
+                    displayPrice: "$5 / month",
+                    blurb: "",
+                    providerPriceId: "price_monthly",
+                },
+                discordId: SNOWFLAKE,
+                successUrl: "https://example.test/ok",
+                cancelUrl: "https://example.test/no",
+            });
+
+            const call = stripeFetch.calls.find((c) => c.url.includes("/v1/checkout/sessions"));
+
+            return result.url !== "" && !call.form.get("customer");
+        })(),
+        "a billing-history nicety must never block somebody from paying"
+    );
+
+    globalThis.fetch = realFetch;
+    delete process.env.STRIPE_SECRET_KEY;
+
+    /* ---------------------------------------------------------------- */
     section("applyPaymentEvent — replay protection and grants");
 
     const grantCalls = [];
@@ -662,6 +983,13 @@ async function main() {
     db.calls.length = 0;
     grantCalls.length = 0;
 
+    /*
+     * The quarter plan is the only one-time option in the catalog, so it
+     * has to be configured for this case. Subscriptions take their window
+     * from Stripe instead, which the case above already covers.
+     */
+    process.env.PREMIUM_QUARTER_PRICE_ID = "price_quarter";
+
     const oneTime = await (async () => {
         const db2 = fakeDb();
         db2.on("INSERT INTO \"PaymentEventRecord\"", () => ({ rows: [{ id: "r" }], rowCount: 1 }));
@@ -670,8 +998,8 @@ async function main() {
             id: "evt_2",
             kind: "checkout_completed",
             discordId: "123456789012345678",
-            planId: "premium-annual",
-            skuId: "price_annual",
+            planId: "premium-quarter",
+            skuId: "price_quarter",
             externalEntitlementId: null,
             currentPeriodEnd: null,
             raw: {},
@@ -682,8 +1010,13 @@ async function main() {
         "a one-time purchase gets its window from the catalog",
         oneTime.status === "applied" &&
             grantCalls[0].input.endsAt.getTime() - Date.now() >
-                360 * 24 * 60 * 60 * 1000
+                85 * 24 * 60 * 60 * 1000 &&
+            grantCalls[0].input.endsAt.getTime() - Date.now() <
+                95 * 24 * 60 * 60 * 1000,
+        grantCalls[0].input.endsAt?.toISOString()
     );
+
+    delete process.env.PREMIUM_QUARTER_PRICE_ID;
 
     const badAccount = await (async () => {
         const db3 = fakeDb();
@@ -910,7 +1243,17 @@ async function main() {
 
     resetEnv();
 
-    const index = loadModule(INDEX_PATH, {});
+    /*
+     * `stripe.ts` reaches the database to look up a stored customer, so the
+     * provider module needs a stand-in even when only selection is tested.
+     */
+    const index = loadModule(INDEX_PATH, {
+        "../database": {
+            query: async () => {
+                throw new Error("testPayments: provider selection must not touch the database");
+            },
+        },
+    });
 
     check(
         "no provider means no checkout, without throwing",
@@ -976,10 +1319,16 @@ async function main() {
 
     check(
         "checkout resolves the plan through the catalog",
-        /findSellablePlan\(/.test(checkoutSource) &&
+        /findPlanByCheckoutKey\(/.test(checkoutSource) &&
             !/price|amount|currency/i.test(
                 (checkoutSource.match(/formData\?\.get\("[^"]+"\)/g) || []).join(" ")
             )
+    );
+
+    check(
+        "checkout accepts only the short wire keys, not a stored id",
+        !/findSellablePlan\(/.test(checkoutSource) &&
+            /findPlanByCheckoutKey\(/.test(checkoutSource)
     );
 
     check(
@@ -1041,9 +1390,10 @@ async function main() {
     );
 
     check(
-        "the checkout form sends only a plan id",
+        "the checkout form sends only a plan key",
         /action="\/api\/billing\/checkout"/.test(pageSource) &&
             /name="plan"/.test(pageSource) &&
+            /value=\{\s*plan\.checkoutKey \?\? plan\.id\s*\}/.test(pageSource) &&
             !/name="(amount|price|currency|discordId)"/.test(pageSource)
     );
 
@@ -1088,6 +1438,28 @@ async function main() {
             /CREATE UNIQUE INDEX "PaymentEventRecord_provider_externalEventId_key"/.test(
                 readSource(migrationFile)
             )
+    );
+
+    check(
+        "the account row can hold one Stripe customer",
+        /model User \{[\s\S]*?stripeCustomerId String\? @unique[\s\S]*?\n\}/.test(schema),
+        "one customer per account is the whole point of the column"
+    );
+
+    const customerMigration = path.join(
+        ROOT,
+        "prisma",
+        "migrations",
+        "20261006160000_add_stripe_customer_id",
+        "migration.sql"
+    );
+
+    check(
+        "a migration adds the customer column and its unique index",
+        fs.existsSync(customerMigration) &&
+            /ALTER TABLE "User" ADD COLUMN "stripeCustomerId" TEXT/.test(readSource(customerMigration)) &&
+            /CREATE UNIQUE INDEX "User_stripeCustomerId_key"/.test(readSource(customerMigration)),
+        "the schema and the database must agree or migrate deploy fails"
     );
 
     /* ---------------------------------------------------------------- */

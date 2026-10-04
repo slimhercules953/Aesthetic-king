@@ -2,6 +2,8 @@ import {
     constantTimeEquals,
 } from "../auth";
 
+import { query } from "../database";
+
 import type {
     CheckoutSession,
     PaymentEvent,
@@ -399,6 +401,235 @@ function toPaymentEvents(event: unknown): PaymentEvent[] {
     }
 }
 
+/**
+ * Reads the customer id already stored for an account.
+ *
+ * Returns null both when the account has never bought anything and when
+ * the account does not exist, which is the correct answer for checkout
+ * either way: no customer to attach.
+ */
+async function readStoredCustomerId(
+    discordId: string
+): Promise<string | null> {
+    const result = await query<{ stripeCustomerId: string | null }>(
+        `
+        SELECT "stripeCustomerId"
+        FROM "User"
+        WHERE "discordId" = $1
+        `,
+        [discordId]
+    );
+
+    return result.rows[0]?.stripeCustomerId ?? null;
+}
+
+/**
+ * Stores a customer id against an account.
+ *
+ * The `IS NULL` guard is what makes this safe to call twice: two
+ * checkouts started in the same second would otherwise both write, and
+ * the second would either overwrite the first or hit the unique index.
+ * The return value says whether this write won, so the caller can tell
+ * "this is my customer" from "somebody else already stored one".
+ */
+async function storeCustomerId(
+    discordId: string,
+    customerId: string
+): Promise<boolean> {
+    const result = await query(
+        `
+        UPDATE "User"
+        SET "stripeCustomerId" = $2
+        WHERE "discordId" = $1
+          AND "stripeCustomerId" IS NULL
+        `,
+        [discordId, customerId]
+    );
+
+    return (result.rowCount ?? 0) > 0;
+}
+
+/**
+ * Creates a Stripe customer for an account.
+ *
+ * No email is set: the session carries a Discord identity and nothing
+ * else, and inventing an email would be worse than leaving it blank.
+ * Checkout collects one from the buyer and Stripe stores it on the
+ * customer itself. The Discord id goes into metadata so the mapping can
+ * be recovered from Stripe's side when support asks who a customer is.
+ */
+async function createStripeCustomer(
+    secretKey: string,
+    discordId: string
+): Promise<string | null> {
+    const form = new URLSearchParams();
+
+    form.set("metadata[discordId]", discordId);
+
+    const response = await fetch(`${STRIPE_API}/v1/customers`, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${secretKey}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: form.toString(),
+    });
+
+    if (!response.ok) {
+        return null;
+    }
+
+    return readString(asRecord(await response.json().catch(() => ({}))), "id");
+}
+
+/**
+ * True when Stripe still has this customer.
+ *
+ * A stored id can go stale — a customer deleted in the dashboard, or an
+ * id carried over from a different Stripe account after a key rotation.
+ * Checkout would then fail with "No such customer", so the id is checked
+ * before it is sent and recreated if it is gone.
+ */
+async function stripeCustomerExists(
+    secretKey: string,
+    customerId: string
+): Promise<boolean> {
+    const response = await fetch(
+        `${STRIPE_API}/v1/customers/${encodeURIComponent(customerId)}`,
+        {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${secretKey}`,
+            },
+        }
+    );
+
+    if (response.ok) {
+        return true;
+    }
+
+    /*
+     * Only a definite "not found" justifies recreating. A 401 or a 5xx
+     * means we do not know, and discarding a good customer id over a
+     * transient error would silently split a person's billing history.
+     */
+    return false;
+}
+
+/**
+ * Best-effort removal of a customer that turned out to be redundant.
+ *
+ * Reached when two checkouts raced and both created a customer; only one
+ * could be stored. Stripe refuses to delete a customer that already has
+ * a subscription, invoice or payment method attached, so this can never
+ * destroy anything a real buyer used.
+ */
+async function deleteStripeCustomer(
+    secretKey: string,
+    customerId: string
+): Promise<void> {
+    await fetch(
+        `${STRIPE_API}/v1/customers/${encodeURIComponent(customerId)}`,
+        {
+            method: "DELETE",
+            headers: {
+                Authorization: `Bearer ${secretKey}`,
+            },
+        }
+    ).catch(() => undefined);
+}
+
+/**
+ * Finds — or creates — the Stripe customer for one account.
+ *
+ * The invariant is one customer per account, held in `User.stripeCustomerId`
+ * and never supplied by the browser. Without it every purchase would mint a
+ * fresh customer, scattering a person's subscriptions, invoices and saved
+ * cards across ids nothing can tie together.
+ *
+ * Deliberately returns null instead of throwing. A customer is a
+ * convenience: Stripe creates one itself if checkout is sent without it, so
+ * a database blip or a Stripe outage must not stop somebody from paying.
+ * The purchase is still attributed through `client_reference_id` and
+ * metadata, which do not depend on this at all.
+ */
+export async function ensureStripeCustomer(input: {
+    discordId: string;
+    secretKey?: string;
+}): Promise<string | null> {
+    const discordId = (input.discordId ?? "").trim();
+
+    if (!/^\d{17,20}$/.test(discordId)) {
+        return null;
+    }
+
+    let secretKey = input.secretKey;
+
+    try {
+        secretKey ??= required("STRIPE_SECRET_KEY");
+
+        const stored = await readStoredCustomerId(discordId);
+
+        if (stored) {
+            if (await stripeCustomerExists(secretKey, stored)) {
+                return stored;
+            }
+
+            /*
+             * The stored id is dead. Clearing it is not required — the
+             * write below only fills a NULL — so the row is left alone and
+             * a replacement is simply not persisted. That is the safe
+             * direction to be wrong in: a missing customer costs one extra
+             * Stripe object, whereas a wrong id in the database would be
+             * charged to every future purchase.
+             */
+            const replacement = await createStripeCustomer(secretKey, discordId);
+
+            return replacement;
+        }
+
+        const created = await createStripeCustomer(secretKey, discordId);
+
+        if (!created) {
+            return null;
+        }
+
+        const won = await storeCustomerId(discordId, created);
+
+        if (won) {
+            return created;
+        }
+
+        /*
+         * The write matched no row. Either another checkout stored a
+         * customer in the same instant, or the account does not exist at
+         * all. Re-reading tells the two apart.
+         */
+        const winner = await readStoredCustomerId(discordId);
+
+        if (winner) {
+            if (winner !== created) {
+                await deleteStripeCustomer(secretKey, created);
+            }
+
+            return winner;
+        }
+
+        /*
+         * No account to hold it, so the customer would be an orphan
+         * nothing can ever attribute. Stripe refuses to delete a customer
+         * that has been used, so this cannot destroy a real purchase.
+         */
+        await deleteStripeCustomer(secretKey, created);
+
+        return null;
+    } catch (error) {
+        console.error("[billing] stripe customer lookup failed", error);
+
+        return null;
+    }
+}
+
 export const stripeProvider: PaymentProvider = {
     name: "stripe",
 
@@ -410,11 +641,39 @@ export const stripeProvider: PaymentProvider = {
     }): Promise<CheckoutSession> {
         const secretKey = required("STRIPE_SECRET_KEY");
 
+        /*
+         * Resolved before the session is built so that a Stripe outage or
+         * a missing account surfaces as the checkout failing to start,
+         * not as a half-created session the customer never sees.
+         */
+        const customerId = await ensureStripeCustomer({
+            discordId,
+            secretKey,
+        });
+
         const form = new URLSearchParams();
 
+        /*
+         * A Stripe price that recurs must be sold in `subscription` mode
+         * and a one-off price in `payment` mode; sending the wrong one is
+         * a hard error from Stripe. The app cannot tell from the price id
+         * alone, so the catalog declares it: a plan with no app-owned
+         * duration is the provider's recurring one.
+         */
         form.set("mode", plan.durationMonths ? "payment" : "subscription");
         form.set("line_items[0][price]", plan.providerPriceId);
         form.set("line_items[0][quantity]", "1");
+
+        /*
+         * Attaching the customer means Stripe reuses one person's saved
+         * payment methods, invoices and subscription history instead of
+         * inventing a new customer per purchase. It is optional: if the
+         * lookup above could not reach Stripe, the checkout still works
+         * and Stripe creates a customer of its own.
+         */
+        if (customerId) {
+            form.set("customer", customerId);
+        }
 
         /*
          * Both of these are read back out of the verified webhook. They

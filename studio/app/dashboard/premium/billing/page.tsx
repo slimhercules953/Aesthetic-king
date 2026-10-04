@@ -339,7 +339,9 @@ export default async function PremiumBillingPage({
                                         <input
                                             type="hidden"
                                             name="plan"
-                                            value={plan.id}
+                                            value={
+                                                plan.checkoutKey ?? plan.id
+                                            }
                                         />
 
                                         <button

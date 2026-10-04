@@ -4,7 +4,9 @@ import { SESSION_COOKIE_NAME, verifySessionToken } from "../../../../lib/session
 
 import { resolveAppOrigin } from "../../../../lib/auth";
 
-import { findSellablePlan } from "../../../../lib/payments/catalog";
+import {
+    findPlanByCheckoutKey,
+} from "../../../../lib/payments/catalog";
 
 import { getPaymentProvider } from "../../../../lib/payments";
 
@@ -55,7 +57,16 @@ export async function POST(request: NextRequest) {
 
     const rawPlan = formData?.get("plan");
 
-    const plan = findSellablePlan(typeof rawPlan === "string" ? rawPlan : null);
+    /*
+     * Only the short checkout keys are accepted — "monthly" and "yearly"
+     * — and they are resolved against the server-side catalog. Anything
+     * else, including a stored plan id or a price id, is rejected, so the
+     * most a visitor can ask for is one of the plans this deployment
+     * actually sells.
+     */
+    const plan = findPlanByCheckoutKey(
+        typeof rawPlan === "string" ? rawPlan : null
+    );
 
     if (!plan) {
         return NextResponse.json(

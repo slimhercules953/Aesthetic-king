@@ -35,6 +35,19 @@ export type SellablePlan = {
     durationMonths: number | null;
 
     /**
+     * The value the dashboard form sends when a buyer picks this plan.
+     *
+     * Kept separate from `id` on purpose. `id` is a stored identifier:
+     * it is already written into entitlement rows and Stripe metadata, so
+     * renaming it would quietly orphan existing data. A form field carries
+     * no such history, so it can stay short and obvious ("monthly",
+     * "yearly") without dragging the stored id along with it.
+     *
+     * Null means the plan is not offered for self-service checkout.
+     */
+    checkoutKey: string | null;
+
+    /**
      * Display price in whole major units with the currency. This is
      * cosmetic; the charged amount always comes from the provider's own
      * price object, never from anything the browser sends.

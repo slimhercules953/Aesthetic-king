@@ -15,6 +15,13 @@ model User {
   displayName String?
   avatarHash  String?
 
+  // The Stripe Customer we created for this account. Reused for every
+  // checkout so one account is one customer: subscriptions, invoices and
+  // payment methods then group under a single id instead of piling up a
+  // new customer per purchase. Set by the checkout route, never by the
+  // browser.
+  stripeCustomerId String? @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
