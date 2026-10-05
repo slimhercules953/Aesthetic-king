@@ -1,0 +1,14 @@
+[
+  {
+    "version": "1.5.0",
+    "title": "Patch notes, voting and Chime",
+    "body": "• New /patch-notes command — run it to see what has changed\n• New /vote command listing every site you can vote on\n• Voting on Top.gg and Chime now pays 10 Crowns each, once per day\n• The Studio now shows every server the bot is actually in\n• Fixed the Crowns and Billing page crashing on the Studio",
+    "publishedAt": "2026-10-05T00:00:00.000Z"
+  },
+  {
+    "version": "1.4.3",
+    "title": "Colour roles and saved aesthetics",
+    "body": "• /color lets members pick from the colour roles you make on the dashboard\n• The dashboard can create cosmetic colour roles\n• /saved no longer prints a colour swatch line under each aesthetic",
+    "publishedAt": "2026-09-28T00:00:00.000Z"
+  }
+]

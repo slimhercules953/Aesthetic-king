@@ -62,7 +62,22 @@ Node.js + discord.js v14. Runs from `src/index.js`.
 | `/bio` | Aesthetic Discord bios |
 | `/color` | Members claim a coloured name role for themselves — free, opt-in per server (see below) |
 | `/premium` | Read-only Premium plan, Crown balance and active unlocks, with a link to Studio |
+| `/patch-notes` | The changelog, newest first, three releases per page |
+| `/vote` | Where to vote for the bot, and what a vote pays in Crowns |
 | `/ping` | Diagnostic (always available, never Pack- or config-affected) |
+
+`/patch-notes` reads the `PatchNote` table, which `node scripts/seedPatchNotes.js`
+publishes from a JSON file (see `scripts/patch-notes.example.json`). The first
+time a user runs any command after a release is published, a line is appended to
+that command's reply telling them to run `/patch-notes` — once per release per
+user, tracked in `PatchNotification`, and never for a user the bot has no account
+for unless they run the command. The same releases appear in the Studio's
+notification bell, so the changelog has one source of truth.
+
+`/vote` lists Top.gg always and Chime only when `CHIME_BOT_URL` is set, and a
+vote on either pays 10 Crowns once per day per site through the matching webhook
+(see `studio/README.md`). A site whose webhook is not configured is not listed —
+the bot does not advertise a reward it cannot pay.
 
 Every generation command except `/bio` accepts a `pack` option (autocomplete over the server's enabled Packs) and honors the server's default Pack, so a configured Pack reaches all of them rather than `/aesthetic` alone.
 
@@ -200,7 +215,13 @@ cp .env.example .env
 | `DATABASE_URL` | Prisma | PostgreSQL connection string (migrations + bot) |
 | `NODE_ENV` | Both | `development` enables dev-only tooling; anything else is treated as production |
 
-Studio runs on Cloudflare Workers and reads its config from Wrangler bindings / `.dev.vars` (or `process.env`): `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `SESSION_SECRET`, `OAUTH_TOKEN_ENCRYPTION_KEY`, `HYPERDRIVE` connection string, `R2_PUBLIC_URL`, `OLLAMA_URL`, `OLLAMA_MODEL`, plus optional `GRANDFATHER_IDS`, `CROWN_DEV`, `BILLING_DEV`, `DEV_CROWNS_DISCORD_IDS`, `DEV_BILLING_DISCORD_IDS`, `TOPGG_WEBHOOK_SECRET` and the Stripe variables below. Never commit these.
+Studio runs on Cloudflare Workers and reads its config from Wrangler bindings / `.dev.vars` (or `process.env`): `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `SESSION_SECRET`, `OAUTH_TOKEN_ENCRYPTION_KEY`, `HYPERDRIVE` connection string, `R2_PUBLIC_URL`, `OLLAMA_URL`, `OLLAMA_MODEL`, plus optional `GRANDFATHER_IDS`, `CROWN_DEV`, `BILLING_DEV`, `DEV_CROWNS_DISCORD_IDS`, `DEV_BILLING_DISCORD_IDS`, `TOPGG_WEBHOOK_SECRET`, `CHIME_WEBHOOK_SECRET` and the Stripe variables below. Never commit these.
+
+The bot reads the same `process.env` when run on a VM, and adds `TOPGG_BOT_URL` and `CHIME_BOT_URL` — the listing URLs `/vote` prints. `TOPGG_BOT_URL` may be left empty (`/vote` derives the Top.gg link from `CLIENT_ID`); `CHIME_BOT_URL` must be set for Chime to appear in `/vote` at all.
+
+#### Voting rewards
+
+A vote on Top.gg or Chime pays the voter 10 Crowns, once per day per site. Each site posts to its own webhook — `POST /api/webhooks/topgg` and `POST /api/webhooks/chime` — and authenticates with the `Authorization` header compared in constant time against `TOPGG_WEBHOOK_SECRET` / `CHIME_WEBHOOK_SECRET`. A route whose secret is unset answers 404, and the matching Crown source and `/vote` entry stay hidden until it is set, so a deployment never advertises a reward it cannot deliver. Set the webhook URL to `https://<your-app>/api/webhooks/topgg` (or `/chime`) in the site's dashboard and paste the same secret into both sides.
 
 #### Stripe checkout
 
@@ -246,8 +267,9 @@ putting it on an Ubuntu/Debian VM with Postgres, systemd and a reverse proxy.
 
 ### Tests & utilities
 
-Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `testOllama.js`, `testColors.js`, `testRenderer.js`, `testAestheticService.js`, `testPremiumGate.js`, `testPremiumStatus.js`, `testUserService.js`, `testSavedAestheticService.js`, `testStudioPhase2.js`, `testAssetExplorer.js`, `testProfileBuilder.js`, `testCompleteProfile.js`, `testGuildSettingsPatch.js`, `testCrownEarning.js`, `testCreatorProfiles.js`, `testRemix.js`, `testResolvedSetAttributes.js`, `testCreatorAnalytics.js`, `testGuildRoles.js`, `testDevTools.js`, plus asset catalog tooling (`generateAssetCatalog.js`, `seedAssetClassifications.js`, `tagAssetSet.js`, `tagAssetCatalog.js`) and command management (`clearGlobalCommands.js`, `clearGuildCommands.js`, `deleteGuildCommand.js`). Run individually, e.g. `node scripts/testDatabase.js`.
+Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `testOllama.js`, `testColors.js`, `testRenderer.js`, `testAestheticService.js`, `testPremiumGate.js`, `testPremiumStatus.js`, `testUserService.js`, `testSavedAestheticService.js`, `testStudioPhase2.js`, `testAssetExplorer.js`, `testProfileBuilder.js`, `testCompleteProfile.js`, `testGuildSettingsPatch.js`, `testCrownEarning.js`, `testCreatorProfiles.js`, `testRemix.js`, `testResolvedSetAttributes.js`, `testCreatorAnalytics.js`, `testGuildRoles.js`, `testDevTools.js`, plus asset catalog tooling (`generateAssetCatalog.js`, `seedAssetClassifications.js`, `tagAssetSet.js`, `tagAssetCatalog.js`), changelog publishing (`seedPatchNotes.js`) and command management (`clearGlobalCommands.js`, `clearGuildCommands.js`, `deleteGuildCommand.js`). Run individually, e.g. `node scripts/testDatabase.js`.
 
+`node scripts/seedPatchNotes.js notes.json` publishes changelog entries into `PatchNote`, which both `/patch-notes` and the Studio's notification bell read. It upserts by `version`, so editing the wording of a release and re-running updates it instead of duplicating it. Without `--apply` it only prints what it would change. A note dated in the future is hidden until then, which is how a release is staged. See `scripts/patch-notes.example.json` for the format.
 `node scripts/testPremiumGate.js` verifies the bot-side Premium Assets gate: that a free user is never handed a premium set (catalog path and R2 path), that an unlocked user still is, that premium-only filters produce the upsell rather than an empty-library reply, that plans resolve from live entitlements, and that every upsell is answered ephemerally. The ephemerality section runs the real `/profile`, `/theme` and reroll-button handlers against a fake interaction with the entitlement and pick steps stubbed, so it catches a call site that defers before gating — not just source text that happens to look right.
 
 `node scripts/testPremiumStatus.js` verifies `/premium`: Crown balance arithmetic, that expired unlocks and BOOST unlocks are excluded, that stacked purchases collapse to the latest expiry, and that the command renders for both plans. It seeds a fixture user and deletes it again.
@@ -264,7 +286,7 @@ Standalone scripts in [`scripts/`](scripts/): `testDatabase.js`, `testR2.js`, `t
 
 `node scripts/tagAssetCatalog.js` regenerates the `tags` array on every catalog set from the aesthetics, moods and colors already in `src/data/assetCatalog.json`. It is deterministic and safe to re-run after `generateAssetCatalog.js`; pass `--dry-run` to preview. See *Catalog tags* in [`studio/README.md`](studio/README.md).
 
-`node scripts/testCrownEarning.js` covers the Crowns earn layer (`studio/lib/crownEarning.ts`) without a database, against a fake `database` module that is a real in-memory ledger rather than a set of canned answers: that each source pays its configured amount, that per-source caps and the daily total cap bite at exactly the right award, that a repeated event is refused by its idempotency key, that self-likes and self-comments pay nothing, that a like and a comment still pay the *author* when someone else acts, that an unknown Discord id invents no row, and that a failed award is swallowed instead of thrown. Its last section drives the actual Top.gg webhook route with `next/server` stubbed, checking that an unconfigured deployment answers 404, a missing or wrong secret 401, a malformed body 400, that `test` and `revote` deliveries are acknowledged but pay nobody, that a real vote pays the voter exactly once even when Top.gg retries the delivery, and that a vote from an unknown account creates nothing, and that a source which cannot fire on the current deployment (a Top.gg vote with no webhook configured) is left off the Earn page rather than advertised — while a source with rows already paid under it stays visible so the history never silently shrinks.
+`node scripts/testCrownEarning.js` covers the Crowns earn layer (`studio/lib/crownEarning.ts`) without a database, against a fake `database` module that is a real in-memory ledger rather than a set of canned answers: that each source pays its configured amount, that per-source caps and the daily total cap bite at exactly the right award, that a repeated event is refused by its idempotency key, that self-likes and self-comments pay nothing, that a like and a comment still pay the *author* when someone else acts, that an unknown Discord id invents no row, and that a failed award is swallowed instead of thrown. Its last sections drive the actual Top.gg and Chime webhook routes with `next/server` stubbed, checking that an unconfigured deployment answers 404, a missing or wrong secret 401, a malformed body 400, that `test` and `revote` deliveries are acknowledged but pay nobody, that a real vote pays the voter exactly once even when the site retries the delivery, and that a vote from an unknown account creates nothing, and that a source which cannot fire on the current deployment (a vote whose webhook secret is unset) is left off the Earn page rather than advertised — while a source with rows already paid under it stays visible so the history never silently shrinks. Each vote source is gated on its own secret, and the two pay under separate idempotency keys so voting on both sites in one day pays twice.
 
 `node scripts/testCreatorProfiles.js` covers the Phase 7 creator surface (`studio/lib/creator.ts`, `studio/lib/creatorHref.ts`, `studio/lib/feedSearch.ts`) — the first code that takes a URL string and uses it to select other people's content. Offline it asserts that a non-snowflake ID never reaches SQL, that a search term is only ever a bound parameter with its `ILIKE` wildcards escaped, that each search match branch carries its own item-type guard (without one, the `LEFT JOIN`ed item rows make every post match every term), and that every `$n` placeholder has a parameter. Against the real database — skipped, not failed, when none is reachable — it seeds a throwaway user with two posts and checks the profile's counts and tag aggregation, creator lookup by display name and by tag, and that a term matching only internal IDs leaks nothing.
 

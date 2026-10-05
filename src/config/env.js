@@ -141,6 +141,28 @@ const config = {
     },
 
     /*
+     * Where to vote for the bot. `/vote` lists one entry per site that is
+     * actually configured, because advertising a link that pays no Crowns
+     * reads worse than not mentioning the site at all — the same rule the
+     * Studio's Earn page follows with `isEarnSourceLive`.
+     *
+     * Top.gg needs no configuration: the listing URL is derived from the
+     * application id. Chime's slug is not derivable, so it stays hidden
+     * until `CHIME_BOT_URL` is set.
+     */
+    voting: {
+        topgg:
+            process.env.TOPGG_BOT_URL ||
+            (
+                process.env.CLIENT_ID
+                    ? `https://top.gg/bot/${process.env.CLIENT_ID}/vote`
+                    : ""
+            ),
+
+        chime: process.env.CHIME_BOT_URL || "",
+    },
+
+    /*
      * Where the Studio lives. Only used to point users at the page
      * that unlocks a premium feature, so an unset value degrades to a
      * plain path mention instead of breaking the command.

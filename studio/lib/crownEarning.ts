@@ -56,7 +56,10 @@ export type CrownEarnSource =
     | "daily_visit"
 
     /** Someone voted for the bot on Top.gg. */
-    | "topgg_vote";
+    | "topgg_vote"
+
+    /** Someone voted for the bot on Chime. */
+    | "chime_vote";
 
 export type CrownEarnRule = {
     source: CrownEarnSource;
@@ -138,6 +141,18 @@ export const CROWN_EARN_RULES: Record<
     topgg_vote: {
         source: "topgg_vote",
         label: "Voted for the bot on Top.gg",
+        amount: 10,
+        dailyCap: 1,
+    },
+
+    /*
+     * Priced identically to a Top.gg vote. Both are the same kind of thing —
+     * one click on an external listing, once a day — and paying one list
+     * more than the other would just teach people to ignore the cheaper one.
+     */
+    chime_vote: {
+        source: "chime_vote",
+        label: "Voted for the bot on Chime",
         amount: 10,
         dailyCap: 1,
     },
@@ -484,6 +499,10 @@ export function isEarnSourceLive(source: CrownEarnSource): boolean {
         return Boolean(process.env.TOPGG_WEBHOOK_SECRET);
     }
 
+    if (source === "chime_vote") {
+        return Boolean(process.env.CHIME_WEBHOOK_SECRET);
+    }
+
     return true;
 }
 
@@ -757,6 +776,30 @@ export async function awardForTopggVote(
         voterDiscordId,
         "topgg_vote",
         `topgg_vote:${voterDiscordId}:${getPeriodKey(
+            "daily"
+        )}`
+    );
+}
+
+/**
+ * A Chime vote pays the voter, on the same terms as a Top.gg vote.
+ *
+ * Separate source rather than one shared "vote" source, so the two listings
+ * can be switched on and off independently: `isEarnSourceLive` hides a
+ * source whose webhook secret is missing, and collapsing both into one row
+ * would mean a configured Top.gg webhook advertising Chime too.
+ */
+export async function awardForChimeVote(
+    voterDiscordId: string
+): Promise<void> {
+    if (!voterDiscordId) {
+        return;
+    }
+
+    await award(
+        voterDiscordId,
+        "chime_vote",
+        `chime_vote:${voterDiscordId}:${getPeriodKey(
             "daily"
         )}`
     );

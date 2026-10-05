@@ -71,6 +71,16 @@ const TOPGG_ROUTE_PATH = path.join(
     "route.ts"
 );
 
+const CHIME_ROUTE_PATH = path.join(
+    ROOT,
+    "studio",
+    "app",
+    "api",
+    "webhooks",
+    "chime",
+    "route.ts"
+);
+
 let passed = 0;
 let failed = 0;
 
@@ -979,9 +989,38 @@ const day = new Date().toISOString().slice(0, 10);
     check(
         "every other source is always live",
         e9.CROWN_EARN_SOURCES.filter(
-            (s) => s !== "topgg_vote"
+            (s) =>
+                s !== "topgg_vote" && s !== "chime_vote"
         ).every((s) => e9.isEarnSourceLive(s))
     );
+
+    /*
+     * Chime is gated on its own secret, not Top.gg's — otherwise enabling
+     * one listing would advertise the other and promise Crowns the missing
+     * webhook could never pay.
+     */
+    const savedChimeSecret =
+        process.env.CHIME_WEBHOOK_SECRET;
+    delete process.env.CHIME_WEBHOOK_SECRET;
+
+    check(
+        "a Top.gg secret does not make chime_vote live",
+        e9.isEarnSourceLive("chime_vote") === false
+    );
+
+    process.env.CHIME_WEBHOOK_SECRET = "a-chime-secret";
+
+    check(
+        "chime_vote is live once its own secret is set",
+        e9.isEarnSourceLive("chime_vote") === true
+    );
+
+    if (savedChimeSecret === undefined) {
+        delete process.env.CHIME_WEBHOOK_SECRET;
+    } else {
+        process.env.CHIME_WEBHOOK_SECRET =
+            savedChimeSecret;
+    }
 
     const hidden = await e9.getEarnStatus("owner");
 
@@ -1314,6 +1353,193 @@ const day = new Date().toISOString().slice(0, 10);
     } else {
         process.env.TOPGG_WEBHOOK_SECRET =
             originalSecret;
+    }
+
+    /* ---------------------------------------------------------------- */
+    section("13. The Chime webhook handler");
+
+    /*
+     * The Chime route is a sibling with the same guarantees, so it is held to
+     * the same ones: unconfigured answers 404, a bad secret never pays, and a
+     * retried delivery credits once. It is also checked against the payload
+     * aliases `resolveVoterId` accepts, since Chime's exact field naming is
+     * not pinned down in the route itself.
+     */
+    function loadChimeRoute(db) {
+        return loadModule(CHIME_ROUTE_PATH, {
+            "next/server": fakeNextServer(),
+
+            "./database": {
+                query: db.query,
+                withTransaction: db.withTransaction,
+            },
+        });
+    }
+
+    const dbC = createDb({
+        users: [
+            ["owner", "u-owner"],
+            ["216903735903510528", "u-voter"],
+        ],
+    });
+
+    const chimeRoute = loadChimeRoute(dbC);
+
+    // Bound to dbC, so an award made here lands in the ledger this section
+    // asserts against rather than db0's.
+    const earningC = load(dbC);
+
+    const originalChimeSecret =
+        process.env.CHIME_WEBHOOK_SECRET;
+
+    process.env.CHIME_WEBHOOK_SECRET = "";
+
+    const chimeUnconfigured = await chimeRoute.POST(
+        fakeRequest({
+            auth: SECRET,
+            payload: { user: "216903735903510528" },
+        })
+    );
+
+    check(
+        "an unconfigured Chime deploy answers 404",
+        chimeUnconfigured.status === 404,
+        String(chimeUnconfigured.status)
+    );
+
+    process.env.CHIME_WEBHOOK_SECRET = SECRET;
+
+    const chimeNoAuth = await chimeRoute.POST(
+        fakeRequest({
+            auth: null,
+            payload: { user: "216903735903510528" },
+        })
+    );
+
+    check(
+        "a missing Chime secret is rejected",
+        chimeNoAuth.status === 401
+    );
+
+    check(
+        "and Top.gg's secret is not accepted in its place",
+        (
+            await chimeRoute.POST(
+                fakeRequest({
+                    auth: "a-chime-secret",
+                    payload: { user: "216903735903510528" },
+                })
+            )
+        ).status === 401
+    );
+
+    const chimeVote = await chimeRoute.POST(
+        fakeRequest({
+            auth: SECRET,
+            payload: { user: "216903735903510528", type: "upvote" },
+        })
+    );
+
+    check(
+        "a Chime vote is accepted",
+        chimeVote.status === 200,
+        String(chimeVote.status)
+    );
+
+    check(
+        "paying the voter under the Chime source",
+        dbC.state.rows.length === 1 &&
+        dbC.state.rows[0].source === "chime_vote",
+        JSON.stringify(dbC.state.rows[0] ?? null)
+    );
+
+    check(
+        "with the Chime amount",
+        dbC.state.rows[0]?.amount ===
+        earning.CROWN_EARN_RULES.chime_vote.amount
+    );
+
+    const chimeReplay = await chimeRoute.POST(
+        fakeRequest({
+            auth: SECRET,
+            payload: { user: "216903735903510528", type: "upvote" },
+        })
+    );
+
+    check(
+        "a retried Chime delivery pays only once",
+        chimeReplay.status === 200 &&
+        dbC.state.rows.length === 1
+    );
+
+    /*
+     * A Top.gg vote and a Chime vote from the same person on the same day are
+     * two events, so they must not collide on one idempotency key.
+     */
+    await earningC.awardForTopggVote("216903735903510528");
+
+    check(
+        "a Top.gg vote on the same day still pays separately",
+        dbC.state.rows.length === 2 &&
+        dbC.state.rows[1].source === "topgg_vote",
+        JSON.stringify(dbC.state.rows.map((r) => r.source))
+    );
+
+    check(
+        "a retracted vote is acknowledged but unpaid",
+        (
+            await chimeRoute.POST(
+                fakeRequest({
+                    auth: SECRET,
+                    payload: {
+                        user: "216903735903510528",
+                        type: "remove",
+                    },
+                })
+            )
+        ).status === 200 &&
+        dbC.state.rows.length === 2
+    );
+
+    check(
+        "an alternative id field is understood",
+        (
+            await chimeRoute.POST(
+                fakeRequest({
+                    auth: SECRET,
+                    payload: { user_id: "216903735903510528" },
+                })
+            )
+        ).status === 200
+    );
+
+    check(
+        "but a non-snowflake id is refused with 400",
+        (
+            await chimeRoute.POST(
+                fakeRequest({
+                    auth: SECRET,
+                    payload: { user: "not-a-user-id" },
+                })
+            )
+        ).status === 400
+    );
+
+    check(
+        "and a payload with no id at all pays nobody",
+        (
+            await chimeRoute.POST(
+                fakeRequest({ auth: SECRET, payload: {} })
+            )
+        ).status === 400 &&
+        dbC.state.rows.length === 2
+    );
+
+    if (originalChimeSecret === undefined) {
+        delete process.env.CHIME_WEBHOOK_SECRET;
+    } else {
+        process.env.CHIME_WEBHOOK_SECRET =
+            originalChimeSecret;
     }
 
     /* ---------------------------------------------------------------- */

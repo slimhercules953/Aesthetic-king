@@ -247,6 +247,8 @@ for (const [name, count] of counts) {
  *   analytics - the caller's own rows, and entitlement-gated on CREATOR_ANALYTICS
  *   remix     - read-only lookup of published SharedPost rows
  *   discover  - public feed, public-by-design by intent
+ *   patch-notes - the global changelog, which is the point of the command
+ *   vote      - voting links and the Crown reward, neither guild-specific
  */
 const DM_USABLE_COMMANDS = new Set([
     "ping",
@@ -255,6 +257,8 @@ const DM_USABLE_COMMANDS = new Set([
     "discover",
     "analytics",
     "premium",
+    "patch-notes",
+    "vote",
 ]);
 
 for (const [file, name] of nameByFile) {

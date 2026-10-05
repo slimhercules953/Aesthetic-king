@@ -734,6 +734,20 @@ These are not deployment steps and cannot be finished from the code:
   appears to take money and grant nothing until this is wired up.
 - **`TOPGG_WEBHOOK_SECRET`** — same story for
   `https://<domain>/api/webhooks/topgg`.
+- **`CHIME_WEBHOOK_SECRET`** — and for
+  `https://<domain>/api/webhooks/chime`. Chime's payload shape is not
+  documented, so the route accepts `user`, `userId`, `user_id`, `discordId`
+  or `discord_id` and treats a missing `type` as a vote; every candidate is
+  validated as a snowflake, so an unrecognised shape answers `400` rather than
+  crediting somebody arbitrary. If Chime lets you choose the format, match
+  Top.gg (`Authorization` header, `user` field). Until the secret is set the
+  route answers `404`, the `chime_vote` Crown source is hidden on the Earn
+  page, and `/vote` does not mention Chime — set `CHIME_BOT_URL` as well or
+  the listing stays invisible even once votes can be paid.
+- **Patch notes** — nothing publishes `PatchNote` rows, so `/patch-notes` has
+  nothing to show and the Studio bell stays quiet until you run
+  `node scripts/seedPatchNotes.js <notes.json> --apply` (see
+  `scripts/patch-notes.example.json`).
 - **Stripe customer portal** — not enabled on the account, so the "manage
   subscription" link has no destination.
 - **Re-inviting the bot on existing servers** — the Role maker needs Manage

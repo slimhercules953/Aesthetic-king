@@ -57,6 +57,72 @@ const {
     "../components/embeds/systemResponse"
 );
 
+const {
+    getUnseenPatchNote,
+} = require(
+    "../services/database/patchNoteService"
+);
+
+/**
+ * Appends a one-line "something new shipped" hint to a command reply.
+ *
+ * The changelog already lives in the Studio bell, but the bell only reaches
+ * someone who is signed in and looking. This is the part that makes the
+ * release actually known: it rides along with a command the user chose to
+ * run, so it needs no new attention of its own.
+ *
+ * Three things keep it from becoming the notification everyone learns to
+ * ignore:
+ *
+ * - It fires at most once per user per release. `getUnseenPatchNote` latches
+ *   the version in memory and records a real dismissal in
+ *   `PatchNotification` the moment they run `/patch-notes`, so a second
+ *   command after reading is silent.
+ * - It never runs for `/patch-notes` itself, which would be circular.
+ * - It is appended to the reply the user is already getting rather than sent
+ *   as its own message, so a release cannot spam a channel with banners.
+ *
+ * Anything going wrong is swallowed. A changelog nudge is not worth turning
+ * a successful command into a failed interaction.
+ */
+async function appendUpdateHint(
+    interaction,
+    commandName
+) {
+    if (commandName === "patch-notes") {
+        return;
+    }
+
+    if (!interaction.deferred && !interaction.replied) {
+        return;
+    }
+
+    const note = await getUnseenPatchNote(
+        interaction.user?.id
+    );
+
+    if (!note) {
+        return;
+    }
+
+    const hint =
+        `📝 **${note.version}** just shipped — run ` +
+        "`/patch-notes` to see what's new.";
+
+    /*
+     * The existing text has to be read back and re-sent, because editing a
+     * reply replaces it wholesale and blindly setting `content` would wipe
+     * whatever the command said. That costs one extra API call, and only
+     * for the one command per user per release that actually shows the hint.
+     */
+    const existing = await interaction.fetchReply();
+    const content = String(existing?.content ?? "");
+
+    await interaction.editReply({
+        content: content ? `${content}\n\n${hint}` : hint,
+    });
+}
+
 /**
  * Buttons that only write a row are left on the generic scope; the reroll
  * handlers that reach the AI declare `rateLimitScope: "generation"` themselves.
@@ -398,6 +464,24 @@ module.exports = {
                     interaction,
                     client
                 );
+
+                /*
+                 * Best-effort and deliberately after `execute`: the user
+                 * should get their own result first, and if the hint fails
+                 * the command has already succeeded.
+                 */
+                try {
+                    await appendUpdateHint(
+                        interaction,
+                        interaction.commandName
+                    );
+                } catch {
+                    /*
+                     * Swallowed on purpose. The common cause is the reply
+                     * having been deleted between `execute` and here, which
+                     * is not a problem worth logging at any level.
+                     */
+                }
 
                 /*
                  * Logged after the command resolves so the aesthetic, mood and

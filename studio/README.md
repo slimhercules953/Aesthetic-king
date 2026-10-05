@@ -192,25 +192,31 @@ Two consequences live in the code, not just the numbers:
   grants.
 
 `isEarnSourceLive()` decides what the Earn page offers. Every source
-except `topgg_vote` is wired into the product, so it is always live; a
-Top.gg vote can only arrive through the webhook, so the source is hidden
-until `TOPGG_WEBHOOK_SECRET` is set — the same condition the route uses
-to answer 404. Advertising "10 Crowns for voting" when no vote can be
+except `topgg_vote` and `chime_vote` is wired into the product, so it is
+always live; a vote can only arrive through the matching webhook, so each
+of those sources is hidden until its own secret is set — `TOPGG_WEBHOOK_SECRET`
+and `CHIME_WEBHOOK_SECRET` respectively, the same condition each route uses
+to answer 404. They are gated separately on purpose: configuring one
+listing must not advertise the other and promise Crowns the missing webhook
+could never pay. Advertising "10 Crowns for voting" when no vote can be
 received is a promise the product cannot keep. Hiding a source hides the
 offer only: rows already awarded under it still appear in the history
 and still count toward today's total.
 
 Product code never calls `awardCrowns` directly — it calls one of
 `awardForPublish`, `awardForLike`, `awardForComment`,
-`awardForDailyVisit` or `awardForTopggVote`. Three rules those hooks
-enforce, all of them anti-farming:
+`awardForDailyVisit`, `awardForTopggVote` or `awardForChimeVote`. Three rules
+those hooks enforce, all of them anti-farming:
 
 - **An idempotency key per event, not per call.** `publish:<itemType>:<itemId>`
   (not the post id — unsharing and re-sharing mints a new post id, which
   would otherwise be a way to re-earn), `like_received:<postId>:<liker>`
   (unliking and re-liking pays once), `comment_received:<commentId>`,
-  `daily_visit:<UTC day>`, `topgg_vote:<voter>:<UTC day>`. The unique
-  index on `(userId, idempotencyKey)` is what actually enforces this.
+  `daily_visit:<UTC day>`, `topgg_vote:<voter>:<UTC day>`,
+  `chime_vote:<voter>:<UTC day>`. The unique index on
+  `(userId, idempotencyKey)` is what actually enforces this. The two vote
+  sources are keyed by source as well as voter and day, so voting on both
+  sites in one day pays twice.
 - **You cannot pay yourself.** Self-likes and self-comments award
   nothing. The check lives in `crownEarning.ts` rather than in the API
   route so any future like surface inherits it.
@@ -227,23 +233,29 @@ transaction so the common "already awarded today" case costs no lock.
 `/dashboard/premium/crowns` shows what is left today per source via
 `getEarnStatus`.
 
-**Top.gg votes.** Not live yet — the Studio has no public origin to
-receive webhooks, so nothing can earn this source and the Earn page hides
-it (see `isEarnSourceLive` above). The route is built and tested so that
-turning it on is a config change, not a code change.
+**Vote webhooks.** `app/api/webhooks/topgg/route.ts` receives vote webhooks
+at `POST /api/webhooks/topgg`, and `app/api/webhooks/chime/route.ts` is the
+equivalent for Chime at `POST /api/webhooks/chime`. Set
+`TOPGG_WEBHOOK_SECRET` / `CHIME_WEBHOOK_SECRET` to the authorization token
+you configure on the respective site; requests are compared against it in
+constant time. Without the variable each route answers `404` so an
+unconfigured deployment exposes nothing.
 
-`app/api/webhooks/topgg/route.ts` receives vote webhooks at
-`POST /api/webhooks/topgg`. Set `TOPGG_WEBHOOK_SECRET` to the webhook
-authorization token you configure on Top.gg; requests are compared
-against it in constant time. Without the variable the route answers `404`
-so an unconfigured deployment exposes nothing. Only `type: "upvote"` pays
-— `test` and `revote` are acknowledged and ignored, so Top.gg's "Test
-Webhook" button verifies the URL and secret without minting Crowns — and
-the vote pays the *voter*, not the bot owner. An unknown Discord id is
-acknowledged with `200` but invents no account and no balance.
+Top.gg sends `type`, and only `upvote` pays — `test` and `revote` are
+acknowledged and ignored, so Top.gg's "Test Webhook" button verifies the URL
+and secret without minting Crowns. Chime's payload is not documented, so the
+Chime route reads the voter from `user`, `userId`, `user_id`, `discordId` or
+`discord_id`, and treats a missing `type` as a vote while ignoring obvious
+retractions (`remove`, `unvote`, `downvote`). Every candidate is validated as
+a snowflake before it is used, so an unrecognised shape fails closed with `400`
+rather than crediting somebody arbitrary; if Chime lets you pick the format,
+matching Top.gg (`Authorization` header, `user` field) removes the guesswork.
+
+In both cases the vote pays the *voter*, not the bot owner, and an unknown
+Discord id is acknowledged with `200` but invents no account and no balance.
 
 `node scripts/testCrownEarning.js` covers all of it without a database,
-including the webhook route itself (82 assertions).
+including both webhook routes (106 assertions).
 
 ## Server Studio
 
