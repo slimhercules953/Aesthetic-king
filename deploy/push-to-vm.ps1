@@ -144,11 +144,16 @@ try {
             throw "Could not find DATABASE_URL in .env, so the database name is unknown. Pass it explicitly or fix .env."
         }
         $url = $Matches.url
-        if ($url -notmatch '^postgres(?:ql)?://(?:[^@/]*@)?(?<host>[^:/]+)(?::(?<port>\d+))?/(?<db>[^?]+)') {
+        if ($url -notmatch '^postgres(?:ql)?://(?:(?<user>[^:@]*)(?::[^@]*)?@)?(?<host>[^:/]+)(?::(?<port>\d+))?/(?<db>[^?]+)') {
             throw "DATABASE_URL is not a postgres URL I can parse: $url"
         }
         $dbName = $Matches.db
-        Write-Host "Local database: $dbName"
+        # Dump as the role the app actually uses. It owns the database, so it
+        # needs no superuser password, and it avoids asking for a postgres
+        # password that is often not even set on a dev machine.
+        $dbUser = if ($Matches.user) { $Matches.user } else { "postgres" }
+        $dbPort = if ($Matches.port) { $Matches.port } else { "5432" }
+        Write-Host "Local database: $dbName as $dbUser"
 
         $pgDump = $null
         $onPath = Get-Command pg_dump.exe -ErrorAction SilentlyContinue
@@ -172,12 +177,17 @@ try {
         }
         Write-Host "Using $pgDump"
 
-        $localDump = Join-Path $env:TEMP "aesthetic_king-dump-$suffix.sql"
+        $localDump = Join-Path $env:TEMP "aesthetic-dump-$suffix.sql"
         try {
             # pg_dump prompts for the password itself; no password is stored or
-            # passed on the command line where it would show in the process list.
-            Invoke-Step "Dumping $dbName (you will be prompted for the postgres password)" {
-                & $pgDump -U postgres -h localhost -p 5432 -f $localDump $dbName
+            # passed on the command line where it would show in the process
+            # list. --no-owner matters: the local role is not called
+            # $ServiceUser, so the dump would otherwise be full of
+            # "OWNER TO aesthetic_king" statements that all fail on the VM.
+            # --no-privileges drops the GRANT lines for the same reason -- the
+            # restore target grants access through ownership instead.
+            Invoke-Step "Dumping $dbName (you will be prompted for $dbUser's password)" {
+                & $pgDump -U $dbUser -h localhost -p $dbPort --no-owner --no-privileges -f $localDump $dbName
             }
 
             $sizeMb = [math]::Round((Get-Item $localDump).Length / 1MB, 2)
@@ -213,13 +223,13 @@ Write-Host "Done." -ForegroundColor Green
 if ($dumpRemotePath) {
     Write-Host ""
     Write-Host "Next, on the VM:" -ForegroundColor Yellow
-    Write-Host "  sudo -u postgres psql -v ON_ERROR_STOP=1 -d aesthetic -f $dumpRemotePath" -ForegroundColor Gray
+    Write-Host "  sudo chmod a+r $dumpRemotePath" -ForegroundColor Gray
+    Write-Host "  sudo -u $ServiceUser psql -d aesthetic -v ON_ERROR_STOP=1 -f $dumpRemotePath" -ForegroundColor Gray
     Write-Host "  shred -u $dumpRemotePath" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "Restoring as the postgres superuser leaves the tables owned by postgres, which"
-    Write-Host "Prisma cannot ALTER later. If this is a first-time load, prefer restoring as the"
-    Write-Host "app role so it owns what it creates:"
-    Write-Host "  PGPASSWORD=... psql -h 127.0.0.1 -U $ServiceUser -d aesthetic -v ON_ERROR_STOP=1 -f $dumpRemotePath" -ForegroundColor Gray
+    Write-Host "Restore as the $ServiceUser role, not as the postgres superuser: the dump was"
+    Write-Host "written with --no-owner, so whoever runs the restore ends up owning the tables,"
+    Write-Host "and Prisma needs that ownership to ALTER them later."
     Write-Host ""
     Write-Host "Then: sudo systemctl restart aesthetic-studio aesthetic-bot"
 } else {

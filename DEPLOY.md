@@ -160,17 +160,26 @@ empty. Dump and restore rather than re-creating content by hand:
 
 ```powershell
 # on the PC
-pg_dump -U postgres -d aesthetic_king -f ak.sql
+pg_dump -U aesthetic_king -h localhost --no-owner --no-privileges -f ak.sql aesthetic_king
 scp ak.sql <user>@<vm-address>:/tmp/
 ```
 
 `pg_dump` is at `C:\Program Files\PostgreSQL\18\bin\pg_dump.exe`; add it to your
-PATH for the command, or call it by full path. It will prompt for the postgres
-password.
+PATH for the command, or call it by full path. Dump as the role named in
+`DATABASE_URL` rather than `postgres` — it owns the database, so it works without
+a separate superuser password.
+
+`--no-owner` and `--no-privileges` are not cosmetic. The local role is called
+`aesthetic_king` and the VM's is `aesthetic`, so a default dump is full of
+`ALTER TABLE ... OWNER TO aesthetic_king` statements that each fail on the
+target. Omitting them means whoever runs the restore owns everything, which is
+another reason to restore as the app role rather than as `postgres`: Prisma needs
+that ownership to `ALTER` tables later.
 
 ```bash
 # on the VM
-psql "postgresql://aesthetic:<password>@127.0.0.1:5432/aesthetic" -f /tmp/ak.sql
+sudo chmod a+r /tmp/ak.sql
+sudo -u aesthetic psql -d aesthetic -v ON_ERROR_STOP=1 -f /tmp/ak.sql
 shred -u /tmp/ak.sql
 ```
 
