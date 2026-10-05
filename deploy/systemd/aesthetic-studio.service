@@ -1,0 +1,55 @@
+[Unit]
+Description=Aesthetic King Studio
+Documentation=file:/opt/aesthetic-king/DEPLOY.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# Must own every file it touches, including studio/.env.local, which holds the
+# signing keys. Do not run this as www-data over a tree that npm ci installed
+# as root.
+User=aesthetic
+Group=aesthetic
+
+# vinext start resolves both its .env files and its dist/ output relative to
+# the working directory, so this is load-bearing rather than cosmetic.
+WorkingDirectory=/opt/aesthetic-king/studio
+
+# Deliberately not `npm run start:node`. npm would be PID 1 of the service and
+# does not forward SIGTERM to the server it spawns, so `systemctl stop` would
+# wait out TimeoutStopSec and then SIGKILL the site mid-request. Calling node
+# directly keeps the service to a single process that receives the signal.
+#
+# -H 127.0.0.1 keeps the site off the public interface. Without it the server
+# binds 0.0.0.0 and the VM answers plain unencrypted HTTP on :3000 right next
+# to the reverse proxy, which is a way to bypass TLS entirely. Point Caddy or
+# nginx at 127.0.0.1:3000. Drop the flag only if you deliberately want the port
+# exposed, e.g. to reach it before the proxy is configured.
+ExecStart=/usr/bin/node /opt/aesthetic-king/studio/node_modules/vinext/dist/cli.js start -H 127.0.0.1
+
+# The site loads studio/.env.local itself, so the secrets are not repeated
+# here. Only the port needs setting.
+#
+# Avoid EnvironmentFile= for the .env files: systemd expands $ in those values,
+# which silently corrupts a DATABASE_URL password containing a $. Both apps
+# already read their own .env from the working directory.
+Environment=PORT=3000
+Environment=NODE_ENV=production
+
+Restart=always
+RestartSec=5
+
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+LimitNOFILE=65536
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

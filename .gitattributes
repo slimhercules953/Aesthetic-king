@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# systemd refuses to parse unit files with CRLF line endings and can silently
+# drop lines, and these are only ever consumed on the Linux VM. Pin LF so a
+# Windows checkout with core.autocrlf=true cannot reintroduce them.
+*.service text eol=lf

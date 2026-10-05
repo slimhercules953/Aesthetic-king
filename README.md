@@ -165,7 +165,7 @@ A user who has never signed into Studio has no entitlement row and is therefore 
 
 | | |
 |---|---|
-| **Bot** | Node.js, discord.js v14, Prisma, PostgreSQL, Cloudflare R2, node-canvas, Ollama (self-hosted AI), PM2 |
+| **Bot** | Node.js, discord.js v14, Prisma, PostgreSQL, Cloudflare R2, node-canvas, Ollama (self-hosted AI) |
 | **Studio** | Vinext + Vite, React 19, TypeScript, Tailwind, Cloudflare Workers + Hyperdrive, Wrangler, Discord OAuth, Lucide |
 | **Shared** | PostgreSQL (one schema, both apps), Cloudflare R2 asset bucket, Ollama |
 
@@ -239,6 +239,10 @@ npm run dev      # local dev server
 npm run build
 npm run deploy   # deploy to Cloudflare Workers
 ```
+
+The Studio can also run as a plain Node process instead of a Cloudflare Worker
+(`npm run build:node` / `npm run start:node`). [`DEPLOY.md`](DEPLOY.md) covers
+putting it on an Ubuntu/Debian VM with Postgres, systemd and a reverse proxy.
 
 ### Tests & utilities
 

@@ -170,64 +170,127 @@ PORT=3000 npm run start:node
 curl -I http://127.0.0.1:3000/
 ```
 
-### systemd unit for the site
+On a VM, only ever run `build:node` — never plain `npm run build`. Both configs
+write to the same `dist/`, and the Cloudflare one leaves a workerd bundle there
+that `vinext start` cannot execute. The site will fail to boot with a confusing
+error about a missing server entry, and the fix is just to re-run `build:node`.
 
-`/etc/systemd/system/aesthetic-studio.service`:
+## 8. Running it under systemd
 
-```ini
-[Unit]
-Description=Aesthetic King Studio
-After=network-online.target postgresql.service
-Wants=network-online.target
+Both apps are ordinary long-running Node processes, so systemd can supervise
+them directly. There is no PM2 dependency in either `package.json` — PM2 is
+only how the bot has been started so far — so nothing in the code has to
+change. The units live in [`deploy/systemd/`](deploy/systemd).
 
-[Service]
-Type=simple
-User=www-data
-WorkingDirectory=/opt/aesthetic-king/studio
-Environment=PORT=3000
-Environment=NODE_ENV=production
-ExecStart=/usr/bin/npm run start:node
-Restart=always
-RestartSec=5
+### If PM2 is currently running them
 
-[Install]
-WantedBy=multi-user.target
-```
+Stop it first, or the two supervisors will fight over the port and the bot will
+open a second Discord connection:
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now aesthetic-studio
-sudo journalctl -u aesthetic-studio -f
+pm2 list
+pm2 delete all
+pm2 unstartup systemd     # removes the resurrect-on-boot service
+rm -f ~/.pm2/dump.pm2     # so nothing is restored next boot
 ```
 
-### systemd unit for the bot (only if it moves to the VM too)
+Then create the service user, matching the units:
 
-`/etc/systemd/system/aesthetic-bot.service`:
+```bash
+sudo useradd --system --home /opt/aesthetic-king --shell /usr/sbin/nologin aesthetic
+sudo chown -R aesthetic:aesthetic /opt/aesthetic-king
+```
+
+Do this before installing the units. The site reads `studio/.env.local`, which
+holds the signing keys, so that file must not be world-readable and must not be
+owned by a user the web server can impersonate:
+
+```bash
+sudo chmod 600 /opt/aesthetic-king/.env /opt/aesthetic-king/studio/.env.local
+```
+
+### Install the units
+
+```bash
+sudo cp deploy/systemd/aesthetic-studio.service /etc/systemd/system/
+sudo cp deploy/systemd/aesthetic-bot.service /etc/systemd/system/
+sudo systemctl daemon-reload
+
+sudo systemctl enable --now aesthetic-studio
+sudo systemctl enable --now aesthetic-bot
+
+systemctl status aesthetic-studio aesthetic-bot
+sudo journalctl -u aesthetic-studio -u aesthetic-bot -f
+```
+
+Skip the bot unit if the bot stays on your PC — only the site moves.
+
+### Why the site's `ExecStart` is not `npm run start:node`
+
+This is the one thing worth getting right. With `npm run …` as `ExecStart`,
+`npm` is PID 1 of the service and the Node server is its child. systemd sends
+SIGTERM to the main PID only, `npm` does not forward it, and the site never
+runs its shutdown — `systemctl stop` then blocks until `TimeoutStopSec` and
+kills it with SIGKILL, possibly mid-request. Calling node on
+`node_modules/vinext/dist/cli.js` directly keeps the service to a single
+process that receives the signal. It was checked that this starts the server
+and serves pages exactly like the npm script does.
+
+The bot is already fine this way because `npm start` runs `node src/index.js`,
+which is a direct entry point, and `src/index.js` handles SIGTERM itself: it
+closes the Discord connection, drains the Prisma pool, and exits, with a 10s
+internal ceiling. `TimeoutStopSec=30` leaves room for that.
+
+### Why there is no `EnvironmentFile=`
+
+Both apps already load their own `.env` from the working directory — the bot
+via `dotenv.config()` in `src/config/env.js`, the site via vinext's own loader
+in `vinext start`, which reads `.env.local` from the cwd. So the units only set
+`PORT` and `NODE_ENV`.
+
+Avoid `EnvironmentFile=/opt/aesthetic-king/.env` even though it looks tidier:
+systemd expands `$` in those values, so a `DATABASE_URL` password containing a
+`$` gets silently replaced with an empty string and you get an authentication
+failure that reads like a wrong password.
+
+Note the precedence if you do set a variable in both places: `process.env`
+wins over `.env.local`, so a value in the unit silently shadows the file. Keep
+secrets in the file and only the port in the unit.
+
+### Day-to-day commands
+
+```bash
+sudo systemctl restart aesthetic-studio     # after a rebuild
+sudo systemctl stop aesthetic-bot           # graceful, waits for Discord to close
+sudo journalctl -u aesthetic-studio --since "10 min ago"
+sudo journalctl -u aesthetic-bot -p err      # errors only
+systemctl is-active aesthetic-studio aesthetic-bot
+```
+
+`Restart=always` means a crash comes back in 5 seconds on its own; check the
+journal rather than assuming a stopped service is dead.
+
+### Optional: journald limits
+
+Node logs a lot and journald is usually unlimited by default:
+
+```bash
+sudo systemctl edit journald
+```
 
 ```ini
-[Unit]
-Description=Aesthetic King bot
-After=network-online.target postgresql.service
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=www-data
-WorkingDirectory=/opt/aesthetic-king
-ExecStart=/usr/bin/node src/index.js
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
+[Journal]
+SystemMaxUse=500M
 ```
 
-The bot reads `.env` from its working directory, so `WorkingDirectory` matters.
+## 9. Reverse proxy + TLS
 
-## 8. Reverse proxy + TLS
+The site binds `127.0.0.1:3000` (see the `-H` flag in the unit), so it is
+reachable only through the proxy. That is deliberate: a VM has a public
+interface, and binding `0.0.0.0` would leave plain HTTP on :3000 sitting next
+to the proxy as a way around TLS.
 
-The Node server binds `0.0.0.0:3000` but should never be the public entry
-point. Caddy is the shortest path because it does certificates on its own:
+Caddy is the shortest path because it does certificates on its own:
 
 `/etc/caddy/Caddyfile`:
 
@@ -243,7 +306,17 @@ sudo systemctl reload caddy
 
 Point the DNS record at the VM first, otherwise the certificate request fails.
 
-## 9. Discord developer portal
+Confirm nothing is listening publicly:
+
+```bash
+ss -ltnp | grep -E ':(3000|5432)\b'
+```
+
+Both should show `127.0.0.1` (or the LAN range for Postgres if the bot is on a
+different box). If either shows `0.0.0.0`, fix it with `ufw deny` before you
+forget about it.
+
+## 10. Discord developer portal
 
 Add the production callback for client `1062520458416771092`:
 
@@ -257,18 +330,30 @@ header — trusting the header would let a forged one redirect a victim's auth
 code to an attacker's origin. So the domain in `NEXT_PUBLIC_APP_URL` and the
 one registered at Discord have to agree exactly, scheme included.
 
-## 10. Updating later
+## 11. Updating later
 
 ```bash
 cd /opt/aesthetic-king
+sudo systemctl stop aesthetic-studio
 git pull
 npm ci
 cd studio && npm ci && npm run build:node && cd ..
-npx prisma migrate deploy
-sudo systemctl restart aesthetic-studio
+npx prisma generate && npx prisma migrate deploy
+sudo systemctl start aesthetic-studio
 ```
 
-Restart the bot too if the pull touched `src/`.
+Stop the site before rebuilding rather than restarting after: `build:node`
+replaces `dist/` in place, and a running server reading a half-written bundle
+is the sort of failure that resolves itself before you look at the journal.
+
+Restart the bot too if the pull touched `src/` or `prisma/`:
+
+```bash
+sudo systemctl restart aesthetic-bot
+```
+
+Both units have `Restart=always`, so `stop` is a real stop (systemd remembers
+it) and only `start`/`restart` bring them back.
 
 ---
 

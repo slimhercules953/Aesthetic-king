@@ -1,0 +1,38 @@
+[Unit]
+Description=Aesthetic King bot
+Documentation=file:/opt/aesthetic-king/DEPLOY.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+User=aesthetic
+Group=aesthetic
+
+# src/config/env.js calls dotenv.config(), which reads .env from the process
+# working directory. Pointless to set this wrong.
+WorkingDirectory=/opt/aesthetic-king
+
+# src/index.js is already the entry point, so there is no npm wrapper to route
+# around here. The bot handles SIGTERM itself: it closes the Discord connection,
+# drains the Prisma pool, then exits, with a 10s internal ceiling.
+ExecStart=/usr/bin/node src/index.js
+
+Restart=always
+RestartSec=5
+
+KillSignal=SIGTERM
+# Longer than the bot's own 10s shutdown ceiling so systemd never kills it
+# before it has finished closing the Discord connection.
+TimeoutStopSec=30
+
+LimitNOFILE=65536
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
