@@ -4,10 +4,15 @@ The Studio can run as a plain Node process instead of a Cloudflare Worker —
 see `studio/README.md` → *Running on a VPS instead of Cloudflare* for what
 changes in the build. This file is the machine setup.
 
-The layout assumed below is the one that matters most: **Postgres lives on the
-VM and both apps use it.** The Studio runs there; the bot keeps running on the
-PC and connects over the network. They share one database, so splitting them
-without doing that leaves one of them pointing at a database nobody writes to.
+Two layouts work. Either both apps run on the VM (there is a systemd unit for
+each in `deploy/systemd/`, and Postgres is reachable only on `127.0.0.1`), or the
+Studio runs there and the bot stays on the PC and connects over the network. They
+share one database, so the thing you must not do is split them without deciding
+which machine owns Postgres — otherwise one of them points at a database nobody
+writes to.
+
+The steps below assume both apps end up on the VM. §3 explains what changes if
+the bot stays on the PC.
 
 ---
 
@@ -35,17 +40,45 @@ node -v
 
 CI pins Node 22; match it.
 
-## 3. PostgreSQL 16
+## 3. PostgreSQL
+
+**Install Postgres 18, not the Ubuntu default.** The current database on the PC
+is server 18 (`postgresql-x64-18`). Ubuntu 24.04 ships 16, and `pg_dump` refuses
+to dump from a newer server than itself while a 18 dump will not restore onto 16.
+Add the PostgreSQL Global Development Group repo:
 
 ```bash
-sudo apt install -y postgresql postgresql-contrib
+sudo apt install -y curl ca-certificates
+sudo install -d /usr/share/postgresql-common/pgdg
+sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail \
+  https://www.postgresql.org/media/keys/ACCC4CF8.asc
+echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo $VERSION_CODENAME)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+sudo apt update
+sudo apt install -y postgresql-18
+```
+
+Verify before you rely on it:
+
+```bash
+psql --version                      # want 18.x
+```
+
+If you would rather not match versions, the alternative is to leave Postgres on
+the PC and have the VM connect to it over the network — but that puts the
+database behind your home NAT and makes the site depend on the PC being on. Not
+recommended for something meant to be always-on.
+
+```bash
 sudo -u postgres psql -c "CREATE USER aesthetic WITH PASSWORD 'a-long-random-password';"
 sudo -u postgres psql -c "CREATE DATABASE aesthetic OWNER aesthetic;"
 ```
 
+Leave `listen_addresses` at its default `localhost` if both apps run on the VM.
+That keeps the database off the network entirely.
+
 ### If the bot connects from another machine
 
-Two files need editing, both under `/etc/postgresql/16/main/`.
+Two files need editing, both under `/etc/postgresql/18/main/`.
 
 `postgresql.conf`:
 
@@ -72,15 +105,82 @@ skip all of this — `localhost` is fine and faster.
 
 ## 4. Clone and install
 
-Do not copy the folder across. `node_modules` contains a `canvas` binary built
-for Windows, and `.env` files are gitignored so a copy silently half-works.
+Do not copy the project folder across. `node_modules` contains a `canvas` binary
+built for Windows, and `.env` files are gitignored so a copy silently half-works.
+
+Since the VM is a separate machine you reach over SSH, everything below runs in
+an SSH session on the VM. Push your branch first, then:
 
 ```bash
+ssh <user>@<vm-address>
 git clone -b v2 https://github.com/slimhercules953/Aesthetic-king.git /opt/aesthetic-king
 cd /opt/aesthetic-king
 npm ci
 cd studio && npm ci && cd ..
 ```
+
+If the repo is private, a HTTPS clone will prompt for a password GitHub no
+longer accepts. Add a fine-grained personal access token scoped to just this
+repository and use it as the password, or install a deploy key:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/aesthetic_deploy -N ""     # on the VM
+cat ~/.ssh/aesthetic_deploy.pub                             # paste as a read-only deploy key
+git config core.sshCommand "ssh -i ~/.ssh/aesthetic_deploy"
+```
+
+### The `.env` files have to come across separately
+
+They are gitignored, so `git clone` will not bring them. From the PC:
+
+```powershell
+cd "c:\Users\etter\OneDrive\Desktop\Coding stuff\New Bots\Aesthetic-king"
+scp .env <user>@<vm-address>:/tmp/bot.env
+scp studio\.env.local <user>@<vm-address>:/tmp/studio.env
+```
+
+Then on the VM, move them into place:
+
+```bash
+sudo mv /tmp/bot.env /opt/aesthetic-king/.env
+sudo mv /tmp/studio.env /opt/aesthetic-king/studio/.env.local
+```
+
+`/tmp` is world-readable, so delete them once moved: `shred -u /tmp/bot.env
+/tmp/studio.env` (or `rm -f` at minimum). Ownership and `chmod 600` are in §8.
+
+Copying these two files as-is is safe even though they were written on Windows:
+`dotenv` and vinext's own parser both normalise CRLF, so no stray `\r` ends up in
+a value. Verified against both parsers.
+
+### Moving the existing data
+
+The database is currently on the PC in Postgres 18, so a fresh clone starts
+empty. Dump and restore rather than re-creating content by hand:
+
+```powershell
+# on the PC
+pg_dump -U postgres -d aesthetic_king -f ak.sql
+scp ak.sql <user>@<vm-address>:/tmp/
+```
+
+`pg_dump` is at `C:\Program Files\PostgreSQL\18\bin\pg_dump.exe`; add it to your
+PATH for the command, or call it by full path. It will prompt for the postgres
+password.
+
+```bash
+# on the VM
+psql "postgresql://aesthetic:<password>@127.0.0.1:5432/aesthetic" -f /tmp/ak.sql
+shred -u /tmp/ak.sql
+```
+
+The dump is plain SQL containing your password hashes and encrypted OAuth
+tokens, so do not leave it in `/tmp`.
+
+This is why §3 installs Postgres 18: the dump is only forward-compatible, and a
+18 dump restored onto 16 fails on version-gated statements. The local database is
+named `aesthetic_king` while the runbook uses `aesthetic` on the VM — that is
+fine, `pg_dump` output does not reference the source database name.
 
 ## 5. Environment files
 
@@ -91,10 +191,20 @@ TOKEN=<bot token>
 CLIENT_ID=<application id>
 DEV_GUILD_ID=<guild id used for local command deploys>
 DATABASE_URL=postgresql://aesthetic:<password>@127.0.0.1:5432/aesthetic
+R2_ACCOUNT_ID=<cloudflare account id>
+R2_ACCESS_KEY_ID=<r2 access key id>
+R2_SECRET_ACCESS_KEY=<r2 secret>
+R2_BUCKET_NAME=<bucket name>
+R2_PUBLIC_URL=https://<pub bucket hostname>
 OLLAMA_URL=http://<ollama-host>:11434
 OLLAMA_MODEL=<model tag>
 NODE_ENV=production
 ```
+
+The `R2_*` block is not optional — the bot reads it directly (`src/config/env.js`)
+and serves every asset from the bucket. Without it it starts fine and then fails
+when a command tries to render. `R2_ENDPOINT` is derived from `R2_ACCOUNT_ID`, so
+leave it unset unless you use a custom endpoint.
 
 If the bot stays on the PC, change only `DATABASE_URL` there — and note the
 TLS rule below.
@@ -119,14 +229,20 @@ STRIPE_SECRET_KEY=sk_live_...
 `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` is the local
 Hyperdrive emulator and is not needed on a VM — leave it out.
 
-Three things here are easy to get wrong:
+Four things here are easy to get wrong:
 
+- **`OLLAMA_URL` currently points at a LAN address** (`http://10.40.10.167:11434`
+  on this PC). The VM is on a different network and cannot reach it. Either run
+  Ollama on the VM and use `http://127.0.0.1:11434`, expose the PC's instance on
+  the internet, or the AI features fail at call time — the app still boots.
 - **`SESSION_SECRET` and `OAUTH_TOKEN_ENCRYPTION_KEY` must be byte-identical
   to the current host.** Stored Discord OAuth tokens are encrypted with the
   latter; change it and every token in the database becomes undecryptable and
   all users are logged out. Copy the exact values.
-- **`NEXT_PUBLIC_APP_URL` is inlined at build time.** Setting it after
-  `npm run build:node` has no effect — rebuild.
+- **`NEXT_PUBLIC_APP_URL` is inlined at build time.** It is currently
+  `http://localhost:3000`, which would bake a broken link into every page. Set
+  it to the real `https://` domain *before* `npm run build:node`, or rebuild
+  after.
 - **`DATABASE_URL` TLS.** `studio/lib/database.ts` requires a verified TLS
   connection for any host that is not localhost/LAN, and skips TLS for
   localhost and private ranges. So `127.0.0.1` on the VM needs nothing, but a
@@ -136,6 +252,11 @@ Three things here are easy to get wrong:
 
 ## 6. Database schema
 
+If you restored a dump in §4, skip this — the dump already carries the schema
+and Prisma's `_prisma_migrations` table, so the command below is a no-op.
+
+For a fresh database:
+
 ```bash
 cd /opt/aesthetic-king
 npx prisma generate
@@ -144,16 +265,6 @@ npx prisma migrate deploy
 
 `migrate deploy` is the production command — it applies pending migrations
 without the diff prompts `migrate dev` would ask for.
-
-To move existing data rather than start empty, dump from the current server
-and restore:
-
-```bash
-# on the old machine
-pg_dump -U postgres -d <olddb> -f ak.sql
-# on the VM
-psql -U aesthetic -d aesthetic -f ak.sql
-```
 
 ## 7. Build and run
 
@@ -361,6 +472,11 @@ it) and only `start`/`restart` bring them back.
 
 These are not deployment steps and cannot be finished from the code:
 
+- **Where Ollama runs** — `OLLAMA_URL` is currently `http://10.40.10.167:11434`,
+  a LAN address on your home network. The VM cannot reach it. Decide between
+  installing Ollama on the VM, exposing the PC's instance publicly, or dropping
+  the AI features. Nothing else breaks if you skip this — the apps boot and only
+  AI generation fails, at call time.
 - **DNS for `aesthetic.etterdigital.dev`** — until it resolves, the webhooks
   below have nowhere to arrive and the certificate cannot be issued.
 - **`STRIPE_WEBHOOK_SECRET`** — set in the Stripe dashboard *after* the domain
