@@ -346,6 +346,25 @@ sudo useradd --system --home /opt/aesthetic-king --shell /usr/sbin/nologin aesth
 sudo chown -R aesthetic:aesthetic /opt/aesthetic-king
 ```
 
+Once that `chown` has run, your login user can no longer write into `/opt` at
+all, so `scp .env thomas@host:/opt/aesthetic-king/.env` fails with
+`dest open "/opt/aesthetic-king/.env": Permission denied`. Copy the files to
+your home directory and install them from there — `install` sets owner and mode
+in one step, so the secrets never sit in `/opt` owned by the wrong user:
+
+```bash
+# on the VM
+mkdir -p ~/ak-deploy
+# scp the files to ~/ak-deploy/ from wherever they came, then:
+cd /opt/aesthetic-king
+sudo install -o aesthetic -g aesthetic -m 600 ~/ak-deploy/env       .env
+sudo install -o aesthetic -g aesthetic -m 600 ~/ak-deploy/env.local studio/.env.local
+rm -rf ~/ak-deploy
+```
+
+This matters more than it looks because both `.env` files are gitignored, so
+`git pull` never touches them and this is the only way to change them.
+
 Do this before installing the units. The site reads `studio/.env.local`, which
 holds the signing keys, so that file must not be world-readable and must not be
 owned by a user the web server can impersonate:
@@ -556,13 +575,18 @@ one registered at Discord have to agree exactly, scheme included.
 
 ## 11. Updating later
 
+After §8's `chown`, the tree belongs to `aesthetic` and your login user cannot
+write to it, so `git pull` fails with `unable to write ...` or a detached
+HEAD. Run the update as the service user:
+
 ```bash
 cd /opt/aesthetic-king
 sudo systemctl stop aesthetic-studio
-git pull
-npm ci
-cd studio && npm ci && npm run build:node && cd ..
-npx prisma generate && npx prisma migrate deploy
+sudo -u aesthetic git pull
+sudo -u aesthetic npm ci
+cd studio && sudo -u aesthetic npm ci && sudo -u aesthetic npm run build:node && cd ..
+sudo -u aesthetic npx prisma generate
+sudo -u aesthetic npx prisma migrate deploy
 sudo systemctl start aesthetic-studio
 ```
 
@@ -578,6 +602,14 @@ sudo systemctl restart aesthetic-bot
 
 Both units have `Restart=always`, so `stop` is a real stop (systemd remembers
 it) and only `start`/`restart` bring them back.
+
+If `git pull` complains about `safe.directory`, git is refusing to operate on a
+tree owned by someone else. Either keep using `sudo -u aesthetic` as above, or
+register it once:
+
+```bash
+sudo git config --system --add safe.directory /opt/aesthetic-king
+```
 
 ---
 
