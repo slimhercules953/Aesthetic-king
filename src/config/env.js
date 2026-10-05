@@ -147,8 +147,7 @@ const config = {
      * Studio's Earn page follows with `isEarnSourceLive`.
      *
      * Top.gg needs no configuration: the listing URL is derived from the
-     * application id. Chime's slug is not derivable, so it stays hidden
-     * until `CHIME_BOT_URL` is set.
+     * application id.
      */
     voting: {
         topgg:
@@ -158,8 +157,6 @@ const config = {
                     ? `https://top.gg/bot/${process.env.CLIENT_ID}/vote`
                     : ""
             ),
-
-        chime: process.env.CHIME_BOT_URL || "",
     },
 
     /*

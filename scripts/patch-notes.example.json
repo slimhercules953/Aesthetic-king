@@ -1,8 +1,8 @@
 [
   {
     "version": "1.5.0",
-    "title": "Patch notes, voting and Chime",
-    "body": "• New /patch-notes command — run it to see what has changed\n• New /vote command listing every site you can vote on\n• Voting on Top.gg and Chime now pays 10 Crowns each, once per day\n• The Studio now shows every server the bot is actually in\n• Fixed the Crowns and Billing page crashing on the Studio",
+    "title": "Patch notes and voting",
+    "body": "• New /patch-notes command — run it to see what has changed\n• New /vote command listing every site you can vote on\n• Voting on Top.gg now pays 10 Crowns, once per day\n• The Studio now shows every server the bot is actually in\n• Fixed the Crowns and Billing page crashing on the Studio",
     "publishedAt": "2026-10-05T00:00:00.000Z"
   },
   {

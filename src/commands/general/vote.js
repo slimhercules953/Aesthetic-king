@@ -37,10 +37,6 @@ function buildVoteEmbed(client) {
         sites.push(`• **[Top.gg](${config.voting.topgg})**`);
     }
 
-    if (config.voting.chime) {
-        sites.push(`• **[Chime](${config.voting.chime})**`);
-    }
-
     const embed = new EmbedBuilder()
         .setColor(0xf59e0b)
         .setTitle("Vote for Aesthetic King")
