@@ -584,31 +584,74 @@ export async function getDiscordGuilds(
     }
 
     const request = (async () => {
-        const response =
-            await fetch(
-                `${DISCORD_API_BASE}/users/@me/guilds`,
-                {
-                    headers: {
-                        Authorization:
-                            `Bearer ${accessToken}`,
-                    },
-                }
-            );
+        /*
+         * `/users/@me/guilds` returns at most 200 guilds per request, so an
+         * unpaginated fetch silently truncates anyone in more servers than
+         * that: the overflow simply never appears in the list and nothing
+         * ever reports it. Walk `after=` until a page comes back short.
+         *
+         * The page cap is only a guard against a malformed response looping
+         * forever -- 50 pages is 10,000 guilds, far past any real account.
+         */
+        const allGuilds: DiscordGuild[] = [];
 
-        if (!response.ok) {
-            const text =
-                await response.text();
+        let after: string | null = null;
 
-            console.error(
-                `Discord guild request failed: ${response.status} ${response.statusText} - ${text}`
-            );
+        for (let page = 0; page < 50; page += 1) {
+            const url =
+                new URL(
+                    `${DISCORD_API_BASE}/users/@me/guilds`
+                );
 
-            throw new Error(
-                "Discord did not return your servers. Please sign in again."
-            );
+            url.searchParams.set("limit", "200");
+
+            if (after) {
+                url.searchParams.set("after", after);
+            }
+
+            const response =
+                await fetch(
+                    url.toString(),
+                    {
+                        headers: {
+                            Authorization:
+                             `Bearer ${accessToken}`,
+                        },
+                    }
+                );
+
+            if (!response.ok) {
+                const text =
+                    await response.text();
+
+                console.error(
+                    `Discord guild request failed: ${response.status} ${response.statusText} - ${text}`
+                );
+
+                throw new Error(
+                    "Discord did not return your servers. Please sign in again."
+                );
+            }
+
+            const batch =
+                (await response.json()) as DiscordGuild[];
+
+            allGuilds.push(...batch);
+
+            if (batch.length < 200) {
+                return allGuilds;
+            }
+
+            const last = batch[batch.length - 1];
+
+            after = last ? last.id : null;
+
+            if (!after) {
+                return allGuilds;
+            }
         }
 
-        return response.json() as Promise<DiscordGuild[]>;
+        return allGuilds;
     })();
 
     guildRequests.set(key, request);

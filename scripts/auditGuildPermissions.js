@@ -143,12 +143,44 @@ async function inspectGuild(rest, botId, guild) {
     };
 }
 
+/*
+ * `/users/@me/guilds` caps a response at 200 guilds, so a single `get` silently
+ * reports only the first 200 for a bot in more servers than that. Walk `after=`
+ * until a page comes back short.
+ */
+async function fetchAllGuilds(rest) {
+    const guilds = [];
+    let after = null;
+
+    for (let page = 0; page < 50; page += 1) {
+        const route = after
+            ? `${Routes.userGuilds()}?limit=200&after=${after}`
+            : `${Routes.userGuilds()}?limit=200`;
+
+        const batch = await rest.get(route);
+
+        guilds.push(...batch);
+
+        if (batch.length < 200) {
+            return guilds;
+        }
+
+        after = batch[batch.length - 1] ? batch[batch.length - 1].id : null;
+
+        if (!after) {
+            return guilds;
+        }
+    }
+
+    return guilds;
+}
+
 async function main() {
     const rest = new REST({ version: "10" }).setToken(
         config.discord.token
     );
 
-    const guilds = await rest.get(Routes.userGuilds());
+    const guilds = await fetchAllGuilds(rest);
 
     /*
      * Taken from the token rather than CLIENT_ID on purpose: if the two ever
