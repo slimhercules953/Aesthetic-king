@@ -471,6 +471,8 @@ and streams responses back, so the VM needs no inbound connectivity.
 Requires the domain's DNS to be hosted by Cloudflare. Check with
 `dig NS etterdigital.dev` — the answer must be `*.ns.cloudflare.com`.
 
+Install the connector first:
+
 ```bash
 # Install Cloudflare's apt repo (the signed-by key avoids apt-key, which is
 # removed in newer Ubuntu).
@@ -480,7 +482,77 @@ curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \
 echo "deb [signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared $(lsb_release -cs) main" \
   | sudo tee /etc/apt/sources.list.d/cloudflared.list
 sudo apt update && sudo apt install -y cloudflared
+```
 
+There are two ways to tell the connector which tunnel it is running, and they
+are mutually exclusive. Pick one.
+
+**Token / remotely managed (what this deployment uses).** The tunnel, its
+hostname routes and its DNS record all live in the Cloudflare dashboard, and
+the connector is handed a bearer token that identifies the tunnel. Nothing is
+configured on the VM beyond the token, so rebuilding the VM is just
+"install cloudflared, paste the token".
+
+In the dashboard: *Networks → Tunnels → Create Tunnel → cloudflared*, name it
+`aesthetic-studio`, then add a *Published application* route with hostname
+`aesthetic.etterdigital.dev` and service `http://localhost:3100`. Copy the
+token from the installer snippet — note that the snippet shown is for the
+selected OS, but the token itself is the same for every platform.
+
+If the VM already runs `cloudflared` for another hostname (check with
+`systemctl status cloudflared --no-pager`), you may not need the token at all.
+A connector started with an account-level token picks up every remotely
+managed tunnel in the account automatically, so creating the tunnel and adding
+its route is enough — the dashboard shows a connector on the tunnel within a
+few seconds. Confirm the connector's `arch` matches the machine you expect
+(`linux_amd64` for the VM, `linux_arm64` for a Pi) before believing it. Only
+install a per-tunnel token if the tunnel shows no connector.
+
+```bash
+# From the PC. The token is a bearer credential, so it must not be committed;
+# tunnel-token.txt is gitignored.
+scp tunnel-token.txt thomas@VM:/tmp/tunnel-token
+
+# On the VM.
+sudo install -d -m 0755 /etc/cloudflared
+sudo install -m 600 -o root -g root /tmp/tunnel-token /etc/cloudflared/token
+sudo rm -f /tmp/tunnel-token
+sudo cloudflared service install --token "$(sudo cat /etc/cloudflared/token)"
+sudo systemctl enable --now cloudflared
+sudo systemctl status cloudflared --no-pager
+```
+
+The service unit `cloudflared service install` writes passes
+`--token-file /etc/cloudflared/token`, so the token never appears in the
+process list or in journald.
+
+Two traps with this mode:
+
+- **`localhost` is the connector's localhost, not yours.** A route of
+  `http://localhost:3100` only works because the connector runs on the same
+  machine as the app. If the connector for a hostname lives on another box
+  (a Raspberry Pi, an old PC), the route has to name a reachable address
+  instead, and the 502 comes back as soon as you assume otherwise.
+- **The scheme must match what the app speaks.** The Studio is plain HTTP, so
+  `https://localhost:3100` fails the TLS handshake and Cloudflare shows a 502
+  "Host Error". Use `http://`.
+- **Moving a hostname between tunnels is two steps.** Adding a route for a
+  hostname that already has a DNS record does *not* repoint the record; it
+  keeps pointing at the old tunnel. Edit the record (or delete and recreate it)
+  so the `CNAME` targets `<new-tunnel-id>.cfargotunnel.com`.
+- **Deleting a route deletes the DNS record too**, even one you repointed by
+  hand. If you delete the stale route on the old tunnel after moving the
+  hostname, the site goes down with Cloudflare error 1016 "DNS Resolution
+  Error" until you recreate the record. Recreating it through the API needs the
+  CNAME `content` to end in a dot
+  (`<tunnel-id>.cfargotunnel.com.`) or it is rejected with error 9007.
+
+**Locally managed.** Ingress lives in `/etc/cloudflared/config.yml` and the
+tunnel is created with `cloudflared tunnel create`, which writes a per-tunnel
+credential JSON. Useful if you want routes in version control, but the VM then
+owns the routing config.
+
+```bash
 # One-time: authorise this machine against your Cloudflare account. Opens a
 # browser, so on a headless VM run it and then open the printed URL.
 # Deliberately NOT sudo'd. `login` and `create` only talk to the Cloudflare
@@ -515,11 +587,23 @@ sudo systemctl enable --now cloudflared
 sudo systemctl status cloudflared --no-pager
 ```
 
-Then confirm the tunnel can reach the app:
+Then confirm the tunnel can reach the app (locally managed only):
 
 ```bash
 sudo cloudflared tunnel --config /etc/cloudflared/config.yml ingress validate
 sudo cloudflared tunnel --config /etc/cloudflared/config.yml ingress http://127.0.0.1:3100
+```
+
+Whichever mode you use, **only one connector per hostname should be running**.
+Cloudflare load-balances across every connector attached to a tunnel, so a
+leftover connector on another machine makes the site fail intermittently
+rather than consistently. If the tunnel used to run somewhere else — on
+Windows it is a service called `Cloudflared` — stop and disable it:
+
+```powershell
+# elevated PowerShell, on the old host
+Stop-Service Cloudflared
+Set-Service Cloudflared -StartupType Disabled
 ```
 
 Two things to expect that are not bugs:
@@ -627,10 +711,13 @@ These are not deployment steps and cannot be finished from the code:
   installing Ollama on the VM, exposing the PC's instance publicly, or dropping
   the AI features. Nothing else breaks if you skip this — the apps boot and only
   AI generation fails, at call time.
-- **DNS for `aesthetic.etterdigital.dev`** — the domain is already on Cloudflare
-  DNS, and `cloudflared tunnel route dns` creates the record for you, so with
-  §9a there is nothing to do in the dashboard. Until the tunnel is up, the
-  webhooks below have nowhere to arrive.
+- **DNS for `aesthetic.etterdigital.dev`** — done for this deployment: the
+  hostname is a proxied `CNAME` to
+  `f37ee879-eb6e-421b-8a59-bd63e222fd61.cfargotunnel.com` (tunnel
+  `aesthetic-studio`), and `https://aesthetic.etterdigital.dev/` serves the
+  Studio. Keep in mind that adding the *Published application* route only
+  creates the record when the hostname was not already routed somewhere else,
+  and that deleting a route deletes the record — see the traps in §9a.
 - **`STRIPE_WEBHOOK_SECRET`** — set in the Stripe dashboard *after* the domain
   works, pointing at `https://<domain>/api/webhooks/stripe`. Premium is not
   activated by the checkout itself; only the webhook does that, so billing
