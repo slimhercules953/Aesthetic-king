@@ -428,14 +428,92 @@ sudo systemctl edit journald
 SystemMaxUse=500M
 ```
 
-## 9. Reverse proxy + TLS
+## 9. Getting traffic to the site
 
 The site binds `127.0.0.1:3000` (see the `-H` flag in the unit), so it is
-reachable only through the proxy. That is deliberate: a VM has a public
-interface, and binding `0.0.0.0` would leave plain HTTP on :3000 sitting next
-to the proxy as a way around TLS.
+reachable only through something else. That is deliberate regardless of which
+option below you pick: binding `0.0.0.0` would leave plain unencrypted HTTP on
+:3000 as a way around TLS.
 
-Caddy is the shortest path because it does certificates on its own:
+Which option applies depends on whether the VM has a public address.
+
+### 9a. Cloudflare Tunnel (VM behind NAT, no public IP)
+
+This is the path when the VM only has a private address (e.g. `10.40.x.x`).
+There is no public address to aim a DNS record at and no port to forward, so
+the usual reverse proxy cannot work. `cloudflared` dials *out* to Cloudflare
+and streams responses back, so the VM needs no inbound connectivity.
+
+Requires the domain's DNS to be hosted by Cloudflare. Check with
+`dig NS etterdigital.dev` — the answer must be `*.ns.cloudflare.com`.
+
+```bash
+# Install Cloudflare's apt repo (the signed-by key avoids apt-key, which is
+# removed in newer Ubuntu).
+sudo mkdir -p --mode=0755 /etc/apt/keyrings
+curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \
+  | sudo tee /etc/apt/keyrings/cloudflare-main.gpg >/dev/null
+echo "deb [signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared $(lsb_release -cs) main" \
+  | sudo tee /etc/apt/sources.list.d/cloudflared.list
+sudo apt update && sudo apt install -y cloudflared
+
+# One-time: authorise this machine against your Cloudflare account. Opens a
+# browser, so on a headless VM run it and then open the printed URL.
+# Deliberately NOT sudo'd. `login` and `create` only talk to the Cloudflare
+# API and write into the invoking user's ~/.cloudflared; running them under
+# sudo makes the output location depend on how sudo handles $HOME, which
+# differs between Ubuntu versions. Root is only needed for /etc and the
+# service, both later.
+cloudflared tunnel login
+cloudflared tunnel create aesthetic-studio
+# Prints "Created tunnel aesthetic-studio with id <uuid>" and writes
+# ~/.cloudflared/<uuid>.json. Copy the UUID.
+TUNNEL_ID=<paste-the-uuid-from-above>
+
+# Point the hostname at the tunnel. Creates the DNS record automatically; it
+# must be proxied (orange cloud), not DNS-only, or the tunnel never sees the
+# traffic.
+cloudflared tunnel route dns aesthetic-studio aesthetic.etterdigital.dev
+
+# Now move the credential into a place the service can read. cert.pem is only
+# needed for API calls like the two above, so it does not have to move.
+sudo install -d -m 0755 /etc/cloudflared
+sudo cp "$HOME/.cloudflared/$TUNNEL_ID.json" /etc/cloudflared/
+# The credentials file is a bearer token for the tunnel.
+sudo chmod 600 "/etc/cloudflared/$TUNNEL_ID.json"
+
+sudo cp /opt/aesthetic-king/deploy/cloudflared/config.yml.example /etc/cloudflared/config.yml
+sudo sed -i "s/<TUNNEL_ID>/$TUNNEL_ID/g" /etc/cloudflared/config.yml
+
+# Generates /etc/systemd/system/cloudflared.service from this config.
+sudo cloudflared service install
+sudo systemctl enable --now cloudflared
+sudo systemctl status cloudflared --no-pager
+```
+
+Then confirm the tunnel can reach the app:
+
+```bash
+sudo cloudflared tunnel --config /etc/cloudflared/config.yml ingress validate
+sudo cloudflared tunnel --config /etc/cloudflared/config.yml ingress http://127.0.0.1:3000
+```
+
+Two things to expect that are not bugs:
+
+- **`Next-Action: 5` / a 530 in the browser while the Studio is down.** The
+  tunnel answers on Cloudflare's edge even when nothing is listening locally,
+  so a stopped app looks like a DNS problem. Check
+  `curl -I http://127.0.0.1:3000/` on the VM first.
+- **Visitor IP addresses become Cloudflare's.** If anything logs or rate-limits
+  by IP, read `CF-Connecting-IP` instead of the socket address.
+
+Because Cloudflare terminates TLS, there is no certificate to manage here and
+no Caddy to install.
+
+### 9b. Caddy (VM has a public address)
+
+Caddy is the shortest path when you *do* have a reachable address, because it
+issues certificates on its own:
 
 `/etc/caddy/Caddyfile`:
 
@@ -451,15 +529,16 @@ sudo systemctl reload caddy
 
 Point the DNS record at the VM first, otherwise the certificate request fails.
 
-Confirm nothing is listening publicly:
+### Either way: confirm nothing is listening publicly
 
 ```bash
-ss -ltnp | grep -E ':(3000|5432)\b'
+ss -ltnp | grep -E ':(80|443|3000|5432)\b'
 ```
 
-Both should show `127.0.0.1` (or the LAN range for Postgres if the bot is on a
-different box). If either shows `0.0.0.0`, fix it with `ufw deny` before you
-forget about it.
+`3000` and `5432` should show `127.0.0.1` (or the LAN range for Postgres if the
+bot is on a different box). If either shows `0.0.0.0`, fix it with `ufw deny`
+before you forget about it. With the tunnel there is no reason for anything to
+accept inbound connections at all.
 
 ## 10. Discord developer portal
 
@@ -511,8 +590,10 @@ These are not deployment steps and cannot be finished from the code:
   installing Ollama on the VM, exposing the PC's instance publicly, or dropping
   the AI features. Nothing else breaks if you skip this — the apps boot and only
   AI generation fails, at call time.
-- **DNS for `aesthetic.etterdigital.dev`** — until it resolves, the webhooks
-  below have nowhere to arrive and the certificate cannot be issued.
+- **DNS for `aesthetic.etterdigital.dev`** — the domain is already on Cloudflare
+  DNS, and `cloudflared tunnel route dns` creates the record for you, so with
+  §9a there is nothing to do in the dashboard. Until the tunnel is up, the
+  webhooks below have nowhere to arrive.
 - **`STRIPE_WEBHOOK_SECRET`** — set in the Stripe dashboard *after* the domain
   works, pointing at `https://<domain>/api/webhooks/stripe`. Premium is not
   activated by the checkout itself; only the webhook does that, so billing

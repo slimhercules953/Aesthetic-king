@@ -1,0 +1,27 @@
+# /etc/cloudflared/config.yml
+#
+# Template for exposing the Studio through a Cloudflare Tunnel. Copy it, replace
+# both <TUNNEL_ID> occurrences, and run `sudo cloudflared service install` to
+# generate the systemd unit.
+#
+# Why a tunnel instead of Caddy + a DNS A record: the VM sits behind NAT on a
+# private address (10.40.x.x), so there is no public address to point a record
+# at and no port to forward. cloudflared dials *out* to Cloudflare and streams
+# responses back, so the VM needs no inbound connectivity at all.
+#
+# The Studio still binds 127.0.0.1:3000 (the -H flag in
+# deploy/systemd/aesthetic-studio.service). That is still correct with a tunnel:
+# cloudflared runs on this machine and talks to the loopback address, and
+# nothing else on the network can reach :3000 directly.
+
+tunnel: <TUNNEL_ID>
+credentials-file: /etc/cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  - hostname: aesthetic.etterdigital.dev
+    service: http://127.0.0.1:3000
+
+  # Required catch-all. Without it cloudflared refuses to start, and the error
+  # ("each tunnel must have a default catch-all rule") does not mention the
+  # missing hostname entry that caused it.
+  - service: http_status:404
