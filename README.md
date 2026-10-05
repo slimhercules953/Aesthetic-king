@@ -229,7 +229,7 @@ Checkout is off until it is configured, and it stays honest while off: the billi
 
 1. Create one **recurring** price for Premium Monthly and one-time prices for the Quarter and Annual passes in Stripe, and copy each `price_…` id into `PREMIUM_MONTHLY_PRICE_ID`, `PREMIUM_QUARTER_PRICE_ID` and `PREMIUM_ANNUAL_PRICE_ID`. A plan with an empty id is not offered, so plans can be enabled one at a time.
 2. Set `STRIPE_SECRET_KEY` (`sk_test_…` until you mean it).
-3. Subscribe a webhook to `https://<your-app>/api/webhooks/stripe` for `checkout.session.completed`, `invoice.paid`, `customer.subscription.deleted` and `charge.refunded`, and set `STRIPE_WEBHOOK_SECRET` to the signing secret it gives you.
+3. Subscribe a webhook to `https://<your-app>/api/webhooks/stripe` for `checkout.session.completed`, `invoice.paid`, `invoice.payment_succeeded`, `customer.subscription.deleted` and `charge.refunded`, and set `STRIPE_WEBHOOK_SECRET` to the signing secret it gives you. Create it with the same API version the app is running against — the payloads differ enough between versions that a mismatch silently mis-dates grants.
 4. Set `NEXT_PUBLIC_APP_URL` to the app's public origin — checkout builds its redirect URLs from it and refuses to trust the `Host` header in production.
 
 `PAYMENT_PROVIDER` selects the adapter and defaults to `stripe`; an unrecognised value disables checkout rather than guessing. `PREMIUM_*_DISPLAY_PRICE` override the price text shown on each card, which is copy only — the amount charged always comes from the Stripe price object, never from the browser.

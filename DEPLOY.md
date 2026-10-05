@@ -258,6 +258,7 @@ OLLAMA_URL=http://<ollama-host>:11434
 PREMIUM_MONTHLY_PRICE_ID=price_...
 PREMIUM_ANNUAL_PRICE_ID=price_...
 STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
 `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` is the local
@@ -728,10 +729,16 @@ These are not deployment steps and cannot be finished from the code:
   Studio. Keep in mind that adding the *Published application* route only
   creates the record when the hostname was not already routed somewhere else,
   and that deleting a route deletes the record — see the traps in §9a.
-- **`STRIPE_WEBHOOK_SECRET`** — set in the Stripe dashboard *after* the domain
-  works, pointing at `https://<domain>/api/webhooks/stripe`. Premium is not
+- **`STRIPE_WEBHOOK_SECRET`** — done for `aesthetic.etterdigital.dev`: endpoint
+  `we_1UNDv9CkTi4OEW1yuiShRn4E` is enabled on the test account and subscribed to
+  `checkout.session.completed`, `invoice.paid`, `invoice.payment_succeeded`,
+  `customer.subscription.deleted` and `charge.refunded` on API version
+  `2026-08-26.dahlia`. Copy its `whsec_…` into the env file. Premium is not
   activated by the checkout itself; only the webhook does that, so billing
-  appears to take money and grant nothing until this is wired up.
+  appears to take money and grant nothing until this is wired up. A live-key
+  deployment needs its **own** endpoint — the test secret will not sign live
+  events, and the payloads must be created against the same API version the app
+  reads.
 - **`TOPGG_WEBHOOK_SECRET`** — same story for
   `https://<domain>/api/webhooks/topgg`.
 - **`CHIME_WEBHOOK_SECRET`** — and for

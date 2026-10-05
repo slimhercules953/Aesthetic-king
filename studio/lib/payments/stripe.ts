@@ -180,6 +180,113 @@ function fromUnix(seconds: number | null): Date | null {
 }
 
 /**
+ * Reads one object back out of Stripe.
+ *
+ * Webhook payloads are deliberately thin: a `checkout.session.completed`
+ * names the subscription but does not describe it, and the field that
+ * decides how long Premium lasts lives on the subscription itself. Fetching
+ * is the only way to read it.
+ *
+ * Every failure — no key, a non-2xx, a network error, a body that is not
+ * JSON — returns null rather than throwing. A webhook must be answered
+ * quickly and exactly once; failing the fetch must degrade to "we could not
+ * confirm the period", never to a 500 that makes Stripe redeliver a payment
+ * we have already recorded.
+ */
+async function stripeGet(
+    secretKey: string,
+    path: string
+): Promise<Record<string, unknown> | null> {
+    if (!secretKey) {
+        return null;
+    }
+
+    try {
+        const response = await fetch(`${STRIPE_API}${path}`, {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${secretKey}`,
+            },
+        });
+
+        if (!response.ok) {
+            return null;
+        }
+
+        return asRecord(await response.json().catch(() => ({})));
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * The first row of a Stripe list response, or null.
+ */
+function firstListRow(
+    list: Record<string, unknown> | null
+): Record<string, unknown> | null {
+    const data = asRecord(list).data;
+
+    return Array.isArray(data) && data.length > 0
+        ? asRecord(data[0])
+        : null;
+}
+
+/**
+ * The end of the period Stripe actually billed for.
+ *
+ * Current API versions removed `current_period_end` from the Subscription
+ * object; the clock now lives on each subscription *item*. The old
+ * top-level field is still read as a fallback so a deployment pinned to an
+ * older version keeps working.
+ */
+function periodEndFromSubscription(
+    subscription: Record<string, unknown>
+): Date | null {
+    const items = asRecord(subscription.items).data;
+
+    if (Array.isArray(items)) {
+        for (const item of items) {
+            const end = fromUnix(
+                readNumber(
+                    asRecord(item),
+                    "current_period_end"
+                )
+            );
+
+            if (end) {
+                return end;
+            }
+        }
+    }
+
+    return fromUnix(
+        readNumber(subscription, "current_period_end")
+    );
+}
+
+/**
+ * The price a subscription is billed at, read from its first item.
+ *
+ * Stripe expands `items[].price` into the full price object here, so the id
+ * is one level deeper than it looks.
+ */
+function priceIdFromSubscription(
+    subscription: Record<string, unknown>
+): string | null {
+    const items = asRecord(subscription.items).data;
+
+    if (!Array.isArray(items) || items.length === 0) {
+        return null;
+    }
+
+    return readString(
+        asRecord(asRecord(items[0]).price),
+        "id"
+    );
+}
+
+/**
  * Reads the Discord id back out of a checkout session.
  *
  * The id was written into `client_reference_id` and metadata by
@@ -227,14 +334,182 @@ function priceIdFromSession(
 }
 
 /**
+ * Everything the app needs to know about the subscription behind an invoice.
+ *
+ * Current API versions removed `invoice.subscription` and
+ * `invoice.checkout_session`; the link now lives at
+ * `invoice.parent.subscription_details.subscription`, and the identity this
+ * app stamped onto the subscription is echoed back in the sibling
+ * `metadata`. Without both, a renewal or a refund cannot be attributed to
+ * anybody.
+ */
+function subscriptionContextFromInvoice(
+    invoice: Record<string, unknown> | null
+): {
+    subscriptionId: string | null;
+    discordId: string | null;
+    planId: string | null;
+} {
+    const details = asRecord(
+        asRecord(asRecord(invoice).parent).subscription_details
+    );
+    const metadata = asRecord(details.metadata);
+
+    return {
+        subscriptionId: readString(details, "subscription"),
+        discordId: readString(metadata, "discordId"),
+        planId: readString(metadata, "planId"),
+    };
+}
+
+/**
+ * The invoice a payment belongs to, given a payment intent id.
+ *
+ * Stripe no longer puts the invoice id on the PaymentIntent; it is echoed
+ * in `payment_details.order_reference`. That reference is set for invoice
+ * payments, which is exactly the subscription case that matters here.
+ */
+async function invoiceIdForPaymentIntent(
+    secretKey: string,
+    paymentIntentId: string
+): Promise<string | null> {
+    const intent = await stripeGet(
+        secretKey,
+        `/v1/payment_intents/${encodeURIComponent(paymentIntentId)}`
+    );
+
+    return readString(
+        asRecord(asRecord(intent).payment_details),
+        "order_reference"
+    );
+}
+
+/**
+ * The subscription behind a refunded charge, and who it belonged to.
+ *
+ * A refund is the one event whose payload has no usable identity: the
+ * Charge carries no invoice, no checkout session and no metadata of ours —
+ * only the customer. So the path back has to be walked:
+ *
+ *   charge → payment intent → invoice → subscription (+ its metadata)
+ *
+ * Each hop is a lookup, and any of them may fail. Returning nulls is
+ * correct: the event is then recorded and ignored rather than guessing at
+ * an account to revoke Premium from.
+ */
+async function contextForCharge(
+    secretKey: string,
+    charge: Record<string, unknown>
+): Promise<{
+    subscriptionId: string | null;
+    discordId: string | null;
+    planId: string | null;
+}> {
+    const empty = {
+        subscriptionId: null,
+        discordId: null,
+        planId: null,
+    };
+
+    const paymentIntentId = readString(charge, "payment_intent");
+
+    if (!paymentIntentId) {
+        return empty;
+    }
+
+    const invoiceId = await invoiceIdForPaymentIntent(
+        secretKey,
+        paymentIntentId
+    );
+
+    if (invoiceId) {
+        const invoice = await stripeGet(
+            secretKey,
+            `/v1/invoices/${encodeURIComponent(invoiceId)}`
+        );
+
+        const context = subscriptionContextFromInvoice(invoice);
+
+        if (context.subscriptionId && context.discordId) {
+            return context;
+        }
+
+        /*
+         * The subscription exists but predates this app's metadata — a
+         * purchase made before the stamping below, or one created directly
+         * in the dashboard. Reading the subscription recovers the plan, and
+         * possibly the account.
+         */
+        if (context.subscriptionId) {
+            const subscription = await stripeGet(
+                secretKey,
+                `/v1/subscriptions/${encodeURIComponent(context.subscriptionId)}`
+            );
+
+            const metadata = asRecord(
+                asRecord(subscription).metadata
+            );
+
+            return {
+                subscriptionId: context.subscriptionId,
+                discordId:
+                    context.discordId ??
+                    readString(metadata, "discordId"),
+                planId:
+                    context.planId ??
+                    readString(metadata, "planId"),
+            };
+        }
+    }
+
+    /*
+     * A one-time purchase has no invoice to walk back to, so the only
+     * handle left is the customer. A customer with exactly one subscription
+     * is unambiguous; more than one is not, and revoking the wrong one is
+     * worse than revoking nothing.
+     */
+    const customerId = readString(charge, "customer");
+
+    if (!customerId) {
+        return empty;
+    }
+
+    const list = await stripeGet(
+        secretKey,
+        `/v1/subscriptions?customer=${encodeURIComponent(customerId)}&status=all&limit=2`
+    );
+
+    const rows = asRecord(list).data;
+
+    if (!Array.isArray(rows) || rows.length !== 1) {
+        return empty;
+    }
+
+    const subscription = asRecord(rows[0]);
+    const metadata = asRecord(subscription.metadata);
+
+    return {
+        subscriptionId: readString(subscription, "id"),
+        discordId: readString(metadata, "discordId"),
+        planId: readString(metadata, "planId"),
+    };
+}
+
+/**
  * Turns one Stripe event into zero or more app events.
  *
  * Zero is the normal answer for most of Stripe's catalogue. An event we
  * do not understand is ignored rather than guessed at; the route logs
  * the type so a new one shows up in the logs instead of being applied
  * wrongly.
+ *
+ * Async because Stripe's thinner payloads mean the deciding fields often
+ * live on a related object that has to be fetched. A failed fetch never
+ * throws — see `stripeGet`.
  */
-function toPaymentEvents(event: unknown): PaymentEvent[] {
+async function toPaymentEvents(
+    event: unknown
+): Promise<PaymentEvent[]> {
     const envelope = asRecord(event);
     const type = readString(envelope, "type") ?? "";
     const id = readString(envelope, "id");
@@ -245,6 +520,10 @@ function toPaymentEvents(event: unknown): PaymentEvent[] {
 
     const data = asRecord(asRecord(envelope).data);
     const object = asRecord(data.object);
+
+    const secretKey = (
+        process.env.STRIPE_SECRET_KEY ?? ""
+    ).trim();
 
     switch (type) {
         case "checkout.session.completed": {
@@ -264,10 +543,50 @@ function toPaymentEvents(event: unknown): PaymentEvent[] {
                 return [];
             }
 
-            const subscription = readString(
+            const subscriptionId = readString(
                 object,
                 "subscription"
             );
+
+            /*
+             * How long the paid window runs.
+             *
+             * The Checkout Session has no period fields at all — it is a
+             * receipt, not a clock. For a subscription the clock belongs to
+             * the subscription, so it has to be read back. For a one-time
+             * purchase there is no clock and `null` is the honest answer;
+             * the catalog then decides the window from the plan.
+             *
+             * Getting this wrong in the `null` direction is not harmless:
+             * the monthly and annual plans carry no duration of their own
+             * precisely because Stripe is meant to own the clock, so a null
+             * here turns one month's payment into Premium forever.
+             */
+            let currentPeriodEnd: Date | null = null;
+            let skuId = priceIdFromSession(object);
+
+            if (subscriptionId) {
+                const subscription = await stripeGet(
+                    secretKey,
+                    `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`
+                );
+
+                currentPeriodEnd =
+                    periodEndFromSubscription(
+                        asRecord(subscription)
+                    );
+
+                /*
+                 * Older sessions were created before the session itself was
+                 * expanded, so they carry no line items; the subscription
+                 * always knows its price.
+                 */
+                skuId =
+                    skuId ??
+                    priceIdFromSubscription(
+                        asRecord(subscription)
+                    );
+            }
 
             return [
                 {
@@ -276,22 +595,9 @@ function toPaymentEvents(event: unknown): PaymentEvent[] {
                     discordId:
                         discordIdFromSession(object),
                     planId: planIdFromSession(object),
-                    skuId: priceIdFromSession(object),
-
-                    /*
-                     * A subscription's first period end comes from the
-                     * subscription object; a one-time payment has no
-                     * clock of its own and the catalog decides the
-                     * window.
-                     */
-                    currentPeriodEnd: fromUnix(
-                        readNumber(
-                            object,
-                            "current_period_end"
-                        )
-                    ),
-
-                    externalEntitlementId: subscription,
+                    skuId,
+                    currentPeriodEnd,
+                    externalEntitlementId: subscriptionId,
                     raw: event,
                 },
             ];
@@ -322,31 +628,60 @@ function toPaymentEvents(event: unknown): PaymentEvent[] {
                 ? asRecord(lines[0])
                 : {};
 
+            const context =
+                subscriptionContextFromInvoice(object);
+
+            /*
+             * Which period this invoice pays for.
+             *
+             * `invoice.period_end` still exists but is no longer the end of
+             * the billing period — on this API version it equals
+             * `period_start`, the day the invoice was raised. Using it would
+             * extend Premium to a date already in the past, so the paid
+             * period is read from the line that was actually billed.
+             */
+            const linePeriod = asRecord(first.period);
+
+            /*
+             * The price is a bare id on a line item, not an expanded
+             * object; older versions nested a `price` object instead.
+             */
+            const priceDetails = asRecord(
+                asRecord(first.pricing).price_details
+            );
+
             return [
                 {
                     id,
                     kind: "subscription_renewed",
                     discordId:
-                        discordIdFromSession(object),
-                    planId: planIdFromSession(object),
-                    skuId: readString(
-                        asRecord(first.price),
-                        "id"
-                    ),
-                    currentPeriodEnd: fromUnix(
-                        readNumber(
+                        context.discordId ??
+                        readString(
                             object,
-                            "period_end"
+                            "client_reference_id"
+                        ),
+                    planId: context.planId,
+                    skuId:
+                        readString(priceDetails, "price") ??
+                        readString(
+                            asRecord(first.price),
+                            "id"
+                        ),
+                    currentPeriodEnd:
+                        fromUnix(
+                            readNumber(linePeriod, "end")
                         ) ??
+                        fromUnix(
+                            readNumber(object, "period_end")
+                        ) ??
+                        fromUnix(
                             readNumber(
                                 object,
                                 "current_period_end"
                             )
-                    ),
-                    externalEntitlementId: readString(
-                        object,
-                        "subscription"
-                    ),
+                        ),
+                    externalEntitlementId:
+                        context.subscriptionId,
                     raw: event,
                 },
             ];
@@ -375,23 +710,32 @@ function toPaymentEvents(event: unknown): PaymentEvent[] {
 
         case "charge.refunded": {
             /*
-             * A refund names the checkout session that took the money,
-             * which is the only way back to the entitlement a one-time
-             * purchase created.
+             * The charge in this payload carries a customer and a payment
+             * intent and nothing else — no invoice, no session, and none of
+             * the metadata this app stamped, because Stripe does not copy
+             * those onto a charge. Revoking Premium therefore depends on
+             * walking back to the subscription that was paid for.
+             *
+             * `externalEntitlementId` must be the subscription id, not the
+             * charge id: entitlements are stored under the subscription, and
+             * a refund that reports a different identifier can never match
+             * the row it is meant to revoke.
              */
+            const context = await contextForCharge(
+                secretKey,
+                object
+            );
+
             return [
                 {
                     id,
                     kind: "refund_issued",
-                    discordId:
-                        discordIdFromSession(object),
-                    planId: planIdFromSession(object),
+                    discordId: context.discordId,
+                    planId: context.planId,
                     skuId: null,
                     currentPeriodEnd: null,
-                    externalEntitlementId: readString(
-                        object,
-                        "id"
-                    ),
+                    externalEntitlementId:
+                        context.subscriptionId,
                     raw: event,
                 },
             ];
@@ -706,19 +1050,37 @@ export const stripeProvider: PaymentProvider = {
          * Both of these are read back out of the verified webhook. They
          * are how a purchase becomes an entitlement for the right
          * account without the browser ever naming a recipient.
+         *
+         * On the session alone they are enough, but Stripe does not copy
+         * them onto the subscription or onto the invoices that follow.
+         * Stamping the subscription as well is what lets a renewal — and a
+         * refund months later — still be traced back to an account.
          */
         form.set("client_reference_id", discordId);
         form.set("metadata[discordId]", discordId);
         form.set("metadata[planId]", plan.id);
 
+        if (!plan.durationMonths) {
+            form.set(
+                "subscription_data[metadata][discordId]",
+                discordId
+            );
+            form.set(
+                "subscription_data[metadata][planId]",
+                plan.id
+            );
+        }
+
         form.set("success_url", successUrl);
         form.set("cancel_url", cancelUrl);
 
         /*
-         * Lets a customer who pays with a wallet skip the email step and
-         * keeps the return link working when they close the tab.
+         * A session fetched without `expand` has no `line_items` key at
+         * all, which would leave every entitlement recorded against no
+         * price. Asking for the line items up front means the delivered
+         * object carries the price id.
          */
-        form.set("redirect_on_completion", "always");
+        form.set("expand[0]", "line_items.data.price");
 
         const response = await fetch(
             `${STRIPE_API}/v1/checkout/sessions`,

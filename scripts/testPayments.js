@@ -169,6 +169,36 @@ function nowSeconds() {
     return Math.floor(Date.now() / 1000);
 }
 
+/*
+ * What Stripe returns for `GET /v1/subscriptions/{id}`.
+ *
+ * The mapper fetches the subscription behind a completed checkout because
+ * the Checkout Session itself carries no billing period — without this the
+ * grant would have no end date, so the fixture has to be as real as the
+ * payload it replaces.
+ */
+function subscriptionJson(overrides = {}) {
+    return {
+        id: "sub_1",
+        object: "subscription",
+        customer: "cus_1",
+        metadata: {
+            discordId: "123456789012345678",
+            planId: "premium-monthly",
+        },
+        items: {
+            data: [
+                {
+                    id: "si_1",
+                    current_period_end: 1893456000,
+                    price: { id: "price_monthly" },
+                },
+            ],
+        },
+        ...overrides,
+    };
+}
+
 function checkoutEvent(overrides = {}) {
     return {
         id: "evt_123",
@@ -378,9 +408,22 @@ async function main() {
     });
 
     process.env.STRIPE_WEBHOOK_SECRET = SECRET;
+    process.env.STRIPE_SECRET_KEY = "sk_test_mapping_probe";
+
+    /*
+     * A paid checkout makes the mapper read the subscription back from
+     * Stripe, so every signature test below that reaches the mapper needs
+     * that answer queued. Queuing it here rather than per-assertion keeps
+     * the signature checks about signatures.
+     */
+    function queueSubscription(json = subscriptionJson()) {
+        stripeFetch.queue({ json });
+    }
 
     const body = JSON.stringify(checkoutEvent());
     const provider = stripe.stripeProvider;
+
+    queueSubscription();
 
     const valid = await provider.verifyWebhook({
         body,
@@ -459,6 +502,15 @@ async function main() {
     );
 
     check(
+        "the paid window comes from the subscription, not the session",
+        valid[0].currentPeriodEnd?.getTime() === 1893456000000 &&
+            stripeFetch.calls.some((call) => /\/v1\/subscriptions\/sub_1$/.test(call.url)),
+        "the Checkout Session has no billing period of its own"
+    );
+
+    queueSubscription();
+
+    check(
         "a freshly signed request inside the tolerance is accepted",
         (await provider.verifyWebhook({
             body,
@@ -469,6 +521,8 @@ async function main() {
     const rotated = `t=${nowSeconds()},v1=${"0".repeat(64)},v1=${(
         await crypto.createHmac("sha256", SECRET).update(`${nowSeconds()}.${body}`).digest("hex")
     )}`;
+
+    queueSubscription();
 
     check(
         "a signature matching either secret during rotation is accepted",
@@ -509,57 +563,97 @@ async function main() {
 
     const testing = stripe.__testing;
 
-    function map(event) {
+    async function map(event, handlers = []) {
+        stripeFetch.queue(...handlers);
+
         return testing.toPaymentEvents(event);
     }
 
     check(
         "an unpaid checkout grants nothing",
-        map({
-            ...checkoutEvent(),
-            data: { object: { ...checkoutEvent().data.object, payment_status: "unpaid" } },
-        }).length === 0,
+        (
+            await map({
+                ...checkoutEvent(),
+                data: { object: { ...checkoutEvent().data.object, payment_status: "unpaid" } },
+            })
+        ).length === 0,
         "a session Stripe never collected for must not become free Premium"
     );
 
     check(
         "a first subscription invoice is not counted as a renewal",
-        map({
-            id: "evt_inv",
+        (
+            await map({
+                id: "evt_inv",
+                type: "invoice.paid",
+                data: {
+                    object: {
+                        billing_reason: "subscription_create",
+                        subscription: "sub_1",
+                        period_end: nowSeconds(),
+                    },
+                },
+            })
+        ).length === 0
+    );
+
+    /*
+     * The shape this API version actually delivers: no `subscription` key
+     * on the invoice, identity in the parent's metadata, the price as a
+     * bare id on the line, and a `period_end` that is the invoice date
+     * rather than the end of the paid period.
+     */
+    const renewal = (
+        await map({
+            id: "evt_inv2",
             type: "invoice.paid",
             data: {
                 object: {
-                    billing_reason: "subscription_create",
-                    subscription: "sub_1",
-                    period_end: nowSeconds(),
+                    id: "in_2",
+                    billing_reason: "subscription_cycle",
+                    customer: "cus_1",
+                    period_start: 1861833600,
+                    period_end: 1861833600,
+                    parent: {
+                        subscription_details: {
+                            subscription: "sub_1",
+                            metadata: {
+                                discordId: "123456789012345678",
+                                planId: "premium-monthly",
+                            },
+                        },
+                    },
+                    lines: {
+                        data: [
+                            {
+                                pricing: { price_details: { price: "price_monthly" } },
+                                period: { start: 1861833600, end: 1893456000 },
+                            },
+                        ],
+                    },
                 },
             },
-        }).length === 0
+        })
     );
 
-    const renewal = map({
-        id: "evt_inv2",
-        type: "invoice.paid",
-        data: {
-            object: {
-                billing_reason: "subscription_cycle",
-                subscription: "sub_1",
-                client_reference_id: "123456789012345678",
-                metadata: { planId: "premium-monthly" },
-                period_end: 1893456000,
-                lines: { data: [{ price: { id: "price_monthly" } }] },
-            },
-        },
-    });
-
-    check("a genuine renewal extends the entitlement", renewal.length === 1 &&
-        renewal[0].kind === "subscription_renewed");
     check(
-        "the renewal uses the provider's own period end",
-        renewal[0].currentPeriodEnd?.getTime() === 1893456000000
+        "a genuine renewal extends the entitlement",
+        renewal.length === 1 && renewal[0].kind === "subscription_renewed"
     );
+    check(
+        "the renewal is attributed through the invoice's subscription metadata",
+        renewal[0].discordId === "123456789012345678" &&
+            renewal[0].planId === "premium-monthly" &&
+            renewal[0].externalEntitlementId === "sub_1"
+    );
+    check(
+        "the renewal uses the billed line's period end, not the invoice date",
+        renewal[0].currentPeriodEnd?.getTime() === 1893456000000,
+        String(renewal[0].currentPeriodEnd)
+    );
+    check("the renewal records the price it was billed at", renewal[0].skuId === "price_monthly");
 
-    const cancelled = map({
+    const cancelled = await map({
         id: "evt_del",
         type: "customer.subscription.deleted",
         data: {
@@ -578,36 +672,137 @@ async function main() {
             cancelled[0].externalEntitlementId === "sub_1"
     );
 
-    const refunded = map({
-        id: "evt_ref",
-        type: "charge.refunded",
-        data: {
-            object: {
-                id: "ch_1",
-                metadata: { discordId: "123456789012345678", planId: "premium-annual" },
+    /*
+     * A refund carries a customer and a payment intent and nothing else,
+     * so the mapper has to walk charge → intent → invoice → subscription.
+     * These handlers are that chain.
+     */
+    const refunded = await map(
+        {
+            id: "evt_ref",
+            type: "charge.refunded",
+            data: {
+                object: {
+                    id: "ch_1",
+                    customer: "cus_1",
+                    payment_intent: "pi_1",
+                    metadata: {},
+                },
             },
         },
-    });
+        [
+            { json: { id: "pi_1", payment_details: { order_reference: "in_1" } } },
+            {
+                json: {
+                    id: "in_1",
+                    parent: {
+                        subscription_details: {
+                            subscription: "sub_9",
+                            metadata: {
+                                discordId: "123456789012345678",
+                                planId: "premium-annual",
+                            },
+                        },
+                    },
+                },
+            },
+        ]
+    );
 
     check(
         "a refund ends the entitlement it bought",
         refunded.length === 1 && refunded[0].kind === "refund_issued"
     );
+    check(
+        "a refund revokes the subscription id the entitlement was stored under",
+        refunded[0].externalEntitlementId === "sub_9" &&
+            refunded[0].discordId === "123456789012345678" &&
+            refunded[0].planId === "premium-annual",
+        JSON.stringify(refunded[0].externalEntitlementId)
+    );
+
+    /*
+     * When the chain is broken — a one-off purchase with no invoice — the
+     * only handle left is the customer, and that is usable only if it names
+     * exactly one subscription.
+     */
+    const orphanRefund = await map(
+        {
+            id: "evt_ref2",
+            type: "charge.refunded",
+            data: { object: { id: "ch_2", customer: "cus_2", payment_intent: "pi_2" } },
+        },
+        [
+            { json: { id: "pi_2", payment_details: {} } },
+            { json: { data: [subscriptionJson({ id: "sub_5" })] } },
+        ]
+    );
+
+    check(
+        "a refund with no invoice still resolves through an unambiguous customer",
+        orphanRefund.length === 1 &&
+            orphanRefund[0].externalEntitlementId === "sub_5" &&
+            orphanRefund[0].discordId === "123456789012345678"
+    );
+
+    const ambiguousRefund = await map(
+        {
+            id: "evt_ref3",
+            type: "charge.refunded",
+            data: { object: { id: "ch_3", customer: "cus_3", payment_intent: "pi_3" } },
+        },
+        [
+            { json: { id: "pi_3", payment_details: {} } },
+            {
+                json: {
+                    data: [
+                        subscriptionJson({ id: "sub_a" }),
+                        subscriptionJson({ id: "sub_b" }),
+                    ],
+                },
+            },
+        ]
+    );
+
+    check(
+        "a refund whose customer holds several subscriptions revokes nothing",
+        ambiguousRefund.length === 1 &&
+            ambiguousRefund[0].externalEntitlementId === null &&
+            ambiguousRefund[0].discordId === null,
+        "guessing which subscription to revoke is worse than revoking none"
+    );
 
     check(
         "an unrelated event type produces no action",
-        map({ id: "evt_x", type: "customer.created", data: { object: {} } }).length === 0
+        (await map({ id: "evt_x", type: "customer.created", data: { object: {} } })).length === 0
     );
 
     check(
         "an event without an id is dropped, not applied anonymously",
-        map({ type: "checkout.session.completed", data: { object: {} } }).length === 0
+        (await map({ type: "checkout.session.completed", data: { object: {} } })).length === 0
+    );
+
+    /*
+     * A lookup that fails must not turn into a 500. Stripe retries a
+     * failing webhook forever, and a payment already recorded must not be
+     * re-applied on every retry.
+     */
+    const degraded = await map(checkoutEvent(), [{ ok: false, status: 502 }]);
+
+    check(
+        "a failed subscription lookup degrades instead of throwing",
+        degraded.length === 1 &&
+            degraded[0].currentPeriodEnd === null &&
+            degraded[0].skuId === "price_monthly"
     );
 
     check(
         "a payload with no data object cannot crash the mapper",
-        (() => {
-            const events = map({ id: "evt_y", type: "checkout.session.completed" });
+        await (async () => {
+            const events = await map({
+                id: "evt_y",
+                type: "checkout.session.completed",
+            });
 
             /*
              * A stripped-down payload may still decode, but it must not
@@ -616,8 +811,8 @@ async function main() {
              */
             return (
                 events.every((event) => event.discordId === null) &&
-                map(null).length === 0 &&
-                map("nonsense").length === 0
+                (await map(null)).length === 0 &&
+                (await map("nonsense")).length === 0
             );
         })()
     );
@@ -781,6 +976,25 @@ async function main() {
         "a recurring plan is sold in subscription mode",
         sessionCall?.form.get("mode") === "subscription",
         `mode was ${sessionCall?.form.get("mode")}`
+    );
+
+    check(
+        "the account is stamped onto the subscription so renewals and refunds stay attributable",
+        sessionCall?.form.get("subscription_data[metadata][discordId]") === SNOWFLAKE &&
+            sessionCall.form.get("subscription_data[metadata][planId]") === "premium-annual",
+        "Stripe does not copy the session's metadata onto the subscription"
+    );
+
+    check(
+        "the session is created expanded so its price survives to the webhook",
+        sessionCall?.form.get("expand[0]") === "line_items.data.price",
+        "an unexpanded session has no line_items at all"
+    );
+
+    check(
+        "no parameter that requires an embedded UI is sent",
+        sessionCall?.form.get("redirect_on_completion") === null,
+        "Stripe rejects redirect_on_completion unless ui_mode is embedded_page"
     );
 
     resetProbe(CUSTOMER_ID);
