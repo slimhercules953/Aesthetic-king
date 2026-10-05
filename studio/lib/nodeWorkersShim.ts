@@ -23,9 +23,17 @@
  *     `http://ollama.internal` service-binding URL onto a real HTTP endpoint
  *     from `OLLAMA_URL`.
  *
- * A missing binding throws on read rather than at import, matching the real
- * module: a misconfigured environment should fail the one request that needed
- * the secret, not take the whole process down at startup.
+ * An unset *string* binding reads as `undefined`, matching the real module,
+ * where a secret that was never configured is simply absent from `env`. That
+ * is what makes the `bindings[name] ?? process.env[name]` idiom work: an
+ * optional flag like `CROWN_DEV` is expected to be absent in production, and
+ * throwing here would take down the request instead of falling through.
+ *
+ * The two *structural* bindings do throw on read, because `undefined` would
+ * surface as a confusing `Cannot read properties of undefined` at the call
+ * site rather than as a description of what the operator has to set. Throwing
+ * on read rather than at import still means a misconfigured environment fails
+ * the one request that needed the binding, not the whole process at startup.
  */
 
 /** Bindings that are plain strings, mapped to their environment variable. */
@@ -43,10 +51,10 @@ const STRING_BINDINGS: Record<string, string> = {
     APP_ORIGIN: "APP_ORIGIN",
 };
 
-function missing(name: string): never {
+function missing(name: string, variable?: string): never {
     throw new Error(
         `Binding "${name}" is not configured. On Node it is read from the ` +
-        `${STRING_BINDINGS[name] ?? name} environment variable.`,
+        `${variable ?? name} environment variable.`,
     );
 }
 
@@ -89,10 +97,8 @@ function ollamaFetch(
 /**
  * Bindings, read lazily.
  *
- * A `Proxy` rather than a literal object so that an unknown binding reports
- * the same "not configured" error as a known-but-unset one instead of
- * `undefined`, and so a value changed in the environment after startup is
- * picked up rather than frozen at import time.
+ * A `Proxy` rather than a literal object so that a value changed in the
+ * environment after startup is picked up rather than frozen at import time.
  */
 export const env: Record<string, unknown> = new Proxy(
     {},
@@ -112,15 +118,14 @@ export const env: Record<string, unknown> = new Proxy(
             }
 
             const variable = STRING_BINDINGS[property] ?? property;
-            return process.env[variable] ?? missing(property);
+            return process.env[variable];
         },
 
         has(_target, property: string) {
             return (
                 property === "HYPERDRIVE" ||
                 property === "OLLAMA" ||
-                property in STRING_BINDINGS ||
-                property in process.env
+                (STRING_BINDINGS[property] ?? property) in process.env
             );
         },
     },
