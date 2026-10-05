@@ -23,19 +23,23 @@ WorkingDirectory=/opt/aesthetic-king/studio
 # directly keeps the service to a single process that receives the signal.
 #
 # -H 127.0.0.1 keeps the site off the public interface. Without it the server
-# binds 0.0.0.0 and the VM answers plain unencrypted HTTP on :3000 right next
-# to the reverse proxy, which is a way to bypass TLS entirely. Point Caddy or
-# nginx at 127.0.0.1:3000. Drop the flag only if you deliberately want the port
-# exposed, e.g. to reach it before the proxy is configured.
+# binds 0.0.0.0 and the VM answers plain unencrypted HTTP on the port right
+# next to the reverse proxy, which is a way to bypass TLS entirely. Point Caddy,
+# nginx or cloudflared at 127.0.0.1:3100. Drop the flag only if you deliberately
+# want the port exposed, e.g. to reach it before the proxy is configured.
 ExecStart=/usr/bin/node /opt/aesthetic-king/studio/node_modules/vinext/dist/cli.js start -H 127.0.0.1
 
 # The site loads studio/.env.local itself, so the secrets are not repeated
 # here. Only the port needs setting.
 #
+# 3100 rather than 3000/3001 because those are the ports dev tooling defaults
+# to and are the first things to collide with on a shared machine. Changing it
+# means changing the proxy upstream in the same commit.
+#
 # Avoid EnvironmentFile= for the .env files: systemd expands $ in those values,
 # which silently corrupts a DATABASE_URL password containing a $. Both apps
 # already read their own .env from the working directory.
-Environment=PORT=3000
+Environment=PORT=3100
 Environment=NODE_ENV=production
 
 Restart=always

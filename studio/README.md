@@ -62,9 +62,14 @@ VM needs:
 
 ```
 npm run build:node     # builds with vite.config.node.ts
-npm run start:node     # serves dist/ on $PORT (default 3000)
-npm run dev:node       # dev server on the Node config
+PORT=3100 npm run start:node   # serves dist/ on $PORT
+npm run dev:node       # dev server on the Node config, port 3100
 ```
+
+`vinext start` takes its port from `PORT` and falls back to 3000 if it is
+unset, so always set it explicitly — the systemd unit does. The project uses
+3100 rather than 3000 or 3001 to stay clear of the ports dev tooling defaults
+to.
 
 `vite.config.node.ts` differs from `vite.config.ts` in exactly three
 places, and each has a Node equivalent wired up where it was used:

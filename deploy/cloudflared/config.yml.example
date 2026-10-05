@@ -9,17 +9,17 @@
 # at and no port to forward. cloudflared dials *out* to Cloudflare and streams
 # responses back, so the VM needs no inbound connectivity at all.
 #
-# The Studio still binds 127.0.0.1:3000 (the -H flag in
+# The Studio still binds 127.0.0.1:3100 (the -H flag and PORT in
 # deploy/systemd/aesthetic-studio.service). That is still correct with a tunnel:
 # cloudflared runs on this machine and talks to the loopback address, and
-# nothing else on the network can reach :3000 directly.
+# nothing else on the network can reach :3100 directly.
 
 tunnel: <TUNNEL_ID>
 credentials-file: /etc/cloudflared/<TUNNEL_ID>.json
 
 ingress:
   - hostname: aesthetic.etterdigital.dev
-    service: http://127.0.0.1:3000
+    service: http://127.0.0.1:3100
 
   # Required catch-all. Without it cloudflared refuses to start, and the error
   # ("each tunnel must have a default catch-all rule") does not mention the

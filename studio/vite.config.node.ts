@@ -25,7 +25,11 @@ export default defineConfig({
         // Bind every interface so the reverse proxy on the same host can
         // reach it and so other devices on the LAN can still connect.
         host: true,
-        port: 3000,
+        // Matches PORT in deploy/systemd/aesthetic-studio.service so `dev:node`
+        // and the running service agree. 3100 rather than 3000/3001, which dev
+        // tooling defaults to. Only affects `vinext dev`; the built server
+        // reads PORT. The Cloudflare dev config stays on 3000 for the PC.
+        port: 3100,
         allowedHosts: [".etterdigital.dev", ".local", ".lan"],
     },
     resolve: {

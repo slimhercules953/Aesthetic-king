@@ -311,8 +311,8 @@ That runs the Node Vite config and then the secret-leak scanner over the
 output. Then check it by hand once:
 
 ```bash
-PORT=3000 npm run start:node
-curl -I http://127.0.0.1:3000/
+PORT=3100 npm run start:node
+curl -I http://127.0.0.1:3100/
 ```
 
 On a VM, only ever run `build:node` — never plain `npm run build`. Both configs
@@ -449,10 +449,15 @@ SystemMaxUse=500M
 
 ## 9. Getting traffic to the site
 
-The site binds `127.0.0.1:3000` (see the `-H` flag in the unit), so it is
-reachable only through something else. That is deliberate regardless of which
-option below you pick: binding `0.0.0.0` would leave plain unencrypted HTTP on
-:3000 as a way around TLS.
+The site binds `127.0.0.1:3100` (see the `-H` flag and `PORT` in the unit), so
+it is reachable only through something else. That is deliberate regardless of
+which option below you pick: binding `0.0.0.0` would leave plain unencrypted
+HTTP on :3100 as a way around TLS.
+
+The port is 3100 rather than 3000 or 3001 because those two are what dev
+tooling defaults to, so they are the first things to collide with. Whatever you
+choose, the unit's `PORT`, the proxy upstream and the `ss` check in §12 all have
+to say the same number.
 
 Which option applies depends on whether the VM has a public address.
 
@@ -514,7 +519,7 @@ Then confirm the tunnel can reach the app:
 
 ```bash
 sudo cloudflared tunnel --config /etc/cloudflared/config.yml ingress validate
-sudo cloudflared tunnel --config /etc/cloudflared/config.yml ingress http://127.0.0.1:3000
+sudo cloudflared tunnel --config /etc/cloudflared/config.yml ingress http://127.0.0.1:3100
 ```
 
 Two things to expect that are not bugs:
@@ -522,7 +527,7 @@ Two things to expect that are not bugs:
 - **`Next-Action: 5` / a 530 in the browser while the Studio is down.** The
   tunnel answers on Cloudflare's edge even when nothing is listening locally,
   so a stopped app looks like a DNS problem. Check
-  `curl -I http://127.0.0.1:3000/` on the VM first.
+  `curl -I http://127.0.0.1:3100/` on the VM first.
 - **Visitor IP addresses become Cloudflare's.** If anything logs or rate-limits
   by IP, read `CF-Connecting-IP` instead of the socket address.
 
@@ -538,7 +543,7 @@ issues certificates on its own:
 
 ```
 aesthetic.etterdigital.dev {
-    reverse_proxy 127.0.0.1:3000
+    reverse_proxy 127.0.0.1:3100
 }
 ```
 
@@ -551,10 +556,10 @@ Point the DNS record at the VM first, otherwise the certificate request fails.
 ### Either way: confirm nothing is listening publicly
 
 ```bash
-ss -ltnp | grep -E ':(80|443|3000|5432)\b'
+ss -ltnp | grep -E ':(80|443|3100|5432)\b'
 ```
 
-`3000` and `5432` should show `127.0.0.1` (or the LAN range for Postgres if the
+`3100` and `5432` should show `127.0.0.1` (or the LAN range for Postgres if the
 bot is on a different box). If either shows `0.0.0.0`, fix it with `ufw deny`
 before you forget about it. With the tunnel there is no reason for anything to
 accept inbound connections at all.
