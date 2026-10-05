@@ -38,6 +38,9 @@
     "postbuild": "node scripts/check-build-secrets.mjs",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "deploy": "vinext-cloudflare deploy --config dist/server/wrangler.json",
-    "deploy:response-store": "wrangler deploy --config wrangler.response-store.jsonc"
+    "deploy:response-store": "wrangler deploy --config wrangler.response-store.jsonc",
+    "dev:node": "vinext dev --config vite.config.node.ts",
+    "build:node": "vinext build --config vite.config.node.ts && node scripts/check-build-secrets.mjs",
+    "start:node": "vinext start"
   }
 }

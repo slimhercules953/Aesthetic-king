@@ -116,3 +116,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # The VPS deployment target. It uses a different Vite config, a shim in
+      # place of `cloudflare:workers`, and no Response Store / CF Images, so
+      # it breaks independently of the Workers build above.
+      - name: Build (Node)
+        run: npm run build:node

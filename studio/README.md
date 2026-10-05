@@ -54,6 +54,66 @@ instead of having it replaced by a permanent grant.
 - `pnpm run start` starts the built Worker locally with Wrangler.
 - `pnpm run deploy` deploys the Cloudflare Worker.
 
+## Running on a VPS instead of Cloudflare
+
+The Studio targets Cloudflare Workers by default. It can also run as an
+ordinary Node process behind a reverse proxy, which is what a self-hosted
+VM needs:
+
+```
+npm run build:node     # builds with vite.config.node.ts
+npm run start:node     # serves dist/ on $PORT (default 3000)
+npm run dev:node       # dev server on the Node config
+```
+
+`vite.config.node.ts` differs from `vite.config.ts` in exactly three
+places, and each has a Node equivalent wired up where it was used:
+
+| Workers | Node |
+| --- | --- |
+| `responseStoreAdapter()` cache | vinext's default in-process cache |
+| `imagesOptimizer()` | vinext's default local optimisation |
+| the `cloudflare()` plugin | nothing — the RSC/SSR bundle is plain Node |
+
+Five modules (`lib/database.ts`, `lib/ollama.ts`, `lib/devTools.ts`,
+`lib/discordBot.ts`, `lib/botInvite.ts`) read configuration from Workers
+bindings. `lib/nodeWorkersShim.ts` is aliased over `cloudflare:workers` in
+the Node config and answers the same named imports from `process.env`, so
+no call site has to know which platform it is on. `HYPERDRIVE` is
+synthesised from `DATABASE_URL` (a Hyperdrive binding is only a connection
+string in a wrapper), and `OLLAMA` — a service binding, so an object with
+`fetch()` rather than a string — rewrites `http://ollama.internal` onto
+`OLLAMA_URL`. A missing binding throws when it is read, not at import, so a
+bad environment fails one request instead of the whole process.
+
+The Workers manifest is named `wrangler.cloudflare.jsonc` rather than
+`wrangler.jsonc` because vinext detects the target platform by looking for
+a default-named manifest in the project root and refuses to build a Node
+bundle when it finds one. `vite.config.ts` points the Cloudflare plugin at
+the new name explicitly, so the Workers build is unaffected.
+
+### Environment on a VPS
+
+```
+DATABASE_URL=postgresql://user:pass@host:5432/dbname
+OLLAMA_URL=http://127.0.0.1:11434
+NEXT_PUBLIC_APP_URL=https://<your domain>
+SESSION_SECRET=...              # must match the old host
+OAUTH_TOKEN_ENCRYPTION_KEY=...  # must match the old host
+```
+
+`SESSION_SECRET` and `OAUTH_TOKEN_ENCRYPTION_KEY` have to be byte-identical
+to the previous deployment or every stored Discord OAuth token becomes
+undecryptable and all users are logged out. `NEXT_PUBLIC_APP_URL` is inlined
+at *build* time, so changing the domain means rebuilding, not just editing
+the env file. Add `https://<your domain>/api/auth/discord/callback` to the
+Discord developer portal for client `1062520458416771092`.
+
+`lib/database.ts` requires TLS for any non-private host and skips it for
+localhost/LAN, so a remote database over a private network works without
+extra config; append `?sslmode=...` to the URL to override.
+
+
 ## Premium, usage and Crowns
 
 `lib/features.ts` is the single source of truth for every limit and
