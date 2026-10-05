@@ -77,3 +77,10 @@ export async function POST(
 
     return response;
 }
+
+/*
+ * Sign out is a state change, so POST is the correct verb and every button in
+ * the app uses it. Accepting GET as well costs nothing and turns a stale link
+ * (or a bookmark) into a real sign-out instead of a 405.
+ */
+export const GET = POST;

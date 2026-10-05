@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import DangerZone from "../../../components/dashboard/DangerZone";
+import LogoutButton from "../../../components/dashboard/LogoutButton";
 
 import {
     getAccountDetails,
@@ -414,12 +415,9 @@ export default async function SettingsPage() {
                             It does not delete anything.
                         </p>
 
-                        <a
-                            href="/api/auth/logout"
-                            className="mt-5 block rounded-xl border border-white/[0.08] px-4 py-2.5 text-center text-sm text-zinc-300 transition hover:bg-white/[0.04]"
-                        >
-                            Sign out
-                        </a>
+                        <LogoutButton
+                            className="mt-5 block w-full rounded-xl border border-white/[0.08] px-4 py-2.5 text-center text-sm text-zinc-300 transition hover:bg-white/[0.04] disabled:opacity-40"
+                        />
                     </section>
                 </div>
             </div>

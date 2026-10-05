@@ -330,12 +330,9 @@ export default function Topbar({
                         )
                     )}
 
-                    <a
-                        href="/api/auth/logout"
-                        className="mt-2 block rounded-xl border border-white/[0.06] px-4 py-3 text-sm text-zinc-500"
-                    >
-                        <LogoutButton />
-                    </a>
+                    <LogoutButton
+                        className="mt-2 block w-full rounded-xl border border-white/[0.06] px-4 py-3 text-left text-sm text-zinc-500 transition hover:bg-white/[0.04] hover:text-zinc-300 disabled:opacity-40"
+                    />
                 </div>
             )}
         </>
