@@ -40,6 +40,8 @@ const PORTAL_ROUTE = path.join(ROOT, "studio", "app", "api", "billing", "portal"
 const WEBHOOK_ROUTE = path.join(ROOT, "studio", "app", "api", "webhooks", "stripe", "route.ts");
 const BILLING_PAGE = path.join(ROOT, "studio", "app", "dashboard", "premium", "billing", "page.tsx");
 const SCHEMA_PATH = path.join(ROOT, "prisma", "schema.prisma");
+const ENTITLEMENTS_PATH = path.join(ROOT, "studio", "lib", "entitlements.ts");
+const GRANDFATHER_PATH = path.join(ROOT, "studio", "lib", "grandfather.ts");
 
 let passed = 0;
 let failed = 0;
@@ -1591,6 +1593,233 @@ async function main() {
     check(
         "a batch reports every outcome, not just the first",
         batch.length === 2 && batch.every((outcome) => outcome.status === "applied")
+    );
+
+    check(
+        "a paid grant asks to preserve permanent entitlements",
+        grantCalls.every((call) => call.input.preservePermanent === true) &&
+            grantCalls.length > 0,
+        "buying Premium must not switch off a grant that never expires"
+    );
+
+    /* ---------------------------------------------------------------- */
+    section("entitlements — a purchase must not erase a permanent grant");
+
+    const entDb = fakeDb();
+    entDb.on('FROM "User"', () => ({ rows: [{ id: "user-1" }] }));
+    entDb.on('UPDATE "Entitlement"', () => ({ rows: [], rowCount: 1 }));
+    entDb.on('INSERT INTO "Entitlement"', () => ({
+        rows: [
+            {
+                id: "ent-new",
+                type: "PREMIUM",
+                source: "stripe",
+                active: true,
+                skuId: "price_monthly",
+                externalEntitlementId: "sub_1",
+                startsAt: new Date("2026-01-01T00:00:00Z"),
+                endsAt: new Date("2026-02-01T00:00:00Z"),
+            },
+        ],
+        rowCount: 1,
+    }));
+
+    const entitlements = loadModule(ENTITLEMENTS_PATH, {
+        "./database": {
+            query: entDb.query,
+            withTransaction: async (fn) => fn({ query: entDb.query }),
+        },
+        "./notifications": {
+            createNotificationForDiscordUser: async () => true,
+        },
+    });
+
+    await entitlements.grantEntitlement("123456789012345678", {
+        type: "PREMIUM",
+        source: "stripe",
+        endsAt: new Date("2026-02-01T00:00:00Z"),
+        externalEntitlementId: "sub_1",
+        preservePermanent: true,
+    });
+
+    const supersede = entDb.calls.find(
+        (call) =>
+            /UPDATE "Entitlement"/.test(call.text) &&
+            /"active" = false/.test(call.text) &&
+            !/"externalEntitlementId" = \$1/.test(call.text)
+    );
+
+    check(
+        "the supersede pass can exclude rows with no end date",
+        supersede !== undefined &&
+            /"endsAt" IS NOT NULL/.test(supersede.text) &&
+            supersede.params[2] === true,
+        supersede ? supersede.text.replace(/\s+/g, " ").trim() : "no supersede statement ran"
+    );
+
+    entDb.calls.length = 0;
+
+    await entitlements.grantEntitlement("123456789012345678", {
+        type: "PREMIUM",
+        source: "stripe",
+        endsAt: new Date("2026-02-01T00:00:00Z"),
+        externalEntitlementId: "sub_2",
+    });
+
+    const plainSupersede = entDb.calls.find(
+        (call) =>
+            /UPDATE "Entitlement"/.test(call.text) &&
+            /"active" = false/.test(call.text) &&
+            !/"externalEntitlementId" = \$1/.test(call.text)
+    );
+
+    check(
+        "a grant without the flag still supersedes everything",
+        plainSupersede !== undefined && plainSupersede.params[2] === false,
+        "the dev endpoint and staff grants must keep their old behaviour"
+    );
+
+    entDb.calls.length = 0;
+
+    await entitlements.grantEntitlement("123456789012345678", {
+        type: "PREMIUM",
+        source: "grandfather",
+        endsAt: null,
+        externalEntitlementId: "grandfather:1",
+        preservePermanent: true,
+    });
+
+    const permanentSupersede = entDb.calls.find(
+        (call) =>
+            /UPDATE "Entitlement"/.test(call.text) &&
+            /"active" = false/.test(call.text) &&
+            !/"externalEntitlementId" = \$1/.test(call.text)
+    );
+
+    check(
+        "a permanent grant supersedes even a flagged one",
+        permanentSupersede !== undefined && permanentSupersede.params[2] === false,
+        "permanent access is strictly better than the period it replaces"
+    );
+
+    /*
+     * The summary is what every Premium page renders. With two live rows
+     * it must describe the permanent one, or a grandfathered account that
+     * also pays is told its access ends on the renewal date.
+     */
+    function summaryOf(rows) {
+        const db = fakeDb();
+        db.on("FROM \"Entitlement\" e", () => ({ rows }));
+
+        const mod = loadModule(ENTITLEMENTS_PATH, {
+            "./database": {
+                query: db.query,
+                withTransaction: async (fn) => fn({ query: db.query }),
+            },
+            "./notifications": {
+                createNotificationForDiscordUser: async () => true,
+            },
+        });
+
+        return mod.getEntitlementSummary("1");
+    }
+
+    const permanentRow = {
+        id: "ent-gf",
+        type: "PREMIUM",
+        source: "grandfather",
+        active: true,
+        skuId: null,
+        externalEntitlementId: "grandfather:1",
+        startsAt: new Date("2025-01-01T00:00:00Z"),
+        endsAt: null,
+    };
+
+    const paidRow = {
+        id: "ent-paid",
+        type: "PREMIUM",
+        source: "stripe",
+        active: true,
+        skuId: "price_monthly",
+        externalEntitlementId: "sub_1",
+        startsAt: new Date("2026-01-01T00:00:00Z"),
+        endsAt: new Date("2026-02-01T00:00:00Z"),
+    };
+
+    /* Paid first in the list, as `startsAt DESC` would return it. */
+    const bothSummary = await summaryOf([paidRow, permanentRow]);
+
+    check(
+        "the permanent row wins when both are live",
+        bothSummary.premium?.id === "ent-gf",
+        `got ${bothSummary.premium?.id}`
+    );
+
+    check(
+        "so the account is told its access has no end date",
+        bothSummary.renewsAt === null,
+        String(bothSummary.renewsAt)
+    );
+
+    const paidOnly = await summaryOf([paidRow]);
+
+    check(
+        "a paying account still reports its renewal date",
+        paidOnly.premium?.id === "ent-paid" &&
+            paidOnly.renewsAt?.toISOString() === "2026-02-01T00:00:00.000Z"
+    );
+
+    check(
+        "and is not labelled promotional",
+        paidOnly.isPromotional === false
+    );
+
+    const gfOnly = await summaryOf([permanentRow]);
+
+    check(
+        "a grandfathered account is Premium",
+        gfOnly.plan === "PREMIUM" && gfOnly.renewsAt === null
+    );
+
+    /*
+     * The grandfather pass used to bail out whenever any Premium was
+     * active, which is exactly why a wiped permanent row stayed wiped.
+     */
+    const gfCalls = [];
+
+    const grandfather = loadModule(GRANDFATHER_PATH, {
+        "./entitlements": {
+            grantEntitlement: async (discordId, input) => {
+                gfCalls.push({ discordId, input });
+
+                return { id: "ent-gf", type: "PREMIUM", source: "grandfather" };
+            },
+            hasEntitlement: async () => true,
+        },
+    });
+
+    process.env.GRANDFATHER_IDS = "999999999999999999";
+
+    await grandfather.ensureGrandfatheredEntitlement("999999999999999999");
+
+    check(
+        "sign-in re-asserts the permanent grant even while Premium is active",
+        gfCalls.length === 1 && gfCalls[0].input.endsAt === null,
+        `${gfCalls.length} grants`
+    );
+
+    check(
+        "the re-assert is keyed so it updates rather than stacks",
+        gfCalls[0]?.input.externalEntitlementId === "grandfather:999999999999999999"
+    );
+
+    gfCalls.length = 0;
+
+    await grandfather.ensureGrandfatheredEntitlement("888888888888888888");
+
+    check(
+        "an account that is not grandfathered is left alone",
+        gfCalls.length === 0
     );
 
     /* ---------------------------------------------------------------- */

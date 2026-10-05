@@ -144,6 +144,14 @@ export async function POST(
 
             startsAt,
             endsAt,
+
+            /*
+             * The dev grant stands in for a purchase, so it must behave
+             * like one: staff accounts are usually grandfathered, and a
+             * test grant that switched off their permanent access would
+             * not come back until they signed in again.
+             */
+            preservePermanent: true,
         }
     );
 

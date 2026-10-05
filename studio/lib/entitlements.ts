@@ -63,6 +63,32 @@ const ENTITLEMENT_COLUMNS = `
     e."endsAt"
 `;
 
+/**
+ * Selects the live PREMIUM row to present when more than one is live.
+ *
+ * Normally there is only one (see `grantEntitlement`). The exception is
+ * an account that holds a permanent grant and later buys a period: the
+ * permanent row is kept, and it is the row that describes the account,
+ * because "never expires" is the more accurate answer than the end date
+ * of a purchase that was never going to be the account's expiry.
+ */
+function pickPrimaryPremium(
+    entitlements: EntitlementRecord[]
+): EntitlementRecord | null {
+    return (
+        entitlements.find(
+            (entitlement) =>
+                entitlement.type === "PREMIUM" &&
+                entitlement.endsAt === null
+        ) ??
+        entitlements.find(
+            (entitlement) =>
+                entitlement.type === "PREMIUM"
+        ) ??
+        null
+    );
+}
+
 export async function getActiveEntitlements(
     discordId: string
 ): Promise<EntitlementRecord[]> {
@@ -197,12 +223,9 @@ export async function getEntitlementSummary(
         );
 
     const premium =
-        entitlements.find(
-            (entitlement) =>
-                entitlement.type ===
-                "PREMIUM"
-        ) ??
-        null;
+        pickPrimaryPremium(
+            entitlements
+        );
 
     const source =
         (
@@ -239,6 +262,11 @@ export async function getEntitlementSummary(
  * Revoking first keeps at most one live row per (user, type), which is
  * the invariant every read above assumes.
  *
+ * `preservePermanent` relaxes that invariant for the one case where
+ * superseding is actively wrong: a paid, expiring grant must not erase
+ * an entitlement that was issued without an end date. See the option's
+ * documentation on the input type.
+ *
  * When `externalEntitlementId` is supplied the write is idempotent:
  * a replayed webhook or a renewal for the same provider entitlement
  * updates the existing row instead of creating a second one. That is
@@ -259,6 +287,18 @@ export async function grantEntitlement(
 
         skuId?: string | null;
         externalEntitlementId?: string | null;
+
+        /**
+         * When true, a finite grant leaves an existing permanent
+         * entitlement of the same type alone instead of superseding it.
+         *
+         * Billing sets this so that buying a month of Premium cannot
+         * switch off an account whose access was granted permanently.
+         * The grandfathered grant is only re-asserted at login, so
+         * superseding it here would lock the owner out immediately and
+         * not let them back in until they signed in again.
+         */
+        preservePermanent?: boolean;
     }
 ): Promise<EntitlementRecord | null> {
     const record = await withTransaction(
@@ -335,6 +375,14 @@ export async function grantEntitlement(
                 }
             }
 
+            /*
+             * A permanent entitlement is only superseded by another
+             * permanent one. When `preservePermanent` is set and this
+             * grant expires, the supersede pass skips any row with no
+             * end date and leaves it live; the account then holds two
+             * active rows of the same type until the paid one lapses,
+             * and `pickPrimaryPremium` decides which one to describe.
+             */
             await client.query(
                 `
                 UPDATE "Entitlement"
@@ -345,10 +393,16 @@ export async function grantEntitlement(
                     "userId" = $1
                     AND type = $2::"EntitlementType"
                     AND "active" = true
+                    AND (
+                        $3::boolean IS NOT TRUE
+                        OR "endsAt" IS NOT NULL
+                    )
                 `,
                 [
                     userId,
                     input.type,
+                    input.preservePermanent === true &&
+                        (input.endsAt ?? null) !== null,
                 ]
             );
 

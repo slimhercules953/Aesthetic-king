@@ -154,6 +154,13 @@ async function applyGrant(
         endsAt: resolveEndsAt(event),
         skuId: event.skuId,
         externalEntitlementId: event.externalEntitlementId,
+        /*
+         * A purchase is never allowed to switch off an entitlement that
+         * has no end date. Without this, a grandfathered account buying
+         * Premium would lose the permanent grant the moment the webhook
+         * landed, and would only get it back on its next login.
+         */
+        preservePermanent: true,
     });
 
     if (!record) {

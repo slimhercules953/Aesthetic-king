@@ -1,6 +1,5 @@
 import {
     grantEntitlement,
-    hasEntitlement,
 } from "./entitlements";
 
 /**
@@ -60,12 +59,17 @@ export function isGrandfathered(
 /**
  * Makes sure a grandfathered account actually holds Premium.
  *
- * Skipped when any Premium is already active. `grantEntitlement`
- * supersedes the existing row of the same type, so re-asserting
- * unconditionally would overwrite a real subscription the account
- * later bought — and with no end date, which reads as a refund the
- * user never got. If that subscription expires, the next login
- * restores the grandfathered access.
+ * The grant is asserted on every sign-in, not just when no Premium is
+ * present. `externalEntitlementId` makes the write idempotent, so it
+ * reactivates the account's own permanent row if a purchase had
+ * switched it off, and leaves that purchase alone. Before
+ * `preservePermanent` existed, buying Premium superseded the permanent
+ * row and nothing brought it back; asserting unconditionally repairs
+ * those accounts on their next login.
+ *
+ * Two live PREMIUM rows are therefore possible for a grandfathered
+ * account that also pays. `pickPrimaryPremium` reports the permanent
+ * one, which is the honest answer to "when does this expire".
  *
  * Never throws. Premium access is a courtesy for staff; it must not
  * be able to break someone's ability to sign in if the write fails.
@@ -78,15 +82,6 @@ export async function ensureGrandfatheredEntitlement(
     }
 
     try {
-        if (
-            await hasEntitlement(
-                discordId,
-                "PREMIUM"
-            )
-        ) {
-            return;
-        }
-
         await grantEntitlement(
             discordId,
             {
