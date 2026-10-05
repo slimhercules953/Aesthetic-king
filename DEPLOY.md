@@ -265,10 +265,18 @@ Hyperdrive emulator and is not needed on a VM — leave it out.
 
 Four things here are easy to get wrong:
 
-- **`OLLAMA_URL` currently points at a LAN address** (`http://10.40.10.167:11434`
-  on this PC). The VM is on a different network and cannot reach it. Either run
-  Ollama on the VM and use `http://127.0.0.1:11434`, expose the PC's instance on
-  the internet, or the AI features fail at call time — the app still boots.
+- **`OLLAMA_URL` points at a LAN address on a third machine**, not at the VM and
+  not at the PC you deploy from. `http://10.40.10.167:11434` is a box on the
+  `10.40.10.x` home network (the deploy PC is `10.40.10.47`); the VM is on
+  `10.40.99.x`. This deployment deliberately points the VM at that instance, so
+  generation only works while that machine is on *and* the two subnets route to
+  each other. Check with
+  `curl -m 5 http://10.40.10.167:11434/api/version` **from the VM** — if it
+  hangs, either add a route, run Ollama on the VM and use
+  `http://127.0.0.1:11434`, or accept that AI generation 500s. Nothing else
+  breaks: the app boots and only generation fails, at call time.
+  `OLLAMA_URL` is read at request time, so changing it needs only
+  `systemctl restart aesthetic-studio`, not a rebuild.
 - **`SESSION_SECRET` and `OAUTH_TOKEN_ENCRYPTION_KEY` must be byte-identical
   to the current host.** Stored Discord OAuth tokens are encrypted with the
   latter; change it and every token in the database becomes undecryptable and
@@ -706,11 +714,13 @@ sudo git config --system --add safe.directory /opt/aesthetic-king
 
 These are not deployment steps and cannot be finished from the code:
 
-- **Where Ollama runs** — `OLLAMA_URL` is currently `http://10.40.10.167:11434`,
-  a LAN address on your home network. The VM cannot reach it. Decide between
-  installing Ollama on the VM, exposing the PC's instance publicly, or dropping
-  the AI features. Nothing else breaks if you skip this — the apps boot and only
-  AI generation fails, at call time.
+- **Where Ollama runs** — decided: the VM points at
+  `http://10.40.10.167:11434`, a machine on the home `10.40.10.x` network. The
+  remaining unknown is whether the VM's `10.40.99.x` network can route there.
+  Confirm from the VM with `curl -m 5 http://10.40.10.167:11434/api/version`; if
+  it times out, add a route or move Ollama onto the VM. Nothing else breaks if
+  it stays unreachable — the apps boot and only AI generation fails, at call
+  time.
 - **DNS for `aesthetic.etterdigital.dev`** — done for this deployment: the
   hostname is a proxied `CNAME` to
   `f37ee879-eb6e-421b-8a59-bd63e222fd61.cfargotunnel.com` (tunnel
