@@ -182,6 +182,31 @@ This is why §3 installs Postgres 18: the dump is only forward-compatible, and a
 named `aesthetic_king` while the runbook uses `aesthetic` on the VM — that is
 fine, `pg_dump` output does not reference the source database name.
 
+### Doing all of the above with the helper script
+
+`deploy/push-to-vm.ps1` does the four PC-side steps above in one go: it checks
+SSH, copies both `.env` files, installs them with the right owner and mode 600,
+dumps the local database, uploads it, and tightens its permissions. It never
+prints a secret, and it deletes the local dump even if a later step fails.
+
+```powershell
+cd "c:\Users\etter\OneDrive\Desktop\Coding stuff\New Bots\Aesthetic-king"
+
+# both .env files plus a fresh database dump
+.\deploy\push-to-vm.ps1 -Vm alice@203.0.113.10
+
+# secrets only, leave the database alone
+.\deploy\push-to-vm.ps1 -Vm alice@203.0.113.10 -EnvOnly
+```
+
+Pass `-RemoteDir` and `-ServiceUser` if you used something other than
+`/opt/aesthetic-king` and `aesthetic`. The remote `install` calls run under
+`sudo`, so the login you give it needs sudo rights.
+
+It does not transfer code — the VM pulls that from GitHub, because
+`node_modules` here contains a Windows-built `canvas` binary. When it finishes it
+prints the restore command and the `systemctl restart` to run on the VM.
+
 ## 5. Environment files
 
 ### `/opt/aesthetic-king/.env` (bot)
