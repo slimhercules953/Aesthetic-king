@@ -1,6 +1,8 @@
 const { AttachmentBuilder } = require("discord.js");
 const fetch = require('node-fetch');
 
+const config = require("../src/config/env");
+
 module.exports = {
     name: "pinterest",
     description: "Search for aesthetic inspiration on Pinterest",
@@ -16,11 +18,18 @@ module.exports = {
         const query = interaction.options.getString("query");
         //await interaction.deferReply();
 
+        const apiKey = config.search.serpApiKey;
+
+        if (!apiKey) {
+            return interaction.reply(
+                "Pinterest search isn't configured on this instance. Set the " +
+                "`SERPAPI_KEY` environment variable to enable it."
+            );
+        }
+
         try {
-            // Note: Replace 'YOUR_SERPAPI_KEY' with your actual API key
-            // Or use a simple custom search engine JSON API
-            const searchUrl = `https://serpapi.com/search.json?engine=google_images&q=site:pinterest.com+${encodeURIComponent(query)}&api_key=d942f9459f3feff5e2301761d127ceee0553988247b257c00f2841e3fe44d6f3`;
-            
+            const searchUrl = `https://serpapi.com/search.json?engine=google_images&q=site:pinterest.com+${encodeURIComponent(query)}&api_key=${encodeURIComponent(apiKey)}`;
+
             const response = await fetch(searchUrl);
             const data = await response.json();
 

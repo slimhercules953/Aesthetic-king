@@ -75,10 +75,18 @@ function createNewCatalogEntry(set) {
         moods: [],
         colors: [],
 
-        // New uploads land in the free library. Tagging a set premium
-        // is an editorial decision made in assetCatalog.json, so the
-        // generator never sets it on its own.
+        // Editorial flag, kept across regenerations.
         premium: false,
+
+        /*
+         * A fresh upload has no provenance until a curator records one.
+         * Writing "owned" here would silently mark every scraped image
+         * as safe, so the generator states the truth and
+         * `auditAssetLicenses.js` keeps it visible.
+         */
+        license: {
+            kind: "unknown",
+        },
 
         enabled: true,
     };
@@ -125,6 +133,13 @@ function mergeCatalogEntry(
         // Editorial flag, kept across regenerations.
         premium:
             existingEntry.premium === true,
+
+        // Provenance is curated, never inferred from the object key.
+        ...(
+            existingEntry.license
+                ? { license: existingEntry.license }
+                : { license: { kind: "unknown" } }
+        ),
 
         enabled:
             existingEntry.enabled !==

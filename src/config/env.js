@@ -129,9 +129,19 @@ const config = {
             ),
     },
 
+    /*
+     * Third-party image search. Optional: `/pinterest` reports that it is
+     * unconfigured rather than failing, the same way the Studio treats an
+     * unset payment provider.
+     */
+    search: {
+        serpApiKey: process.env.SERPAPI_KEY || null,
+    },
+
     ai: {
         ollamaUrl:
             process.env.OLLAMA_URL || null,
+
 
         ollamaModel:
             process.env.OLLAMA_MODEL || null,

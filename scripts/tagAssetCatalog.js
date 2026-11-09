@@ -16,6 +16,11 @@
  * in and never removed, so a curator can pin a set with `tagAssetSet.js`
  * and regenerate the rest without losing the pin.
  *
+ * A set may also carry its own `curatedTags`. Those come from whatever
+ * produced the artwork - `generateProceduralAssets.js` records the
+ * render style there, which is a fact about the image that the three
+ * facets genuinely cannot express - and are merged in the same way.
+ *
  * Usage:
  *   node scripts/tagAssetCatalog.js           # write the catalog
  *   node scripts/tagAssetCatalog.js --dry-run # print the plan only
@@ -224,6 +229,7 @@ function deriveTags(set) {
     return [
         ...new Set([
             ...tags,
+            ...(set.curatedTags || []),
             ...(MANUAL_TAGS[set.id] || []),
         ]),
     ].sort();

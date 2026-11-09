@@ -11,6 +11,9 @@ output-design.png
 # Config json file
 config.json
 
+# Procedural asset renders (regenerate with scripts/generateProceduralAssets.js)
+generated-assets/
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 slash/test.js
