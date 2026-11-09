@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 import {
+    useCallback,
     useState,
 } from "react";
 
@@ -171,6 +172,17 @@ export default function Topbar({
         setMenuOpen,
     ] = useState(false);
 
+    /*
+     * The notification panel and the mobile navigation sheet both pin to the
+     * same strip of the viewport below `sm`, so opening one dismisses the
+     * other. (Opening the menu already closes the panel: the bell button sits
+     * outside the panel's click-outside container.)
+     */
+    const handleNotificationsOpenChange = useCallback(
+        () => setMenuOpen(false),
+        []
+    );
+
     const pathname =
         usePathname();
 
@@ -220,7 +232,7 @@ export default function Topbar({
                 </div>
 
                 <div className="ml-auto flex items-center gap-2">
-                    <NotificationBell />
+                    <NotificationBell onOpen={handleNotificationsOpenChange} />
 
                     <a
                         href="/dashboard/premium"

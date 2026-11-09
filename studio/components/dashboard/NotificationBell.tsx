@@ -59,7 +59,7 @@ function relativeTime(iso: string): string {
     });
 }
 
-export default function NotificationBell() {
+export default function NotificationBell({ onOpen }: { onOpen: () => void }) {
     const [open, setOpen] = useState(false);
     const [items, setItems] = useState<NotificationItem[]>([]);
     const [unread, setUnread] = useState(0);
@@ -95,6 +95,16 @@ export default function NotificationBell() {
     useEffect(() => {
         void load();
     }, [load]);
+
+    /*
+     * Below `sm` the panel is pinned to the viewport, so it covers exactly the
+     * region the mobile navigation sheet occupies. The topbar closes the sheet
+     * when the panel opens. (The reverse direction already works: the bell
+     * button sits outside the panel's click-outside container.)
+     */
+    useEffect(() => {
+        if (open) onOpen();
+    }, [open, onOpen]);
 
     /*
      * The badge is polled rather than pushed. There is no websocket in this
@@ -208,8 +218,15 @@ export default function NotificationBell() {
                 )}
             </button>
 
+            {/*
+              * On phones the bell sits a few pixels from the right edge, so a
+              * right-anchored panel hangs off the left side of the screen.
+              * Below the small breakpoint the panel is pinned to the viewport
+              * instead (same inset as the mobile nav sheet); from `sm` up there
+              * is room to hang it under the bell again.
+              */}
             {open && (
-                <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-[min(92vw,380px)] overflow-hidden rounded-2xl border border-white/[0.08] bg-[#101015]/98 shadow-2xl shadow-black/60 backdrop-blur-xl">
+                <div className="fixed inset-x-4 top-[calc(5rem+8px)] z-50 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#101015]/98 shadow-2xl shadow-black/60 backdrop-blur-xl sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+10px)] sm:w-[min(92vw,380px)]">
                     <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
                         <p className="text-sm font-semibold text-zinc-200">
                             Notifications
