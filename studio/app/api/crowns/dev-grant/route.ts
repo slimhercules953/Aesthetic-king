@@ -4,6 +4,10 @@ import {
 } from "next/server";
 
 import {
+    resolveAppUrl,
+} from "../../../../lib/auth";
+
+import {
     SESSION_COOKIE_NAME,
     verifySessionToken,
 } from "../../../../lib/session";
@@ -120,7 +124,7 @@ export async function POST(
     );
 
     return NextResponse.redirect(
-        new URL(
+        resolveAppUrl(
             "/dashboard/premium/crowns",
             request.url
         )

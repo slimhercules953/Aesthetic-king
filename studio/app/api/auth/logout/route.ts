@@ -4,6 +4,7 @@ import {
 } from "next/server";
 
 import {
+    resolveAppUrl,
     shouldUseSecureCookies,
 } from "../../../../lib/auth";
 
@@ -18,12 +19,22 @@ export async function POST(
 ) {
     const response =
         NextResponse.redirect(
-            new URL(
+            resolveAppUrl(
                 "/",
                 request.url
             ),
             {
                 status: 303,
+
+                headers: {
+                    /*
+                     * Same reason as sign-in: a cached sign-out would
+                     * keep bouncing a newly signed-in browser to the
+                     * landing page.
+                     */
+                    "Cache-Control":
+                        "no-store, must-revalidate",
+                },
             }
         );
 

@@ -153,6 +153,36 @@ export function shouldUseSecureCookies(
     }
 }
 
+/**
+ * An absolute URL for a redirect that stays inside this app.
+ *
+ * Redirects used to be built as `new URL("/dashboard", request.url)`,
+ * which looks harmless but is wrong behind any TLS-terminating proxy.
+ * A Cloudflare Tunnel hands the Node server plain http on localhost, so
+ * `request.url` is `http://127.0.0.1:3100/...` and every redirect came
+ * back as `Location: http://aesthetic.etterdigital.dev/dashboard`. The
+ * session cookie is `Secure`, so the browser refuses to send it over
+ * http; the dashboard guard then sees nobody signed in and bounces the
+ * user to the landing page. Sign-in appeared to succeed and then
+ * silently was not.
+ *
+ * Anchoring on `resolveAppOrigin` means a redirect can never point at an
+ * origin the session cookie is not valid for — the two now share one
+ * source of truth, so they cannot drift apart again. It also keeps the
+ * Host header untrusted, exactly as the OAuth `redirect_uri` already is.
+ */
+export function resolveAppUrl(
+    path: string,
+    requestUrl: string
+): URL {
+    return new URL(
+        path,
+        resolveAppOrigin(
+            requestUrl
+        )
+    );
+}
+
 export const OAUTH_STATE_COOKIE_NAME =
     "discord_oauth_state";
 

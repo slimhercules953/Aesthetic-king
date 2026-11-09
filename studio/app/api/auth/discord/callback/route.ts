@@ -10,6 +10,7 @@ import {
     OAUTH_STATE_COOKIE_NAME,
     OAUTH_VERIFIER_COOKIE_NAME,
     resolveAppOrigin,
+    resolveAppUrl,
     shouldUseSecureCookies,
 } from "../../../../../lib/auth";
 
@@ -170,10 +171,22 @@ export async function GET(
 
         const response =
             NextResponse.redirect(
-                new URL(
+                resolveAppUrl(
                     "/dashboard",
                     request.url
-                )
+                ),
+                {
+                    /*
+                     * A redirect that follows a login must never be
+                     * stored. A cached 307 would replay this response
+                     * with its old cookies and drop the visitor back at
+                     * the landing page.
+                     */
+                    headers: {
+                        "Cache-Control":
+                            "no-store, must-revalidate",
+                    },
+                }
             );
 
         response.cookies.set(
